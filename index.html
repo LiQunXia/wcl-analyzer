@@ -120,11 +120,22 @@
 
   /* ---------- cards ---------- */
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
-  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px 0; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px 0; flex-wrap: wrap; }
   .card-head h3 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .02em; }
   .legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-3); flex-wrap: wrap; }
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
   .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .chart-tools { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-3); }
+  .zoom { display: inline-flex; align-items: center; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
+  .zoom button { height: 26px; min-width: 28px; padding: 0 8px; border: 0; background: none; color: var(--text-2); cursor: pointer; font-size: 13px; }
+  .zoom button:hover:not(:disabled) { background: rgba(255,255,255,.05); color: var(--text); }
+  .zoom button:disabled { opacity: .35; cursor: default; }
+  .zoom #zoomReset { min-width: 52px; font-family: var(--mono); font-size: 11px; border-inline: 1px solid var(--line-2); }
+  .chart-box { display: flex; padding-bottom: 8px; }
+  #chartAxis { flex: none; width: 116px; }
+  .chart-scroll { flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden; margin-right: 12px;
+    scrollbar-width: thin; scrollbar-color: #2a2d35 transparent; }
+  .chart-scroll.dragging, .chart-scroll.dragging * { cursor: grabbing !important; }
   #chart { width: 100%; }
 
   /* ---------- main grid ---------- */
@@ -288,10 +299,20 @@
           <span><i style="background:linear-gradient(180deg,#ef6a4c,#e9b35a)"></i>全团承伤</span>
           <span><i style="background:rgba(242,161,90,.35)"></i>嗜血</span>
           <span><i style="background:#ef6a4c;border-radius:50%;width:7px;height:7px"></i>玩家死亡</span>
-          <span>拖动底部滑块缩放</span>
+        </div>
+        <div class="chart-tools">
+          <span>⌘/Ctrl + 滚轮缩放 · 拖动或横向滑动平移</span>
+          <div class="zoom">
+            <button id="zoomOut" title="缩小">−</button>
+            <button id="zoomReset" title="适应宽度">100%</button>
+            <button id="zoomIn" title="放大">+</button>
+          </div>
         </div>
       </div>
-      <div id="chart"></div>
+      <div class="chart-box">
+        <div id="chartAxis"></div>
+        <div class="chart-scroll" id="chartScroll"><div id="chart"></div></div>
+      </div>
     </section>
 
     <div class="grid">
@@ -348,8 +369,8 @@ const wan = (v) => v >= 1e8 ? `${(v / 1e8).toFixed(2)}亿` : `${Math.round(v / 1
 const iconUrl = (icon, size = "medium") => `https://wow.zamimg.com/images/wow/icons/${size}/${icon || "inv_misc_questionmark"}.jpg`;
 const spellAttr = (id) => `href="https://www.wowhead.com/cn/spell=${id}" data-wowhead="spell=${id}&domain=cn" target="_blank"`;
 
-const state = { code: null, fights: [], fightId: null, data: null, selected: new Set(), focusBoss: null, nameMode: "spec" };
-let chart = null, moments = [];
+const state = { code: null, fights: [], fightId: null, data: null, selected: new Set(), focusBoss: null, nameMode: "spec", zoom: 1 };
+let chart = null, axisChart = null, moments = [];
 
 async function api(path) {
   const r = await fetch(path);
@@ -414,9 +435,11 @@ async function loadFight(id) {
     state.data = data;
     state.selected.clear();
     state.focusBoss = null;
+    state.zoom = 1;
     history.replaceState(null, "", `?r=${state.code}&f=${id}`);
     showMsg(null);
     render();
+    $("chartScroll").scrollLeft = 0;
     const active = $("fights").querySelector(".pull.active");
     active?.scrollIntoView({ block: "nearest", inline: "center" });
   } catch (e) { showMsg("error", e.message); }
@@ -611,7 +634,11 @@ function renderPlaybook() {
 
   document.querySelectorAll(".moment").forEach((li) => {
     const m = moments[+li.dataset.i];
-    li.onmouseenter = () => highlightWindow(m.anchor ?? m.t, Math.max(m.last, m.anchor ?? m.t) + HIGHLIGHT_SEC);
+    li.onmouseenter = () => {
+      const t0 = m.anchor ?? m.t, t1 = Math.max(m.last, t0) + HIGHLIGHT_SEC;
+      highlightWindow(t0, t1);
+      revealTime(t0, t1);
+    };
     li.onmouseleave = () => highlightWindow(null);
   });
   applyFocus();
@@ -671,13 +698,17 @@ function renderChart(casts) {
   const healers = data.healers.filter((h) => !state.selected.size || state.selected.has(h.id));
   const lanes = ["Boss", ...healers.map((h) => String(h.id))];
   const laneH = 34, areaTop = 34, areaH = 120, lanesTop = areaTop + areaH + 22;
-  const height = lanesTop + lanes.length * laneH + 52;
-  $("chart").style.height = `${height}px`;
+  const height = lanesTop + lanes.length * laneH + 30;
+  const width = chartWidth(state.zoom);
+  $("chart").style.height = $("chartAxis").style.height = `${height}px`;
+  $("chart").style.width = `${width}px`;
   if (!chart) {
     chart = echarts.init($("chart"), null, { renderer: "canvas" });
-    window.addEventListener("resize", () => chart.resize());
+    axisChart = echarts.init($("chartAxis"), null, { renderer: "canvas" });
+    window.addEventListener("resize", () => { axisChart.resize(); setZoom(state.zoom); });
   }
   chart.resize();
+  axisChart.resize();
 
   const b = data.bucketSec, dur = data.fight.duration;
   const dmg = data.damage.map((v, i) => [Math.min(i * b + b / 2, dur), v]);
@@ -697,32 +728,35 @@ function renderChart(casts) {
   rich.sub = { color: "#5e626c", fontSize: 11 };
   const tip = { backgroundColor: "rgba(20,22,28,.96)", borderColor: "rgba(255,255,255,.1)", textStyle: { color: "#ebe8e3", fontSize: 12 }, extraCssText: "border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.5);padding:10px 12px;" };
   const abilities = data.bossAbilities;
+  const fontFamily = getComputedStyle(document.body).fontFamily;
+  const gridTops = [{ top: areaTop, height: areaH }, { top: lanesTop, height: lanes.length * laneH }];
+  const yAxes = (showLabels) => [
+    { gridIndex: 0, type: "value", min: 0, max: maxDmg * 1.18, splitNumber: 2, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: showLabels, color: "#5e626c", fontSize: 11, formatter: (v) => v ? `${wan(v)}/s` : "" },
+      splitLine: { show: !showLabels, lineStyle: { color: "rgba(255,255,255,.04)" } } },
+    { gridIndex: 1, type: "category", data: lanes, inverse: true, axisTick: { show: false }, axisLine: { show: false },
+      axisLabel: { show: showLabels, rich, formatter: (id) => id === "Boss" ? "{boss|BOSS 技能}" : `{${byId[id].cls}|${byId[id].name}}\n{sub|${labels[id]}}`, lineHeight: 15 },
+      splitLine: { show: !showLabels, lineStyle: { color: "rgba(255,255,255,.04)" } } },
+  ];
 
+  axisChart.setOption({
+    animation: false,
+    textStyle: { fontFamily },
+    grid: gridTops.map((g) => ({ ...g, left: 115, right: 0 })),
+    xAxis: [0, 1].map((i) => ({ gridIndex: i, type: "value", show: false })),
+    yAxis: yAxes(true),
+  }, true);
+
+  const interval = timeInterval(width);
   chart.setOption({
     backgroundColor: "transparent",
     animation: false,
-    textStyle: { fontFamily: getComputedStyle(document.body).fontFamily },
-    grid: [
-      { left: 116, right: 28, top: areaTop, height: areaH },
-      { left: 116, right: 28, top: lanesTop, height: lanes.length * laneH },
-    ],
+    textStyle: { fontFamily },
+    grid: gridTops.map((g) => ({ ...g, left: CHART_PAD.left, right: CHART_PAD.right })),
     xAxis: [
-      { ...axisBase, gridIndex: 0, axisLabel: { show: false } },
-      { ...axisBase, gridIndex: 1, position: "bottom", axisLabel: { color: "#5e626c", formatter: mmss, fontFamily: "SF Mono, Menlo, monospace", fontSize: 11 } },
+      { ...axisBase, gridIndex: 0, interval, axisLabel: { show: false } },
+      { ...axisBase, gridIndex: 1, interval, position: "bottom", axisLabel: { color: "#5e626c", formatter: mmss, fontFamily: "SF Mono, Menlo, monospace", fontSize: 11 } },
     ],
-    yAxis: [
-      { gridIndex: 0, type: "value", max: maxDmg * 1.18, splitNumber: 2, axisLabel: { color: "#5e626c", fontSize: 11, formatter: (v) => v ? `${wan(v)}/s` : "" }, splitLine: { lineStyle: { color: "rgba(255,255,255,.04)" } } },
-      { gridIndex: 1, type: "category", data: lanes, inverse: true, axisTick: { show: false }, axisLine: { show: false },
-        axisLabel: { rich, formatter: (id) => id === "Boss" ? "{boss|BOSS 技能}" : `{${byId[id].cls}|${byId[id].name}}\n{sub|${labels[id]}}`, lineHeight: 15 },
-        splitLine: { show: true, lineStyle: { color: "rgba(255,255,255,.04)" } } },
-    ],
-    dataZoom: [{
-      type: "slider", xAxisIndex: [0, 1], height: 14, bottom: 12, left: 116, right: 28, borderColor: "transparent",
-      backgroundColor: "rgba(255,255,255,.03)", fillerColor: "rgba(233,179,90,.12)", handleSize: "100%",
-      handleStyle: { color: "#2a2d35", borderColor: "rgba(233,179,90,.6)" }, moveHandleSize: 0, showDetail: false,
-      dataBackground: { lineStyle: { color: "rgba(233,179,90,.35)" }, areaStyle: { color: "rgba(233,179,90,.08)" } },
-      selectedDataBackground: { lineStyle: { color: "rgba(233,179,90,.6)" }, areaStyle: { color: "rgba(233,179,90,.15)" } },
-    }],
+    yAxis: yAxes(false),
     tooltip: { trigger: "item", confine: true, ...tip },
     series: [
       {
@@ -773,6 +807,7 @@ function renderChart(casts) {
 
   chart.off("click");
   chart.on("click", { seriesName: "大招" }, (p) => {
+    if (Date.now() - lastDragEnd < 80) return;
     const i = moments.findIndex((m) => m.cds.includes(casts[p.data.ci]));
     const li = $(`m-${i}`);
     if (!li) return;
@@ -781,6 +816,7 @@ function renderChart(casts) {
     void li.offsetWidth;
     li.classList.add("flash");
   });
+  updateZoomUi();
   chart.off("mouseover"); chart.off("mouseout");
   chart.on("mouseover", { seriesName: "大招" }, (p) => highlightWindow(p.data.c.t, p.data.c.t + HIGHLIGHT_SEC));
   chart.on("mouseout", { seriesName: "大招" }, () => highlightWindow(null));
@@ -791,6 +827,82 @@ function highlightWindow(t0, t1) {
   const area = t0 == null ? [] : [[{ xAxis: t0 }, { xAxis: Math.min(t1, state.data.fight.duration) }]];
   chart.setOption({ series: [{ name: "窗口", markArea: { data: area } }, { name: "窗口上", markArea: { data: area } }] });
 }
+
+/* ---------- chart zoom & pan ---------- */
+
+const CHART_PAD = { left: 14, right: 28 };
+const CHART_MAX_WIDTH = 8000, ZOOM_STEP = 1.5;
+let drag = null, lastDragEnd = 0;
+
+const plotWidth = (w) => w - CHART_PAD.left - CHART_PAD.right;
+const chartWidth = (zoom) => Math.round($("chartScroll").clientWidth * zoom);
+const maxZoom = () => Math.max(1, CHART_MAX_WIDTH / $("chartScroll").clientWidth);
+
+function timeInterval(width) {
+  const pxPerSec = plotWidth(width) / state.data.fight.duration;
+  return [5, 10, 15, 20, 30, 60, 120].find((s) => s * pxPerSec >= 72) || 300;
+}
+
+function setZoom(zoom, anchorX) {
+  if (!chart || !state.data) return;
+  const box = $("chartScroll"), view = box.clientWidth;
+  anchorX ??= view / 2;
+  const oldW = $("chart").offsetWidth || view;
+  const frac = (box.scrollLeft + anchorX - CHART_PAD.left) / plotWidth(oldW);
+  state.zoom = Math.min(Math.max(zoom, 1), maxZoom());
+  const w = chartWidth(state.zoom);
+  $("chart").style.width = `${w}px`;
+  chart.resize();
+  const interval = timeInterval(w);
+  chart.setOption({ xAxis: [{ interval }, { interval }] });
+  box.scrollLeft = CHART_PAD.left + frac * plotWidth(w) - anchorX;
+  updateZoomUi();
+}
+
+function updateZoomUi() {
+  $("zoomReset").textContent = `${Math.round(state.zoom * 100)}%`;
+  $("zoomOut").disabled = state.zoom <= 1;
+  $("zoomIn").disabled = state.zoom >= maxZoom() - 0.01;
+}
+
+function revealTime(t0, t1) {
+  const box = $("chartScroll");
+  if (box.scrollWidth <= box.clientWidth) return;
+  const x = (t) => CHART_PAD.left + (t / state.data.fight.duration) * plotWidth(box.scrollWidth);
+  const left = x(t0), right = x(Math.min(t1, state.data.fight.duration));
+  if (left >= box.scrollLeft && right <= box.scrollLeft + box.clientWidth) return;
+  box.scrollTo({ left: (left + right) / 2 - box.clientWidth / 2, behavior: "smooth" });
+}
+
+$("zoomIn").onclick = () => setZoom(state.zoom * ZOOM_STEP);
+$("zoomOut").onclick = () => setZoom(state.zoom / ZOOM_STEP);
+$("zoomReset").onclick = () => setZoom(1);
+
+$("chartScroll").addEventListener("wheel", (e) => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();
+  const delta = Math.max(-50, Math.min(50, e.deltaY));
+  setZoom(state.zoom * Math.exp(-delta * 0.01), e.clientX - $("chartScroll").getBoundingClientRect().left);
+}, { passive: false });
+
+$("chartScroll").addEventListener("pointerdown", (e) => {
+  const box = $("chartScroll");
+  if (e.pointerType !== "mouse" || e.button !== 0 || box.scrollWidth <= box.clientWidth) return;
+  drag = { x: e.clientX, left: box.scrollLeft, moved: false };
+});
+window.addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x;
+  if (!drag.moved && Math.abs(dx) < 4) return;
+  drag.moved = true;
+  $("chartScroll").classList.add("dragging");
+  $("chartScroll").scrollLeft = drag.left - dx;
+});
+window.addEventListener("pointerup", () => {
+  if (drag?.moved) lastDragEnd = Date.now();
+  drag = null;
+  $("chartScroll").classList.remove("dragging");
+});
 
 /* ---------- boot ---------- */
 

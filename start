@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+project_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+python="$project_dir/.venv/bin/python"
+
+if [ ! -x "$python" ]; then
+    printf '缺少项目虚拟环境。请先运行：\n  cd %s && python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt\n' "$project_dir" >&2
+    exit 1
+fi
+
+exec "$python" "$project_dir/server.py" "$@"
