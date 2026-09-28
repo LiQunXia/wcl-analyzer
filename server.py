@@ -15,9 +15,13 @@ CACHE = ROOT / "cache"
 WCL = "https://www.warcraftlogs.com"
 HOST, PORT = "127.0.0.1", 8000
 
-BUCKET_SEC = 5
+BUCKET_SEC = 3
 WINDOW_SEC = 15
-OVERLAP_SEC = 10
+ATTRIB_BEFORE_SEC, ATTRIB_AFTER_SEC = 3, 12
+ANCHOR_BEFORE_SEC, ANCHOR_AFTER_SEC = 12, 6
+BOSS_DEDUP_SEC = 4
+MIN_BOSS_DAMAGE_SHARE = 0.015
+IGNORED_DAMAGE = {1, 3}  # melee, falling
 DIFFICULTY = {1: "随机", 3: "普通", 4: "英雄", 5: "史诗", 10: "大秘境"}
 
 
@@ -73,34 +77,34 @@ def cached(name, fetch, persist=True):
     return data
 
 
-# ---------- spells (zhCN names via Wowhead) ----------
+# ---------- spells (zhCN names + icons via Wowhead) ----------
 
 _spell_lock = threading.Lock()
-_spell_file = CACHE / "spells_zh.json"
+_spell_file = CACHE / "spells.json"
 _spells = json.loads(_spell_file.read_text("utf-8")) if _spell_file.exists() else {}
 
 
 def _fetch_spell(spell_id):
     try:
         r = requests.get(f"https://nether.wowhead.com/tooltip/spell/{spell_id}?locale=4", timeout=15)
-        name = r.json().get("name")
-        return spell_id, name
+        j = r.json()
+        return spell_id, {"name": j.get("name"), "icon": j.get("icon")} if j.get("name") else None
     except Exception:
         return spell_id, None
 
 
-def zh_names(spell_ids):
+def spell_info(spell_ids):
     missing = [i for i in {str(i) for i in spell_ids} if i not in _spells]
     if missing:
         with ThreadPoolExecutor(8) as pool:
             results = list(pool.map(_fetch_spell, missing))
         with _spell_lock:
-            for sid, name in results:
-                if name:
-                    _spells[sid] = name
+            for sid, info in results:
+                if info:
+                    _spells[sid] = info
             CACHE.mkdir(exist_ok=True)
             _spell_file.write_text(json.dumps(_spells, ensure_ascii=False, indent=0), "utf-8")
-    return {int(i): _spells.get(str(i)) for i in spell_ids}
+    return {int(i): _spells.get(str(i)) or {} for i in spell_ids}
 
 
 # ---------- report ----------
@@ -150,6 +154,65 @@ def load_cooldowns():
             for spec, entries in cds.items() if not spec.startswith("_") for e in entries}
 
 
+def graph(code, fight_id, rng, view, hostile, persist):
+    suffix = "_enemy" if hostile else ""
+    return cached(f"{code}/{fight_id}_{view.split('-')[0]}{suffix}.json", lambda: wcl.get_json(
+        code, f"/reports/graph/{view}/{rng}/ability/{int(hostile)}/0/0/0/0/0/-1.0.-1.-1/0/Any/Any/0/0"), persist)
+
+
+def per_second(series, start, n_sec):
+    arr = [0.0] * n_sec
+    interval = series["pointInterval"] / 1000
+    for i, rate in enumerate(series.get("data") or []):
+        if rate:
+            _spread(arr, (series["pointStart"] - start) / 1000 + i * interval, interval, rate)
+    return arr
+
+
+def event_list(series):
+    for s in series:
+        if "guid" not in s:
+            continue
+        for pair in s.get("events") or []:
+            yield s, pair[0] if isinstance(pair, list) else pair
+
+
+def boss_abilities(dmg, friendly_guids, cast_names, start, n_sec):
+    """Damage-taken abilities that come from the encounter, merged by name (one spell often has several ids)."""
+    series = [s for s in dmg.get("series", []) if "guid" in s]
+    total = sum(s.get("total", 0) for s in series) or 1
+    abilities = {}
+    for s in series:
+        g, name = s["guid"], s["name"]
+        if g in IGNORED_DAMAGE or g in friendly_guids:
+            continue
+        if s.get("total", 0) < MIN_BOSS_DAMAGE_SHARE * total and name not in cast_names:
+            continue
+        sec = per_second(s, start, n_sec)
+        a = abilities.get(name)
+        if a is None:
+            abilities[name] = {"spell": g, "total": s.get("total", 0), "sec": sec, "top": s.get("total", 0)}
+            continue
+        a["sec"] = [x + y for x, y in zip(a["sec"], sec)]
+        a["total"] += s.get("total", 0)
+        if s.get("total", 0) > a["top"]:
+            a["spell"], a["top"] = g, s.get("total", 0)
+    for a in abilities.values():
+        a["avg"] = sum(a["sec"]) / max(n_sec, 1)
+    return abilities
+
+
+def attribute(t, abilities, n_sec, min_excess):
+    """The boss ability whose damage rises most above its own baseline right around t."""
+    i0, i1 = max(0, int(t) - ATTRIB_BEFORE_SEC), min(n_sec, int(t) + ATTRIB_AFTER_SEC)
+    best, best_excess = None, min_excess
+    for name, a in abilities.items():
+        excess = sum(a["sec"][i0:i1]) - a["avg"] * (i1 - i0)
+        if excess > best_excess:
+            best, best_excess = name, excess
+    return best
+
+
 def api_fight(code, fight_id):
     meta = report_meta(code)
     fight = next((f for f in meta["fights"] if f["id"] == fight_id), None)
@@ -158,72 +221,87 @@ def api_fight(code, fight_id):
     start, end = fight["start_time"], fight["end_time"]
     persist = not fight.get("inProgress")
     rng = f"{code}/{fight_id}/{start}/{end}"
-    dmg = cached(f"{code}/{fight_id}_damage.json", lambda: wcl.get_json(
-        code, f"/reports/graph/damage-taken/{rng}/ability/0/0/0/0/0/0/-1.0.-1.-1/0/Any/Any/0/0"), persist)
-    casts = cached(f"{code}/{fight_id}_casts.json", lambda: wcl.get_json(
-        code, f"/reports/graph/casts/{rng}/ability/0/0/0/0/0/0/-1.0.-1.-1/0/Any/Any/0/0"), persist)
+    dmg = graph(code, fight_id, rng, "damage-taken", False, persist)
+    casts = graph(code, fight_id, rng, "casts", False, persist)
+    enemy_casts = graph(code, fight_id, rng, "casts", True, persist)
 
     tag = f".{fight_id}."
     players = {p["id"]: p for p in meta["friendlies"] if tag in (p.get("fights") or "")}
+    enemies = {e["id"]: e for e in meta["enemies"]}
     cooldowns = load_cooldowns()
     healer_specs = {c["spec"] for c in cooldowns.values()}
     specs = {pid: p.get("icon") for pid, p in players.items() if p.get("icon") in healer_specs}
 
     duration = (end - start) / 1000
     n_sec = int(duration) + 1
-    per_sec = [0.0] * n_sec
-    for s in dmg.get("series", []):
-        interval = s["pointInterval"] / 1000
-        for i, rate in enumerate(s.get("data") or []):
-            if not rate:
-                continue
-            t0 = (s["pointStart"] - start) / 1000 + i * interval
-            _spread(per_sec, t0, interval, rate)
-
+    total_series = next((s for s in dmg.get("series", []) if s.get("id") == "Total"), None)
+    per_sec = per_second(total_series, start, n_sec) if total_series else [0.0] * n_sec
     n_buckets = (n_sec + BUCKET_SEC - 1) // BUCKET_SEC
-    buckets = [sum(per_sec[b * BUCKET_SEC:(b + 1) * BUCKET_SEC]) for b in range(n_buckets)]
+    buckets = [sum(per_sec[b * BUCKET_SEC:(b + 1) * BUCKET_SEC]) / BUCKET_SEC for b in range(n_buckets)]
+    avg_window = sum(per_sec) / max(duration, 1) * WINDOW_SEC
+
+    raw_boss = []
+    for s, ev in event_list(enemy_casts.get("series", [])):
+        src = enemies.get(ev.get("sourceID"))
+        if not src or ev.get("type") not in ("cast", "begincast"):
+            continue
+        raw_boss.append({
+            "t": round((ev["timestamp"] - start) / 1000, 1),
+            "spell": s["guid"],
+            "en": s["name"],
+            "icon": ev["ability"].get("abilityIcon", "").removesuffix(".jpg"),
+            "isBoss": src.get("type") == "Boss",
+        })
+    raw_boss.sort(key=lambda c: c["t"])
+
+    friendly_guids = {s["guid"] for s in casts.get("series", []) if "guid" in s}
+    abilities = boss_abilities(dmg, friendly_guids, {c["en"] for c in raw_boss}, start, n_sec)
+
+    boss_casts, last_seen = [], {}
+    for c in raw_boss:
+        if not (c["isBoss"] or c["en"] in abilities):
+            continue
+        if c["t"] - last_seen.get(c["en"], -99) < BOSS_DEDUP_SEC:
+            continue
+        last_seen[c["en"]] = c["t"]
+        boss_casts.append(c)
 
     events = []
-    for s in casts.get("series", []):
-        if s.get("guid") not in cooldowns:
+    for s, ev in event_list(casts.get("series", [])):
+        if s["guid"] not in cooldowns:
             continue
-        for pair in s.get("events") or []:
-            ev = pair[0] if isinstance(pair, list) else pair
-            src = ev.get("sourceID")
-            if src not in players or ev.get("type") != "cast":
-                continue
-            cd_spec = cooldowns[s["guid"]]["spec"]
-            icon = players[src].get("icon") or ""
-            if src not in specs and "-" not in icon and icon == cd_spec.split("-")[0]:
-                specs[src] = cd_spec
-            if specs.get(src) != cd_spec:
-                continue
-            ab = ev["ability"]
-            events.append({
-                "t": round((ev["timestamp"] - start) / 1000, 1),
-                "sourceID": src,
-                "spell": ab["guid"],
-                "en": ab["name"],
-                "icon": ab.get("abilityIcon", "").removesuffix(".jpg"),
-                "category": cooldowns[ab["guid"]]["category"],
-            })
+        src = ev.get("sourceID")
+        if src not in players or ev.get("type") != "cast":
+            continue
+        cd_spec = cooldowns[s["guid"]]["spec"]
+        icon = players[src].get("icon") or ""
+        if src not in specs and "-" not in icon and icon == cd_spec.split("-")[0]:
+            specs[src] = cd_spec
+        if specs.get(src) != cd_spec:
+            continue
+        ab = ev["ability"]
+        t = round((ev["timestamp"] - start) / 1000, 1)
+        i = int(t)
+        window = sum(per_sec[i:i + WINDOW_SEC])
+        boss = attribute(t, abilities, n_sec, 0.1 * avg_window)
+        anchors = [b["t"] for b in raw_boss if b["en"] == boss
+                   and t - ANCHOR_BEFORE_SEC <= b["t"] <= t + ANCHOR_AFTER_SEC]
+        events.append({
+            "t": t,
+            "sourceID": src,
+            "spell": ab["guid"],
+            "en": ab["name"],
+            "icon": ab.get("abilityIcon", "").removesuffix(".jpg"),
+            "category": cooldowns[ab["guid"]]["category"],
+            "ratio": round(window / avg_window, 2) if avg_window else None,
+            "boss": boss,
+            "anchor": min(anchors, key=lambda a: (a > t, abs(t - a))) if anchors else None,
+        })
     events.sort(key=lambda e: e["t"])
     healers = [
         {"id": pid, "name": players[pid]["name"], "cls": players[pid].get("type"), "spec": spec}
         for pid, spec in specs.items()
     ]
-
-    avg_window = sum(per_sec) / max(duration, 1) * WINDOW_SEC
-    for e in events:
-        i = int(e["t"])
-        e["dmgWindow"] = round(sum(per_sec[i:i + WINDOW_SEC]))
-        e["ratio"] = round(e["dmgWindow"] / avg_window, 2) if avg_window else None
-        e["overlap"] = [
-            {"sourceID": o["sourceID"], "spell": o["spell"], "dt": round(o["t"] - e["t"], 1)}
-            for o in events
-            if o is not e and o["category"] == "raid" and o["sourceID"] != e["sourceID"]
-            and abs(o["t"] - e["t"]) <= OVERLAP_SEC
-        ]
 
     deaths = []
     for d in dmg.get("deaths", []):
@@ -235,7 +313,7 @@ def api_fight(code, fight_id):
         deaths.append({
             "t": round((d["timestamp"] - start) / 1000, 1),
             "name": players[d["targetID"]]["name"],
-            "spec": players[d["targetID"]].get("icon"),
+            "cls": players[d["targetID"]].get("type"),
             "spell": ka.get("guid"),
             "en": ka.get("name"),
         })
@@ -252,21 +330,33 @@ def api_fight(code, fight_id):
     })
     heroism = [{"t": t, "end": e} for t, e in heroism]
 
-    names = zh_names({e["spell"] for e in events} | {d["spell"] for d in deaths if d["spell"]})
+    cast_icon = {c["en"]: c["icon"] for c in raw_boss}
+    info = spell_info({e["spell"] for e in events} | {d["spell"] for d in deaths if d["spell"]}
+                      | {a["spell"] for a in abilities.values()} | {c["spell"] for c in boss_casts})
     for item in events + deaths:
-        item["zh"] = names.get(item["spell"])
-    for e in events:
-        for o in e["overlap"]:
-            o["zh"] = names.get(o["spell"])
+        item["zh"] = info[item["spell"]].get("name")
+    boss_info = {
+        name: {
+            "spell": a["spell"],
+            "zh": info[a["spell"]].get("name"),
+            "icon": cast_icon.get(name) or info[a["spell"]].get("icon"),
+            "share": round(a["total"] / max(sum(x["total"] for x in abilities.values()), 1), 3),
+        }
+        for name, a in abilities.items()
+    }
+    for c in boss_casts:
+        c["zh"] = info[c["spell"]].get("name") or boss_info.get(c["en"], {}).get("zh")
+        del c["isBoss"]
 
     return {
         "code": code,
         "fight": fmt_fight(fight),
         "healers": healers,
         "bucketSec": BUCKET_SEC,
-        "windowSec": WINDOW_SEC,
         "damage": [round(v) for v in buckets],
         "casts": events,
+        "bossCasts": boss_casts,
+        "bossAbilities": boss_info,
         "deaths": deaths,
         "phases": phases,
         "heroism": heroism,

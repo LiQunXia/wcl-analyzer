@@ -2,69 +2,354 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>WCL 治疗大招时间轴</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>治疗作业 · 从顶尖团队的日志学习大招时机</title>
 <script>const whTooltips = { colorLinks: false, iconizeLinks: false, renameLinks: false };</script>
 <script src="https://wow.zamimg.com/js/tooltips.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 <style>
-  body { margin: 0; padding: 20px 28px; background: #16181c; color: #ddd; font: 14px/1.5 -apple-system, "PingFang SC", sans-serif; }
-  h1 { font-size: 18px; margin: 0 0 14px; }
-  .bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  input[type=text] { flex: 1; min-width: 420px; padding: 8px 10px; background: #22252b; border: 1px solid #3a3e46; color: #eee; border-radius: 4px; }
-  select, button { padding: 8px 12px; background: #2b4f86; border: 0; color: #fff; border-radius: 4px; cursor: pointer; }
-  select { background: #22252b; border: 1px solid #3a3e46; }
-  #msg { margin: 12px 0; color: #e0a040; }
-  #summary { margin: 14px 0 6px; font-size: 15px; }
-  #summary .kill { color: #5fd35f; } #summary .wipe { color: #e05555; }
-  #chart { height: 520px; margin-top: 6px; }
-  table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-  th, td { padding: 5px 8px; border-bottom: 1px solid #2c2f36; text-align: left; white-space: nowrap; }
-  th { color: #999; font-weight: normal; }
-  tr:hover td { background: #1f2227; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .hot { color: #ff8c5a; } .cold { color: #777; }
-  a { color: #8ab4ff; text-decoration: none; }
-  img.icon { width: 18px; height: 18px; vertical-align: -4px; margin-right: 4px; border-radius: 3px; }
-  .muted { color: #888; font-size: 12px; }
-  h2 { font-size: 15px; margin: 22px 0 4px; }
-  label { user-select: none; cursor: pointer; }
+  :root {
+    --bg: #0a0b0e;
+    --surface: #111318;
+    --surface-2: #161920;
+    --line: rgba(255, 255, 255, 0.06);
+    --line-2: rgba(255, 255, 255, 0.1);
+    --text: #ebe8e3;
+    --text-2: #9b9ea8;
+    --text-3: #5e626c;
+    --accent: #e9b35a;
+    --accent-soft: rgba(233, 179, 90, 0.12);
+    --hot: #ef6a4c;
+    --kill: #5ccf8a;
+    --radius: 14px;
+    --mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { background: var(--bg); }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text);
+    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Inter", "PingFang SC", "Hiragino Sans GB", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background:
+      radial-gradient(1200px 500px at 50% -220px, rgba(233, 179, 90, 0.09), transparent 70%),
+      var(--bg);
+  }
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; }
+  img { display: block; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
+
+  /* ---------- top bar ---------- */
+  .top { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(14px) saturate(140%);
+    background: rgba(10, 11, 14, 0.72); border-bottom: 1px solid var(--line); }
+  .top .wrap { display: flex; align-items: center; gap: 28px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 11px; flex: none; }
+  .brand-mark { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+    background: linear-gradient(145deg, #f3c877, #b9782c); box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 6px 18px rgba(233,179,90,.25); }
+  .brand-mark svg { width: 16px; height: 16px; }
+  .brand b { font-size: 15px; letter-spacing: .02em; font-weight: 600; }
+  .brand span { color: var(--text-3); font-size: 12px; margin-left: 2px; }
+  .search { flex: 1; display: flex; align-items: center; max-width: 640px; margin-left: auto; height: 38px;
+    background: var(--surface); border: 1px solid var(--line-2); border-radius: 10px; padding: 0 4px 0 14px; transition: border-color .15s, box-shadow .15s; }
+  .search:focus-within { border-color: rgba(233,179,90,.5); box-shadow: 0 0 0 4px rgba(233,179,90,.08); }
+  .search svg { width: 15px; height: 15px; color: var(--text-3); flex: none; }
+  .search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--text); font: inherit; padding: 0 10px; }
+  .search input::placeholder { color: var(--text-3); }
+  .btn { height: 30px; padding: 0 14px; border-radius: 7px; border: 0; cursor: pointer; font-weight: 600; font-size: 13px;
+    background: var(--accent); color: #1a1408; transition: filter .15s, transform .1s; }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:active { transform: translateY(1px); }
+
+  /* ---------- empty state ---------- */
+  .hero { padding: 120px 0 80px; text-align: center; }
+  .hero h1 { margin: 0; font-size: 44px; line-height: 1.15; font-weight: 700; letter-spacing: -.01em; }
+  .hero h1 em { font-style: normal; background: linear-gradient(120deg, #f6d493, #d98b3a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p { color: var(--text-2); font-size: 16px; margin: 18px auto 0; max-width: 560px; }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 880px; margin: 64px auto 0; text-align: left; }
+  .step { padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(180deg, rgba(255,255,255,.025), transparent); }
+  .step i { font-style: normal; font-family: var(--mono); font-size: 12px; color: var(--accent); }
+  .step h3 { margin: 10px 0 6px; font-size: 15px; font-weight: 600; }
+  .step p { margin: 0; color: var(--text-2); font-size: 13px; }
+
+  /* ---------- status ---------- */
+  #msg { margin: 20px 0 0; }
+  .notice { display: flex; gap: 10px; align-items: center; padding: 12px 16px; border-radius: 10px; font-size: 13px;
+    background: rgba(239,106,76,.08); border: 1px solid rgba(239,106,76,.25); color: #f3a491; }
+  .loading { display: flex; gap: 10px; align-items: center; color: var(--text-2); font-size: 13px; padding: 12px 2px; }
+  .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line-2); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- fight picker ---------- */
+  .fights { display: flex; gap: 28px; overflow-x: auto; padding: 22px 0 4px; scrollbar-width: none; }
+  .fights::-webkit-scrollbar { display: none; }
+  .boss-group { flex: none; }
+  .boss-group h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; color: var(--text-3); letter-spacing: .08em; text-transform: uppercase; }
+  .pulls { display: flex; gap: 6px; }
+  .pull { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 11px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--text-2); font-size: 12px; font-family: var(--mono); transition: all .15s; white-space: nowrap; }
+  .pull:hover { border-color: var(--line-2); color: var(--text); }
+  .pull .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); }
+  .pull.kill .dot { background: var(--kill); box-shadow: 0 0 8px rgba(92,207,138,.6); }
+  .pull.active { background: var(--accent-soft); border-color: rgba(233,179,90,.45); color: var(--text); }
+
+  /* ---------- encounter header ---------- */
+  .encounter { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; padding: 36px 0 22px; flex-wrap: wrap; }
+  .encounter .eyebrow { font-size: 12px; color: var(--text-3); letter-spacing: .06em; }
+  .encounter h2 { margin: 6px 0 10px; font-size: 32px; line-height: 1.1; font-weight: 700; letter-spacing: -.01em; }
+  .meta { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 99px;
+    font-size: 12px; color: var(--text-2); background: rgba(255,255,255,.04); border: 1px solid var(--line); }
+  .tag.kill { color: var(--kill); border-color: rgba(92,207,138,.25); background: rgba(92,207,138,.07); }
+  .tag.wipe { color: var(--hot); border-color: rgba(239,106,76,.25); background: rgba(239,106,76,.07); }
+  .tag.mono { font-family: var(--mono); }
+
+  .roster-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .roster-hint { font-size: 12px; color: var(--text-3); }
+  .roster { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .healer { display: flex; align-items: center; gap: 9px; height: 40px; padding: 0 14px 0 5px; border-radius: 99px; cursor: pointer;
+    background: var(--surface); border: 1px solid var(--line); transition: all .15s; }
+  .healer:hover { border-color: var(--line-2); }
+  .healer img { width: 30px; height: 30px; border-radius: 50%; box-shadow: 0 0 0 1.5px var(--c, #fff); }
+  .healer .who { display: flex; flex-direction: column; line-height: 1.2; text-align: left; }
+  .healer .who b { font-size: 13px; font-weight: 600; color: var(--c); }
+  .healer .who span { font-size: 11px; color: var(--text-3); }
+  .roster.filtering .healer:not(.on) { opacity: .38; }
+  .roster.filtering .healer:not(.on) img { filter: grayscale(1); }
+  .healer.on { background: var(--surface-2); border-color: color-mix(in srgb, var(--c) 45%, transparent); }
+
+  /* ---------- cards ---------- */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px 0; }
+  .card-head h3 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .02em; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-3); flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  #chart { width: 100%; }
+
+  /* ---------- main grid ---------- */
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; margin: 24px 0 80px; align-items: start; }
+  .section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 14px; }
+  .section-head h3 { margin: 0; font-size: 18px; font-weight: 650; }
+  .section-head p { margin: 2px 0 0; color: var(--text-3); font-size: 12px; }
+  .switch { display: inline-flex; align-items: center; gap: 9px; font-size: 12px; color: var(--text-2); cursor: pointer; user-select: none; }
+  .switch input { display: none; }
+  .switch i { position: relative; width: 30px; height: 18px; border-radius: 99px; background: rgba(255,255,255,.1); transition: background .2s; }
+  .switch i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #d8d6d2; transition: transform .2s; }
+  .switch input:checked + i { background: var(--accent); }
+  .switch input:checked + i::after { transform: translateX(12px); background: #1a1408; }
+
+  /* boss ability index */
+  .threats { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 26px; }
+  .threats-label { font-size: 12px; color: var(--text-3); margin-right: 4px; }
+  .threat { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px 0 4px; border-radius: 8px; cursor: pointer;
+    background: var(--surface); border: 1px solid var(--line); font-size: 12px; color: var(--text-2); transition: all .15s; }
+  .threat img { width: 24px; height: 24px; border-radius: 5px; }
+  .threat b { color: var(--text); font-weight: 550; }
+  .threat em { font-style: normal; font-family: var(--mono); color: var(--text-3); font-size: 11px; }
+  .threat:hover { border-color: var(--line-2); }
+  .threat.on { border-color: rgba(233,179,90,.5); background: var(--accent-soft); }
+
+  /* phases + moments */
+  .phase { margin-bottom: 28px; }
+  .phase-head { display: flex; align-items: baseline; gap: 12px; padding: 0 0 12px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+  .phase-badge { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--accent); padding: 2px 7px; border-radius: 5px; background: var(--accent-soft); }
+  .phase-head b { font-size: 14px; font-weight: 600; }
+  .phase-head .range { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--text-3); }
+  .moments { list-style: none; margin: 0; padding: 0; position: relative; }
+  .moments::before { content: ""; position: absolute; left: 67px; top: 14px; bottom: 14px; width: 1px; background: var(--line-2); }
+  .moment { position: relative; display: grid; grid-template-columns: 56px 24px minmax(0, 1fr); gap: 0; padding: 4px 0; transition: opacity .2s; scroll-margin: 120px; }
+  .moment .time { font-family: var(--mono); font-size: 15px; font-weight: 600; text-align: right; padding-top: 15px; letter-spacing: -.02em; }
+  .moment .node { position: relative; }
+  .moment .node::after { content: ""; position: absolute; left: 7px; top: 20px; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--bg); border: 2px solid var(--lv, var(--text-3)); }
+  .moment .body { padding: 10px 14px 12px; border-radius: 12px; border: 1px solid transparent; transition: background .15s, border-color .15s; cursor: default; }
+  .moment:hover .body { background: rgba(255,255,255,.025); border-color: var(--line); }
+  .moment.flash .body { animation: flash 1.4s ease-out; }
+  @keyframes flash { 0%, 30% { background: var(--accent-soft); border-color: rgba(233,179,90,.5); } 100% { background: transparent; border-color: transparent; } }
+  .moments.focusing .moment:not(.match) { opacity: .28; }
+
+  .threat-line { display: flex; align-items: center; gap: 10px; min-height: 30px; }
+  .threat-line img { width: 30px; height: 30px; border-radius: 7px; box-shadow: 0 0 0 1px rgba(255,255,255,.1); }
+  .threat-line .name { font-size: 15px; font-weight: 600; }
+  .threat-line .name.none { color: var(--text-3); font-weight: 500; font-size: 13px; }
+  .threat-line .cast-at { font-size: 12px; color: var(--text-3); }
+  .threat-line .cast-at b { font-family: var(--mono); color: var(--text-2); font-weight: 500; }
+  .pressure { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-3); flex: none; }
+  .pressure .bars { display: flex; gap: 2px; align-items: flex-end; height: 14px; }
+  .pressure .bars i { width: 3px; border-radius: 1px; background: rgba(255,255,255,.1); }
+  .pressure .bars i:nth-child(1) { height: 5px; } .pressure .bars i:nth-child(2) { height: 8px; }
+  .pressure .bars i:nth-child(3) { height: 11px; } .pressure .bars i:nth-child(4) { height: 14px; }
+  .pressure .bars i.on { background: var(--lv); }
+
+  .cds { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin-top: 12px; }
+  .cd { display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 8px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); border-left: 2px solid var(--c); }
+  .cd > img { width: 32px; height: 32px; border-radius: 7px; }
+  .cd .what { min-width: 0; flex: 1; line-height: 1.3; }
+  .cd .what a { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cd .what a:hover { color: var(--accent); }
+  .cd .what span { font-size: 11px; color: var(--text-3); white-space: nowrap; }
+  .cd .what span b { color: var(--c); font-weight: 500; }
+  .cd .off { flex: none; font-family: var(--mono); font-size: 11px; color: var(--text-2); padding: 2px 6px; border-radius: 5px; background: rgba(255,255,255,.05); }
+  .cd.ext { border-left-style: dashed; }
+
+  .marker { display: grid; grid-template-columns: 56px 24px minmax(0, 1fr); padding: 6px 0; }
+  .marker .time { font-family: var(--mono); font-size: 12px; color: var(--text-3); text-align: right; padding-top: 1px; }
+  .marker .node::after { content: ""; position: absolute; }
+  .marker .label { padding-left: 16px; font-size: 12px; color: #f2a15a; display: flex; align-items: center; gap: 8px; }
+  .marker .label::before { content: ""; width: 18px; height: 1px; background: currentColor; opacity: .5; }
+  .empty-phase { padding: 18px 0 6px 80px; color: var(--text-3); font-size: 13px; }
+
+  /* MRT note */
+  .note { position: sticky; top: 88px; overflow: hidden; }
+  .note-head { padding: 18px 20px 14px; border-bottom: 1px solid var(--line); }
+  .note-head h3 { margin: 0; font-size: 15px; font-weight: 650; display: flex; align-items: center; gap: 8px; }
+  .note-head p { margin: 4px 0 14px; font-size: 12px; color: var(--text-3); }
+  .note-tools { display: flex; align-items: center; gap: 10px; }
+  .seg { display: inline-flex; padding: 2px; border-radius: 8px; background: rgba(255,255,255,.05); }
+  .seg button { border: 0; background: none; height: 26px; padding: 0 11px; font-size: 12px; color: var(--text-2); border-radius: 6px; cursor: pointer; }
+  .seg button.on { background: var(--surface-2); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 0 0 1px var(--line-2); }
+  .copy { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+  .copy svg { width: 13px; height: 13px; }
+  .note-body { max-height: calc(100vh - 290px); overflow: auto; padding: 10px 8px 14px; scrollbar-width: thin; scrollbar-color: #2a2d35 transparent; }
+  .note-line { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; padding: 7px 12px; border-radius: 8px; font-size: 12px; }
+  .note-line:hover { background: rgba(255,255,255,.03); }
+  .note-line .t { font-family: var(--mono); color: var(--accent); padding-top: 1px; }
+  .note-line .l { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+  .note-line .boss { color: var(--text-2); width: 100%; }
+  .note-line .who { display: inline-flex; align-items: center; gap: 5px; color: var(--c); }
+  .note-line .who img { width: 16px; height: 16px; border-radius: 4px; }
+  .note-phase { padding: 12px 12px 4px; font-size: 11px; color: var(--text-3); letter-spacing: .06em; }
+
+  .footnote { color: var(--text-3); font-size: 12px; margin: 18px 0 0; line-height: 1.7; }
+
+  @media (max-width: 1080px) {
+    .grid { grid-template-columns: 1fr; }
+    .note { position: static; }
+    .note-body { max-height: 420px; }
+    .roster-wrap { align-items: flex-start; }
+    .roster { justify-content: flex-start; }
+  }
+  @media (max-width: 720px) {
+    .wrap { padding: 0 16px; }
+    .brand span { display: none; }
+    .steps { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 32px; }
+  }
 </style>
 </head>
 <body>
-<h1>WCL 治疗大招时间轴</h1>
-<div class="bar">
-  <input id="link" type="text" placeholder="粘贴 WCL 链接，例如 https://www.warcraftlogs.com/reports/xxxx?fight=12">
-  <button id="go">分析</button>
-  <select id="fights" hidden></select>
-  <label><input id="ext" type="checkbox"> 显示单体保命技能</label>
-</div>
-<div id="msg"></div>
-<div id="result" hidden>
-  <div id="summary"></div>
-  <div class="muted">上图：全团每 5 秒承伤（红色三角 = 玩家死亡，色块 = 阶段 / 嗜血）。下图：各治疗大招施放时间。鼠标悬停大招图标，上图会高亮它之后 15 秒。</div>
-  <div id="chart"></div>
-  <h2>大招明细</h2>
-  <div class="muted">"后 15 秒团伤"是施放后 15 秒内全团承受的伤害；"相对平均"是它和全场任意 15 秒平均团伤的比值，越高说明越贴近伤害高峰。</div>
-  <table id="casts"></table>
-  <h2>玩家死亡</h2>
-  <table id="deaths"></table>
-</div>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <div class="brand-mark"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5v13M1.5 8h13" stroke="#1a1408" stroke-width="2.6" stroke-linecap="round"/></svg></div>
+      <b>治疗作业</b><span>Healing Playbook</span>
+    </div>
+    <form class="search" id="form">
+      <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="m11 11 3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <input id="link" type="text" autocomplete="off" spellcheck="false" placeholder="粘贴一份 Warcraft Logs 链接，例如 warcraftlogs.com/reports/xxxx?fight=12">
+      <button class="btn" type="submit">解析</button>
+    </form>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="msg"></div>
+
+  <section id="empty" class="hero">
+    <h1>跟着顶尖团队，<br>学会<em>什么时候开大</em></h1>
+    <p>把一份优秀团队的战斗日志变成一份治疗作业：Boss 放什么技能、谁在什么时候交了什么大招，一目了然。</p>
+    <div class="steps">
+      <div class="step"><i>01</i><h3>粘贴日志</h3><p>找一份同难度的击杀日志，复制 WCL 链接粘到上方。</p></div>
+      <div class="step"><i>02</i><h3>看关键节点</h3><p>按阶段列出每个需要大招的 Boss 技能，以及对方团队的应对方式。</p></div>
+      <div class="step"><i>03</i><h3>抄成 MRT 作业</h3><p>点选你的职业只看自己的轴，一键复制成 MRT 时间轴备忘。</p></div>
+    </div>
+  </section>
+
+  <nav id="fights" class="fights" hidden></nav>
+
+  <div id="result" hidden>
+    <section class="encounter">
+      <div>
+        <div class="eyebrow" id="eyebrow"></div>
+        <h2 id="bossName"></h2>
+        <div class="meta" id="meta"></div>
+      </div>
+      <div class="roster-wrap">
+        <div class="roster-hint">点选治疗，只看他的大招轴</div>
+        <div class="roster" id="roster"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h3>战斗总览</h3>
+        <div class="legend">
+          <span><i style="background:linear-gradient(180deg,#ef6a4c,#e9b35a)"></i>全团承伤</span>
+          <span><i style="background:rgba(242,161,90,.35)"></i>嗜血</span>
+          <span><i style="background:#ef6a4c;border-radius:50%;width:7px;height:7px"></i>玩家死亡</span>
+          <span>拖动底部滑块缩放</span>
+        </div>
+      </div>
+      <div id="chart"></div>
+    </section>
+
+    <div class="grid">
+      <section>
+        <div class="section-head">
+          <div>
+            <h3>关键节点</h3>
+            <p>每个节点 = 一次需要大招应对的 Boss 技能。悬停可在总览图上定位。</p>
+          </div>
+          <label class="switch"><input id="ext" type="checkbox"><i></i>显示单体保命</label>
+        </div>
+        <div class="threats" id="threats"></div>
+        <div id="playbook"></div>
+        <p class="footnote">Boss 技能由大招施放前 3 秒到后 12 秒内、伤害超出该技能平时水平最多的技能判定；"读条后 / 提前"是相对该技能最近一次 Boss 施放的时间。压力条表示大招后 15 秒的团伤相对全场平均的倍数。</p>
+      </section>
+
+      <aside class="card note">
+        <div class="note-head">
+          <h3>MRT 作业</h3>
+          <p>复制后粘贴到 MRT → 备忘，时间到了会自动提醒。</p>
+          <div class="note-tools">
+            <div class="seg" id="nameMode">
+              <button data-v="spec" class="on">按职业</button>
+              <button data-v="player">按玩家名</button>
+            </div>
+            <button class="btn copy" id="copy"><svg viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="9" height="9" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" stroke="currentColor" stroke-width="1.6"/></svg><span>复制</span></button>
+          </div>
+        </div>
+        <div class="note-body" id="note"></div>
+      </aside>
+    </div>
+  </div>
+</main>
 
 <script>
 const CLASS_COLOR = { Priest: "#FFFFFF", Druid: "#FF7C0A", Shaman: "#0070DD", Paladin: "#F48CBA", Monk: "#00FF98", Evoker: "#33937F" };
+const LANE_COLOR = { ...CLASS_COLOR, Shaman: "#3d9bff" };
 const SPEC_ZH = {
   "Priest-Holy": "神牧", "Priest-Discipline": "戒律", "Druid-Restoration": "奶德", "Shaman-Restoration": "奶萨",
   "Paladin-Holy": "奶骑", "Monk-Mistweaver": "织雾", "Evoker-Preservation": "恩护",
 };
-const $ = (id) => document.getElementById(id);
-const chart = echarts.init($("chart"), "dark", { renderer: "canvas" });
-let data = null, code = null;
+const SPEC_ICON = {
+  "Priest-Holy": "spell_holy_guardianspirit", "Priest-Discipline": "spell_holy_powerwordshield",
+  "Druid-Restoration": "spell_nature_healingtouch", "Shaman-Restoration": "spell_nature_magicimmunity",
+  "Paladin-Holy": "spell_holy_holybolt", "Monk-Mistweaver": "spell_monk_mistweaver_spec",
+  "Evoker-Preservation": "classicon_evoker_preservation",
+};
+const MOMENT_GAP_SEC = 6, MOMENT_SPAN_SEC = 15, HIGHLIGHT_SEC = 15;
 
-const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-const wan = (v) => `${Math.round(v / 1e4).toLocaleString()}万`;
-const iconUrl = (icon) => `https://wow.zamimg.com/images/wow/icons/medium/${icon}.jpg`;
-const spellLink = (id, text) => `<a href="https://www.wowhead.com/cn/spell=${id}" data-wowhead="spell=${id}&domain=cn" target="_blank">${text}</a>`;
+const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+const wan = (v) => v >= 1e8 ? `${(v / 1e8).toFixed(2)}亿` : `${Math.round(v / 1e4).toLocaleString()}万`;
+const iconUrl = (icon, size = "medium") => `https://wow.zamimg.com/images/wow/icons/${size}/${icon || "inv_misc_questionmark"}.jpg`;
+const spellAttr = (id) => `href="https://www.wowhead.com/cn/spell=${id}" data-wowhead="spell=${id}&domain=cn" target="_blank"`;
+
+const state = { code: null, fights: [], fightId: null, data: null, selected: new Set(), focusBoss: null, nameMode: "spec" };
+let chart = null, moments = [];
 
 async function api(path) {
   const r = await fetch(path);
@@ -73,149 +358,447 @@ async function api(path) {
   return j;
 }
 
-$("go").onclick = async () => {
-  $("msg").textContent = "读取日志…";
-  $("result").hidden = true;
+function showMsg(kind, text) {
+  $("msg").innerHTML = !kind ? "" : kind === "loading"
+    ? `<div class="loading"><div class="spinner"></div>${esc(text)}</div>`
+    : `<div class="notice">${esc(text)}</div>`;
+}
+
+/* ---------- report & fights ---------- */
+
+$("form").onsubmit = (e) => { e.preventDefault(); loadReport($("link").value); };
+
+async function loadReport(link, fightId) {
+  showMsg("loading", "读取日志…");
   try {
-    const rep = await api(`/api/report?link=${encodeURIComponent($("link").value)}`);
-    code = rep.code;
-    const sel = $("fights");
-    sel.innerHTML = rep.fights.map((f) =>
-      `<option value="${f.id}">#${f.id} ${esc(f.name)} ${f.difficulty} ${f.kill ? "击杀" : `团灭 ${f.bossPercentage}%`} ${mmss(f.duration)}</option>`).join("");
-    sel.hidden = false;
-    if (rep.fight && rep.fights.some((f) => f.id === rep.fight)) {
-      sel.value = rep.fight;
-      loadFight(rep.fight);
-    } else {
-      $("msg").textContent = "链接里没有指定战斗，请在右侧下拉框里选择一场 Boss 战。";
-      sel.value = "";
-    }
-  } catch (e) { $("msg").textContent = e.message; }
-};
-$("link").onkeydown = (e) => { if (e.key === "Enter") $("go").click(); };
-$("fights").onchange = (e) => loadFight(+e.target.value);
-$("ext").onchange = () => data && render();
+    const rep = await api(`/api/report?link=${encodeURIComponent(link)}`);
+    state.code = rep.code;
+    state.fights = rep.fights;
+    if (!rep.fights.length) throw new Error("这份日志里没有 Boss 战");
+    const want = fightId ?? rep.fight;
+    const kills = rep.fights.filter((f) => f.kill);
+    const pick = rep.fights.find((f) => f.id === want) || kills[kills.length - 1] || rep.fights[rep.fights.length - 1];
+    $("empty").hidden = true;
+    renderFights();
+    await loadFight(pick.id);
+  } catch (e) { showMsg("error", e.message); }
+}
+
+function renderFights() {
+  const groups = [];
+  for (const f of state.fights) {
+    let g = groups.find((x) => x.name === f.name && x.difficulty === f.difficulty);
+    if (!g) groups.push(g = { name: f.name, difficulty: f.difficulty, pulls: [] });
+    g.pulls.push(f);
+  }
+  $("fights").innerHTML = groups.map((g) => `
+    <div class="boss-group">
+      <h4>${esc(g.name)} · ${esc(g.difficulty)}</h4>
+      <div class="pulls">${g.pulls.map((f) => `
+        <button class="pull ${f.kill ? "kill" : ""} ${f.id === state.fightId ? "active" : ""}" data-id="${f.id}" title="第 ${f.id} 场">
+          <span class="dot"></span>${f.kill ? `击杀 ${mmss(f.duration)}` : `${f.bossPercentage}%`}
+        </button>`).join("")}
+      </div>
+    </div>`).join("");
+  $("fights").hidden = false;
+  $("fights").querySelectorAll(".pull").forEach((b) => b.onclick = () => loadFight(+b.dataset.id));
+}
 
 async function loadFight(id) {
-  $("msg").textContent = "分析战斗中（首次读取需要几秒）…";
+  state.fightId = id;
+  $("fights").querySelectorAll(".pull").forEach((b) => b.classList.toggle("active", +b.dataset.id === id));
+  showMsg("loading", "分析战斗中，首次读取需要几秒…");
   try {
-    data = await api(`/api/fight?code=${code}&fight=${id}`);
-    $("msg").textContent = "";
+    const data = await api(`/api/fight?code=${state.code}&fight=${id}`);
+    if (state.fightId !== id) return;
+    state.data = data;
+    state.selected.clear();
+    state.focusBoss = null;
+    history.replaceState(null, "", `?r=${state.code}&f=${id}`);
+    showMsg(null);
     render();
-  } catch (e) { $("msg").textContent = e.message; }
+    const active = $("fights").querySelector(".pull.active");
+    active?.scrollIntoView({ block: "nearest", inline: "center" });
+  } catch (e) { showMsg("error", e.message); }
 }
 
-function phaseAt(t) {
-  let name = "";
-  for (const p of data.phases) if (p.t <= t) name = p.name;
-  return name;
+/* ---------- derived data ---------- */
+
+const healerById = () => Object.fromEntries(state.data.healers.map((h) => [h.id, h]));
+
+function specLabels() {
+  const count = {}, seen = {}, out = {};
+  for (const h of state.data.healers) count[h.spec] = (count[h.spec] || 0) + 1;
+  for (const h of state.data.healers) {
+    seen[h.spec] = (seen[h.spec] || 0) + 1;
+    out[h.id] = (SPEC_ZH[h.spec] || h.spec) + (count[h.spec] > 1 ? seen[h.spec] : "");
+  }
+  return out;
 }
+
+function visibleCasts() {
+  const ext = $("ext").checked;
+  return state.data.casts.filter((c) =>
+    (ext || c.category === "raid") && (!state.selected.size || state.selected.has(c.sourceID)));
+}
+
+function buildMoments(casts) {
+  const out = [];
+  let cur = null;
+  for (const c of casts) {
+    if (!cur || c.t - cur.last > MOMENT_GAP_SEC || c.t - cur.t > MOMENT_SPAN_SEC) out.push(cur = { t: c.t, last: c.t, cds: [] });
+    cur.cds.push(c);
+    cur.last = c.t;
+  }
+  for (const m of out) {
+    const votes = {};
+    for (const c of m.cds) if (c.boss) votes[c.boss] = (votes[c.boss] || 0) + 1;
+    m.boss = Object.keys(votes).sort((a, b) => votes[b] - votes[a])[0] || null;
+    const anchors = m.cds.filter((c) => c.boss === m.boss && c.anchor != null).map((c) => c.anchor);
+    m.anchor = anchors.length ? Math.min(...anchors) : null;
+    m.ratio = Math.max(...m.cds.map((c) => c.ratio || 0));
+  }
+  return out;
+}
+
+function pressureLevel(r) {
+  if (r >= 1.5) return { n: 4, color: "#ef6a4c", label: "极高" };
+  if (r >= 1.2) return { n: 3, color: "#f09a4a", label: "高" };
+  if (r >= 0.9) return { n: 2, color: "#e9b35a", label: "中" };
+  return { n: 1, color: "#7c808a", label: "低" };
+}
+
+function phaseSections(items) {
+  const phases = state.data.phases.length ? state.data.phases : [{ t: 0, name: "全程" }];
+  return phases.map((p, i) => {
+    const end = phases[i + 1]?.t ?? state.data.fight.duration;
+    return { ...p, idx: i, end, items: items.filter((x) => x.t >= p.t && (x.t < end || i === phases.length - 1)) };
+  });
+}
+
+function phaseLabel(p, total) {
+  if (total <= 1) return { badge: "全程", name: "" };
+  const isIntermission = /intermission|转阶段/i.test(p.name);
+  const stageNo = state.data.phases.slice(0, p.idx + 1).filter((x) => !/intermission|转阶段/i.test(x.name)).length;
+  const name = p.name.replace(/^(Stage \w+|Intermission)\s*[:：]\s*/i, "");
+  return { badge: isIntermission ? "转阶段" : `P${stageNo}`, name };
+}
+
+/* ---------- render ---------- */
 
 function render() {
   $("result").hidden = false;
-  chart.resize();
-  const f = data.fight;
-  const showExt = $("ext").checked;
-  const healers = data.healers;
-  const byId = Object.fromEntries(healers.map((h) => [h.id, h]));
-  const casts = data.casts.filter((c) => showExt || c.category === "raid");
+  renderHeader();
+  renderRoster();
+  renderAll();
+}
 
-  $("summary").innerHTML = `${esc(f.name)} · ${f.difficulty} · ` +
-    (f.kill ? `<span class="kill">击杀</span>` : `<span class="wipe">团灭 ${f.bossPercentage}%</span>`) +
-    ` · ${mmss(f.duration)} · 治疗：` +
-    healers.map((h) => `<span style="color:${CLASS_COLOR[h.cls]}">${esc(h.name)}</span>(${SPEC_ZH[h.spec] || h.spec})`).join("、");
-
-  renderChart(casts, byId);
-  renderTables(casts, byId);
+function renderAll() {
+  const casts = visibleCasts();
+  moments = buildMoments(casts);
+  renderChart(casts);
+  renderThreats();
+  renderPlaybook();
+  renderNote();
   window.$WowheadPower?.refreshLinks?.();
   window.WH?.Tooltips?.refreshLinks?.();
 }
 
-function renderChart(casts, byId) {
-  const b = data.bucketSec;
-  const dmg = data.damage.map((v, i) => [i * b + b / 2, v]);
+function renderHeader() {
+  const { fight, deaths, healers } = state.data;
+  $("eyebrow").textContent = `第 ${fight.id} 场 · ${state.code}`;
+  $("bossName").textContent = fight.name;
+  $("meta").innerHTML = [
+    `<span class="tag">${esc(fight.difficulty)}</span>`,
+    fight.kill ? `<span class="tag kill">● 击杀</span>` : `<span class="tag wipe">团灭 · ${fight.bossPercentage}%</span>`,
+    `<span class="tag mono">${mmss(fight.duration)}</span>`,
+    `<span class="tag">${healers.length} 名治疗</span>`,
+    `<span class="tag">${deaths.length} 次死亡</span>`,
+  ].join("");
+}
+
+function renderRoster() {
+  const labels = specLabels();
+  $("roster").innerHTML = state.data.healers.map((h) => `
+    <button class="healer ${state.selected.has(h.id) ? "on" : ""}" data-id="${h.id}" style="--c:${CLASS_COLOR[h.cls] || "#ccc"}">
+      <img src="${iconUrl(SPEC_ICON[h.spec])}" alt="">
+      <span class="who"><b>${esc(h.name)}</b><span>${esc(labels[h.id])}</span></span>
+    </button>`).join("");
+  $("roster").classList.toggle("filtering", state.selected.size > 0);
+  $("roster").querySelectorAll(".healer").forEach((b) => b.onclick = () => {
+    const id = +b.dataset.id;
+    state.selected.has(id) ? state.selected.delete(id) : state.selected.add(id);
+    renderRoster();
+    renderAll();
+  });
+}
+
+function renderThreats() {
+  const count = {};
+  for (const m of moments) if (m.boss) count[m.boss] = (count[m.boss] || 0) + 1;
+  const abilities = state.data.bossAbilities;
+  const names = Object.keys(count).sort((a, b) => count[b] - count[a]);
+  if (state.focusBoss && !count[state.focusBoss]) state.focusBoss = null;
+  $("threats").innerHTML = (names.length ? `<span class="threats-label">需要大招的技能</span>` : "") + names.map((n) => `
+    <button class="threat ${state.focusBoss === n ? "on" : ""}" data-n="${esc(n)}">
+      <img src="${iconUrl(abilities[n]?.icon)}" alt=""><b>${esc(abilities[n]?.zh || n)}</b><em>×${count[n]}</em>
+    </button>`).join("");
+  $("threats").querySelectorAll(".threat").forEach((b) => b.onclick = () => {
+    state.focusBoss = state.focusBoss === b.dataset.n ? null : b.dataset.n;
+    renderThreats();
+    applyFocus();
+  });
+}
+
+function applyFocus() {
+  document.querySelectorAll(".moments").forEach((ol) => ol.classList.toggle("focusing", !!state.focusBoss));
+  document.querySelectorAll(".moment").forEach((li) => li.classList.toggle("match", moments[+li.dataset.i].boss === state.focusBoss));
+}
+
+function offsetLabel(dt) {
+  const s = Math.round(Math.abs(dt));
+  if (s === 0) return "同步";
+  return dt > 0 ? `读条后 ${s}s` : `提前 ${s}s`;
+}
+
+function renderPlaybook() {
+  const byId = healerById(), labels = specLabels(), abilities = state.data.bossAbilities;
+  const items = [
+    ...moments.map((m, i) => ({ kind: "moment", t: m.t, m, i })),
+    ...state.data.heroism.map((h) => ({ kind: "hero", t: h.t })),
+  ].sort((a, b) => a.t - b.t);
+  const sections = phaseSections(items);
+
+  $("playbook").innerHTML = sections.map((p) => {
+    const lbl = phaseLabel(p, sections.length);
+    const n = p.items.filter((x) => x.kind === "moment").length;
+    const body = p.items.map((x) => {
+      if (x.kind === "hero") {
+        return `<div class="marker"><div class="time">${mmss(x.t)}</div><div class="node"></div><div class="label">嗜血 / 英勇</div></div>`;
+      }
+      const m = x.m, lv = pressureLevel(m.ratio), ab = m.boss && abilities[m.boss];
+      const threat = ab
+        ? `<img src="${iconUrl(ab.icon)}" alt=""><a class="name" ${spellAttr(ab.spell)}>${esc(ab.zh || m.boss)}</a>
+           ${m.anchor != null ? `<span class="cast-at">Boss 施放于 <b>${mmss(m.anchor)}</b></span>` : ""}`
+        : `<span class="name none">无明显对应技能 · 可能是预铺或常驻伤害</span>`;
+      const cds = m.cds.map((c) => {
+        const h = byId[c.sourceID];
+        const off = m.anchor != null ? offsetLabel(c.t - m.anchor) : mmss(c.t);
+        return `<div class="cd ${c.category === "external" ? "ext" : ""}" style="--c:${CLASS_COLOR[h.cls] || "#ccc"}">
+          <img src="${iconUrl(c.icon)}" alt="">
+          <div class="what"><a ${spellAttr(c.spell)}>${esc(c.zh || c.en)}</a><span><b>${esc(labels[h.id])}</b> · ${esc(h.name)}</span></div>
+          <span class="off" title="施放于 ${mmss(c.t)}">${off}</span>
+        </div>`;
+      }).join("");
+      return `<li class="moment" id="m-${x.i}" data-i="${x.i}" style="--lv:${lv.color}">
+        <div class="time">${mmss(m.t)}</div><div class="node"></div>
+        <div class="body">
+          <div class="threat-line">${threat}
+            <span class="pressure" title="大招后 15 秒团伤为全场平均的 ${m.ratio}×">
+              <span class="bars">${[1, 2, 3, 4].map((k) => `<i class="${k <= lv.n ? "on" : ""}"></i>`).join("")}</span>压力${lv.label}
+            </span>
+          </div>
+          <div class="cds">${cds}</div>
+        </div>
+      </li>`;
+    }).join("");
+    return `<section class="phase">
+      <div class="phase-head"><span class="phase-badge">${esc(lbl.badge)}</span><b>${esc(lbl.name)}</b>
+        <span class="range">${mmss(p.t)} – ${mmss(p.end)} · ${n} 个节点</span></div>
+      ${n || p.items.length ? `<ol class="moments">${body}</ol>` : `<div class="empty-phase">这个阶段没有使用${state.selected.size ? "所选治疗的" : ""}大招</div>`}
+    </section>`;
+  }).join("");
+
+  document.querySelectorAll(".moment").forEach((li) => {
+    const m = moments[+li.dataset.i];
+    li.onmouseenter = () => highlightWindow(m.anchor ?? m.t, Math.max(m.last, m.anchor ?? m.t) + HIGHLIGHT_SEC);
+    li.onmouseleave = () => highlightWindow(null);
+  });
+  applyFocus();
+}
+
+function renderNote() {
+  const byId = healerById(), labels = specLabels(), abilities = state.data.bossAbilities;
+  const player = state.nameMode === "player";
+  const sections = phaseSections(moments.map((m) => ({ t: m.t, m })));
+  let html = "";
+  const lines = [];
+  for (const p of sections) {
+    if (!p.items.length) continue;
+    const lbl = phaseLabel(p, sections.length);
+    if (sections.length > 1) html += `<div class="note-phase">${esc(lbl.badge)} ${esc(lbl.name)}</div>`;
+    for (const { m } of p.items) {
+      const boss = m.boss ? abilities[m.boss]?.zh || m.boss : "";
+      const who = [];
+      for (const c of m.cds) {
+        const h = byId[c.sourceID];
+        let w = who.find((x) => x.id === h.id);
+        if (!w) who.push(w = { id: h.id, name: player ? h.name : labels[h.id], color: CLASS_COLOR[h.cls] || "#CCCCCC", cds: [] });
+        w.cds.push(c);
+      }
+      lines.push(`{time:${mmss(m.t)}}${boss ? ` ${boss} -` : ""} ` + who.map((w) =>
+        `|cff${w.color.slice(1).toLowerCase()}${w.name}|r ${w.cds.map((c) => `{spell:${c.spell}}`).join(" ")}`).join("  "));
+      html += `<div class="note-line"><span class="t">${mmss(m.t)}</span><div class="l">
+        ${boss ? `<span class="boss">${esc(boss)}</span>` : ""}
+        ${who.map((w) => `<span class="who" style="--c:${w.color}">${w.cds.map((c) => `<img src="${iconUrl(c.icon)}" alt="">`).join("")}${esc(w.name)}</span>`).join("")}
+      </div></div>`;
+    }
+  }
+  $("note").innerHTML = html || `<div class="note-phase">没有可导出的大招</div>`;
+  $("note").dataset.text = lines.join("\n");
+}
+
+$("ext").onchange = () => state.data && renderAll();
+$("nameMode").querySelectorAll("button").forEach((b) => b.onclick = () => {
+  state.nameMode = b.dataset.v;
+  $("nameMode").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+  renderNote();
+});
+$("copy").onclick = async () => {
+  const label = $("copy").querySelector("span");
+  try {
+    await navigator.clipboard.writeText($("note").dataset.text || "");
+    label.textContent = "已复制";
+  } catch { label.textContent = "复制失败"; }
+  setTimeout(() => label.textContent = "复制", 1600);
+};
+
+/* ---------- chart ---------- */
+
+function renderChart(casts) {
+  const { data } = state;
+  const byId = healerById(), labels = specLabels();
+  const healers = data.healers.filter((h) => !state.selected.size || state.selected.has(h.id));
+  const lanes = ["Boss", ...healers.map((h) => String(h.id))];
+  const laneH = 34, areaTop = 34, areaH = 120, lanesTop = areaTop + areaH + 22;
+  const height = lanesTop + lanes.length * laneH + 52;
+  $("chart").style.height = `${height}px`;
+  if (!chart) {
+    chart = echarts.init($("chart"), null, { renderer: "canvas" });
+    window.addEventListener("resize", () => chart.resize());
+  }
+  chart.resize();
+
+  const b = data.bucketSec, dur = data.fight.duration;
+  const dmg = data.damage.map((v, i) => [Math.min(i * b + b / 2, dur), v]);
   const maxDmg = Math.max(...data.damage, 1);
-  const lanes = data.healers.map((h) => h.name);
-  const phaseAreas = data.phases.map((p, i) => [
-    { xAxis: p.t, name: p.name, itemStyle: { color: i % 2 ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.07)" } },
-    { xAxis: data.phases[i + 1]?.t ?? data.fight.duration },
-  ]);
-  const heroAreas = data.heroism.map((h) => [
-    { xAxis: h.t, name: "嗜血", itemStyle: { color: "rgba(255,160,40,0.12)" } }, { xAxis: h.end },
-  ]);
-  const xAxisBase = { type: "value", min: 0, max: data.fight.duration, axisLabel: { formatter: mmss }, splitLine: { show: false } };
+  const phaseAreas = data.phases.map((p, i) => {
+    const lbl = phaseLabel({ ...p, idx: i }, data.phases.length);
+    return [{ xAxis: p.t, name: lbl.badge, itemStyle: { color: i % 2 ? "rgba(255,255,255,0)" : "rgba(255,255,255,0.025)" } },
+      { xAxis: data.phases[i + 1]?.t ?? dur }];
+  });
+  const heroAreas = data.heroism.map((h) => [{ xAxis: h.t, itemStyle: { color: "rgba(242,161,90,0.13)" } }, { xAxis: h.end }]);
+  const axisBase = {
+    type: "value", min: 0, max: dur, splitLine: { show: false },
+    axisLine: { show: false }, axisTick: { show: false },
+  };
+  const rich = Object.fromEntries(Object.entries(LANE_COLOR).map(([k, c]) => [k, { color: c, fontSize: 12, fontWeight: 500 }]));
+  rich.boss = { color: "#e9b35a", fontSize: 11, fontWeight: 700 };
+  rich.sub = { color: "#5e626c", fontSize: 11 };
+  const tip = { backgroundColor: "rgba(20,22,28,.96)", borderColor: "rgba(255,255,255,.1)", textStyle: { color: "#ebe8e3", fontSize: 12 }, extraCssText: "border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.5);padding:10px 12px;" };
+  const abilities = data.bossAbilities;
 
   chart.setOption({
     backgroundColor: "transparent",
     animation: false,
-    grid: [{ left: 90, right: 30, top: 30, height: 220 }, { left: 90, right: 30, top: 290, bottom: 60 }],
-    xAxis: [{ ...xAxisBase, gridIndex: 0, axisLabel: { show: false } }, { ...xAxisBase, gridIndex: 1 }],
-    yAxis: [
-      { gridIndex: 0, type: "value", max: maxDmg * 1.12, axisLabel: { formatter: (v) => `${Math.round(v / 1e4)}万` }, splitLine: { lineStyle: { color: "#2a2d33" } } },
-      { gridIndex: 1, type: "category", data: lanes, inverse: true, axisLabel: { color: "#ccc" }, splitLine: { show: true, lineStyle: { color: "#2a2d33" } } },
+    textStyle: { fontFamily: getComputedStyle(document.body).fontFamily },
+    grid: [
+      { left: 116, right: 28, top: areaTop, height: areaH },
+      { left: 116, right: 28, top: lanesTop, height: lanes.length * laneH },
     ],
-    dataZoom: [{ type: "inside", xAxisIndex: [0, 1] }, { type: "slider", xAxisIndex: [0, 1], height: 18, bottom: 16 }],
-    tooltip: { trigger: "item", confine: true },
+    xAxis: [
+      { ...axisBase, gridIndex: 0, axisLabel: { show: false } },
+      { ...axisBase, gridIndex: 1, position: "bottom", axisLabel: { color: "#5e626c", formatter: mmss, fontFamily: "SF Mono, Menlo, monospace", fontSize: 11 } },
+    ],
+    yAxis: [
+      { gridIndex: 0, type: "value", max: maxDmg * 1.18, splitNumber: 2, axisLabel: { color: "#5e626c", fontSize: 11, formatter: (v) => v ? `${wan(v)}/s` : "" }, splitLine: { lineStyle: { color: "rgba(255,255,255,.04)" } } },
+      { gridIndex: 1, type: "category", data: lanes, inverse: true, axisTick: { show: false }, axisLine: { show: false },
+        axisLabel: { rich, formatter: (id) => id === "Boss" ? "{boss|BOSS 技能}" : `{${byId[id].cls}|${byId[id].name}}\n{sub|${labels[id]}}`, lineHeight: 15 },
+        splitLine: { show: true, lineStyle: { color: "rgba(255,255,255,.04)" } } },
+    ],
+    dataZoom: [{
+      type: "slider", xAxisIndex: [0, 1], height: 14, bottom: 12, left: 116, right: 28, borderColor: "transparent",
+      backgroundColor: "rgba(255,255,255,.03)", fillerColor: "rgba(233,179,90,.12)", handleSize: "100%",
+      handleStyle: { color: "#2a2d35", borderColor: "rgba(233,179,90,.6)" }, moveHandleSize: 0, showDetail: false,
+      dataBackground: { lineStyle: { color: "rgba(233,179,90,.35)" }, areaStyle: { color: "rgba(233,179,90,.08)" } },
+      selectedDataBackground: { lineStyle: { color: "rgba(233,179,90,.6)" }, areaStyle: { color: "rgba(233,179,90,.15)" } },
+    }],
+    tooltip: { trigger: "item", confine: true, ...tip },
     series: [
       {
-        name: "团伤", type: "bar", xAxisIndex: 0, yAxisIndex: 0, data: dmg, barWidth: "90%",
-        itemStyle: { color: "#c0504d" },
-        tooltip: { formatter: (p) => `${mmss(p.value[0] - b / 2)}–${mmss(p.value[0] + b / 2)}<br>团伤 ${wan(p.value[1])}` },
-        markArea: { silent: true, label: { color: "#888", fontSize: 11, position: "insideTopLeft" }, data: [...phaseAreas, ...heroAreas] },
+        name: "团伤", type: "line", xAxisIndex: 0, yAxisIndex: 0, data: dmg, smooth: 0.35, symbol: "none",
+        lineStyle: { width: 1.5, color: "#ef8a4c" },
+        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: "rgba(239,106,76,.55)" }, { offset: 1, color: "rgba(233,179,90,.02)" }]) },
+        markArea: { silent: true, label: { color: "#5e626c", fontSize: 11, position: "insideTopLeft", fontWeight: 600 }, data: [...phaseAreas, ...heroAreas] },
+        tooltip: { show: false },
       },
       {
-        name: "窗口", type: "line", xAxisIndex: 0, yAxisIndex: 0, data: [], silent: true,
-        markArea: { silent: true, itemStyle: { color: "rgba(120,180,255,0.18)" }, data: [] },
+        name: "窗口", type: "line", xAxisIndex: 1, yAxisIndex: 1, data: [], silent: true,
+        markArea: { silent: true, itemStyle: { color: "rgba(233,179,90,.08)", borderColor: "rgba(233,179,90,.35)", borderWidth: 1 }, data: [] },
       },
       {
-        name: "死亡", type: "scatter", xAxisIndex: 0, yAxisIndex: 0, symbol: "triangle", symbolRotate: 180, symbolSize: 10,
-        itemStyle: { color: "#ff3b3b" },
-        data: data.deaths.map((d) => ({ value: [d.t, maxDmg * 1.06], d })),
-        tooltip: { formatter: (p) => `${mmss(p.data.d.t)} ${esc(p.data.d.name)} 死亡<br>${esc(p.data.d.zh || p.data.d.en || "")}` },
+        name: "窗口上", type: "line", xAxisIndex: 0, yAxisIndex: 0, data: [], silent: true,
+        markArea: { silent: true, itemStyle: { color: "rgba(233,179,90,.1)" }, data: [] },
       },
       {
-        name: "大招", type: "scatter", xAxisIndex: 1, yAxisIndex: 1,
-        data: casts.map((c) => ({
-          value: [c.t, byId[c.sourceID].name], c,
+        name: "死亡", type: "scatter", xAxisIndex: 0, yAxisIndex: 0, symbolSize: 7,
+        itemStyle: { color: "#ef6a4c", borderColor: "#0a0b0e", borderWidth: 1.5 },
+        data: data.deaths.map((d) => ({ value: [d.t, maxDmg * 1.1], d })),
+        tooltip: { formatter: (p) => `<b style="color:${CLASS_COLOR[p.data.d.cls] || "#fff"}">${esc(p.data.d.name)}</b> 死亡 · ${mmss(p.data.d.t)}<br><span style="color:#9b9ea8">${esc(p.data.d.zh || p.data.d.en || "")}</span>` },
+      },
+      {
+        name: "Boss", type: "scatter", xAxisIndex: 1, yAxisIndex: 1,
+        data: data.bossCasts.map((c) => ({
+          value: [c.t, "Boss"], c, symbol: `image://${iconUrl(c.icon)}`,
+          symbolSize: abilities[c.en] ? 20 : 15,
+          itemStyle: { opacity: abilities[c.en] ? 1 : 0.55 },
+        })),
+        tooltip: { formatter: (p) => `<span style="color:#9b9ea8">${mmss(p.data.c.t)} · Boss 施放</span><br><b>${esc(p.data.c.zh || p.data.c.en)}</b>` },
+      },
+      {
+        name: "大招", type: "scatter", xAxisIndex: 1, yAxisIndex: 1, cursor: "pointer",
+        data: casts.map((c, ci) => ({
+          value: [c.t, String(c.sourceID)], c, ci,
           symbol: `image://${iconUrl(c.icon)}`, symbolSize: c.category === "raid" ? 24 : 18,
         })),
-        tooltip: { formatter: (p) => { const c = p.data.c; return `${mmss(c.t)} ${esc(byId[c.sourceID].name)}<br><b>${esc(c.zh || c.en)}</b><br>后 ${data.windowSec} 秒团伤 ${wan(c.dmgWindow)}（${c.ratio}×平均）`; } },
+        tooltip: { formatter: (p) => {
+          const c = p.data.c, h = byId[c.sourceID], ab = c.boss && abilities[c.boss];
+          return `<span style="color:#9b9ea8">${mmss(c.t)} · <span style="color:${CLASS_COLOR[h.cls]}">${esc(h.name)}</span></span><br><b>${esc(c.zh || c.en)}</b>` +
+            (ab ? `<br><span style="color:#9b9ea8">应对</span> ${esc(ab.zh || c.boss)}` : "") + `<br><span style="color:#5e626c">点击定位到节点</span>`;
+        } },
       },
     ],
   }, true);
 
+  chart.off("click");
+  chart.on("click", { seriesName: "大招" }, (p) => {
+    const i = moments.findIndex((m) => m.cds.includes(casts[p.data.ci]));
+    const li = $(`m-${i}`);
+    if (!li) return;
+    li.scrollIntoView({ behavior: "smooth", block: "center" });
+    li.classList.remove("flash");
+    void li.offsetWidth;
+    li.classList.add("flash");
+  });
   chart.off("mouseover"); chart.off("mouseout");
-  chart.on("mouseover", { seriesName: "大招" }, (p) => highlightWindow(p.data.c.t));
+  chart.on("mouseover", { seriesName: "大招" }, (p) => highlightWindow(p.data.c.t, p.data.c.t + HIGHLIGHT_SEC));
   chart.on("mouseout", { seriesName: "大招" }, () => highlightWindow(null));
 }
 
-function highlightWindow(t) {
-  chart.setOption({ series: [{}, { markArea: { data: t == null ? [] : [[{ xAxis: t }, { xAxis: t + data.windowSec }]] } }] });
+function highlightWindow(t0, t1) {
+  if (!chart) return;
+  const area = t0 == null ? [] : [[{ xAxis: t0 }, { xAxis: Math.min(t1, state.data.fight.duration) }]];
+  chart.setOption({ series: [{ name: "窗口", markArea: { data: area } }, { name: "窗口上", markArea: { data: area } }] });
 }
 
-function renderTables(casts, byId) {
-  const who = (id) => { const h = byId[id]; return h ? `<span style="color:${CLASS_COLOR[h.cls]}">${esc(h.name)}</span>` : "?"; };
-  const rows = casts.map((c) => {
-    const cls = c.ratio >= 1.3 ? "hot" : c.ratio < 0.8 ? "cold" : "";
-    const overlap = c.overlap.map((o) => `${who(o.sourceID)} ${spellLink(o.spell, esc(o.zh || o.spell))}(${o.dt > 0 ? "+" : ""}${o.dt}s)`).join("，");
-    return `<tr data-t="${c.t}">
-      <td class="num">${mmss(c.t)}</td><td>${who(c.sourceID)}</td>
-      <td><img class="icon" src="${iconUrl(c.icon)}">${spellLink(c.spell, esc(c.zh || c.en))}${c.category === "external" ? ' <span class="muted">单体</span>' : ""}</td>
-      <td class="muted">${esc(phaseAt(c.t))}</td>
-      <td class="num">${wan(c.dmgWindow)}</td><td class="num ${cls}">${c.ratio}×</td>
-      <td>${overlap || '<span class="muted">—</span>'}</td></tr>`;
-  }).join("");
-  $("casts").innerHTML = `<tr><th>时间</th><th>治疗</th><th>技能</th><th>阶段</th><th>后 ${data.windowSec} 秒团伤</th><th>相对平均</th><th>±10 秒内其他团队大招</th></tr>${rows}`;
-  $("casts").querySelectorAll("tr[data-t]").forEach((tr) => {
-    tr.onmouseenter = () => highlightWindow(+tr.dataset.t);
-    tr.onmouseleave = () => highlightWindow(null);
-  });
+/* ---------- boot ---------- */
 
-  $("deaths").innerHTML = `<tr><th>时间</th><th>玩家</th><th>致死技能</th></tr>` + data.deaths.map((d) =>
-    `<tr><td class="num">${mmss(d.t)}</td><td>${esc(d.name)}</td><td>${d.spell ? spellLink(d.spell, esc(d.zh || d.en)) : esc(d.en || "")}</td></tr>`).join("");
+const params = new URLSearchParams(location.search);
+if (params.get("r")) {
+  $("link").value = `https://www.warcraftlogs.com/reports/${params.get("r")}`;
+  loadReport($("link").value, params.get("f") ? +params.get("f") : undefined);
 }
-
-window.addEventListener("resize", () => chart.resize());
 </script>
 </body>
 </html>
