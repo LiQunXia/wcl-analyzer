@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>WCL 治疗大招时间轴</title>
+<script>const whTooltips = { colorLinks: false, iconizeLinks: false, renameLinks: false };</script>
+<script src="https://wow.zamimg.com/js/tooltips.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+  body { margin: 0; padding: 20px 28px; background: #16181c; color: #ddd; font: 14px/1.5 -apple-system, "PingFang SC", sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 14px; }
+  .bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  input[type=text] { flex: 1; min-width: 420px; padding: 8px 10px; background: #22252b; border: 1px solid #3a3e46; color: #eee; border-radius: 4px; }
+  select, button { padding: 8px 12px; background: #2b4f86; border: 0; color: #fff; border-radius: 4px; cursor: pointer; }
+  select { background: #22252b; border: 1px solid #3a3e46; }
+  #msg { margin: 12px 0; color: #e0a040; }
+  #summary { margin: 14px 0 6px; font-size: 15px; }
+  #summary .kill { color: #5fd35f; } #summary .wipe { color: #e05555; }
+  #chart { height: 520px; margin-top: 6px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+  th, td { padding: 5px 8px; border-bottom: 1px solid #2c2f36; text-align: left; white-space: nowrap; }
+  th { color: #999; font-weight: normal; }
+  tr:hover td { background: #1f2227; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .hot { color: #ff8c5a; } .cold { color: #777; }
+  a { color: #8ab4ff; text-decoration: none; }
+  img.icon { width: 18px; height: 18px; vertical-align: -4px; margin-right: 4px; border-radius: 3px; }
+  .muted { color: #888; font-size: 12px; }
+  h2 { font-size: 15px; margin: 22px 0 4px; }
+  label { user-select: none; cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>WCL 治疗大招时间轴</h1>
+<div class="bar">
+  <input id="link" type="text" placeholder="粘贴 WCL 链接，例如 https://www.warcraftlogs.com/reports/xxxx?fight=12">
+  <button id="go">分析</button>
+  <select id="fights" hidden></select>
+  <label><input id="ext" type="checkbox"> 显示单体保命技能</label>
+</div>
+<div id="msg"></div>
+<div id="result" hidden>
+  <div id="summary"></div>
+  <div class="muted">上图：全团每 5 秒承伤（红色三角 = 玩家死亡，色块 = 阶段 / 嗜血）。下图：各治疗大招施放时间。鼠标悬停大招图标，上图会高亮它之后 15 秒。</div>
+  <div id="chart"></div>
+  <h2>大招明细</h2>
+  <div class="muted">"后 15 秒团伤"是施放后 15 秒内全团承受的伤害；"相对平均"是它和全场任意 15 秒平均团伤的比值，越高说明越贴近伤害高峰。</div>
+  <table id="casts"></table>
+  <h2>玩家死亡</h2>
+  <table id="deaths"></table>
+</div>
+
+<script>
+const CLASS_COLOR = { Priest: "#FFFFFF", Druid: "#FF7C0A", Shaman: "#0070DD", Paladin: "#F48CBA", Monk: "#00FF98", Evoker: "#33937F" };
+const SPEC_ZH = {
+  "Priest-Holy": "神牧", "Priest-Discipline": "戒律", "Druid-Restoration": "奶德", "Shaman-Restoration": "奶萨",
+  "Paladin-Holy": "奶骑", "Monk-Mistweaver": "织雾", "Evoker-Preservation": "恩护",
+};
+const $ = (id) => document.getElementById(id);
+const chart = echarts.init($("chart"), "dark", { renderer: "canvas" });
+let data = null, code = null;
+
+const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+const wan = (v) => `${Math.round(v / 1e4).toLocaleString()}万`;
+const iconUrl = (icon) => `https://wow.zamimg.com/images/wow/icons/medium/${icon}.jpg`;
+const spellLink = (id, text) => `<a href="https://www.wowhead.com/cn/spell=${id}" data-wowhead="spell=${id}&domain=cn" target="_blank">${text}</a>`;
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+async function api(path) {
+  const r = await fetch(path);
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+
+$("go").onclick = async () => {
+  $("msg").textContent = "读取日志…";
+  $("result").hidden = true;
+  try {
+    const rep = await api(`/api/report?link=${encodeURIComponent($("link").value)}`);
+    code = rep.code;
+    const sel = $("fights");
+    sel.innerHTML = rep.fights.map((f) =>
+      `<option value="${f.id}">#${f.id} ${esc(f.name)} ${f.difficulty} ${f.kill ? "击杀" : `团灭 ${f.bossPercentage}%`} ${mmss(f.duration)}</option>`).join("");
+    sel.hidden = false;
+    if (rep.fight && rep.fights.some((f) => f.id === rep.fight)) {
+      sel.value = rep.fight;
+      loadFight(rep.fight);
+    } else {
+      $("msg").textContent = "链接里没有指定战斗，请在右侧下拉框里选择一场 Boss 战。";
+      sel.value = "";
+    }
+  } catch (e) { $("msg").textContent = e.message; }
+};
+$("link").onkeydown = (e) => { if (e.key === "Enter") $("go").click(); };
+$("fights").onchange = (e) => loadFight(+e.target.value);
+$("ext").onchange = () => data && render();
+
+async function loadFight(id) {
+  $("msg").textContent = "分析战斗中（首次读取需要几秒）…";
+  try {
+    data = await api(`/api/fight?code=${code}&fight=${id}`);
+    $("msg").textContent = "";
+    render();
+  } catch (e) { $("msg").textContent = e.message; }
+}
+
+function phaseAt(t) {
+  let name = "";
+  for (const p of data.phases) if (p.t <= t) name = p.name;
+  return name;
+}
+
+function render() {
+  $("result").hidden = false;
+  chart.resize();
+  const f = data.fight;
+  const showExt = $("ext").checked;
+  const healers = data.healers;
+  const byId = Object.fromEntries(healers.map((h) => [h.id, h]));
+  const casts = data.casts.filter((c) => showExt || c.category === "raid");
+
+  $("summary").innerHTML = `${esc(f.name)} · ${f.difficulty} · ` +
+    (f.kill ? `<span class="kill">击杀</span>` : `<span class="wipe">团灭 ${f.bossPercentage}%</span>`) +
+    ` · ${mmss(f.duration)} · 治疗：` +
+    healers.map((h) => `<span style="color:${CLASS_COLOR[h.cls]}">${esc(h.name)}</span>(${SPEC_ZH[h.spec] || h.spec})`).join("、");
+
+  renderChart(casts, byId);
+  renderTables(casts, byId);
+  window.$WowheadPower?.refreshLinks?.();
+  window.WH?.Tooltips?.refreshLinks?.();
+}
+
+function renderChart(casts, byId) {
+  const b = data.bucketSec;
+  const dmg = data.damage.map((v, i) => [i * b + b / 2, v]);
+  const maxDmg = Math.max(...data.damage, 1);
+  const lanes = data.healers.map((h) => h.name);
+  const phaseAreas = data.phases.map((p, i) => [
+    { xAxis: p.t, name: p.name, itemStyle: { color: i % 2 ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.07)" } },
+    { xAxis: data.phases[i + 1]?.t ?? data.fight.duration },
+  ]);
+  const heroAreas = data.heroism.map((h) => [
+    { xAxis: h.t, name: "嗜血", itemStyle: { color: "rgba(255,160,40,0.12)" } }, { xAxis: h.end },
+  ]);
+  const xAxisBase = { type: "value", min: 0, max: data.fight.duration, axisLabel: { formatter: mmss }, splitLine: { show: false } };
+
+  chart.setOption({
+    backgroundColor: "transparent",
+    animation: false,
+    grid: [{ left: 90, right: 30, top: 30, height: 220 }, { left: 90, right: 30, top: 290, bottom: 60 }],
+    xAxis: [{ ...xAxisBase, gridIndex: 0, axisLabel: { show: false } }, { ...xAxisBase, gridIndex: 1 }],
+    yAxis: [
+      { gridIndex: 0, type: "value", max: maxDmg * 1.12, axisLabel: { formatter: (v) => `${Math.round(v / 1e4)}万` }, splitLine: { lineStyle: { color: "#2a2d33" } } },
+      { gridIndex: 1, type: "category", data: lanes, inverse: true, axisLabel: { color: "#ccc" }, splitLine: { show: true, lineStyle: { color: "#2a2d33" } } },
+    ],
+    dataZoom: [{ type: "inside", xAxisIndex: [0, 1] }, { type: "slider", xAxisIndex: [0, 1], height: 18, bottom: 16 }],
+    tooltip: { trigger: "item", confine: true },
+    series: [
+      {
+        name: "团伤", type: "bar", xAxisIndex: 0, yAxisIndex: 0, data: dmg, barWidth: "90%",
+        itemStyle: { color: "#c0504d" },
+        tooltip: { formatter: (p) => `${mmss(p.value[0] - b / 2)}–${mmss(p.value[0] + b / 2)}<br>团伤 ${wan(p.value[1])}` },
+        markArea: { silent: true, label: { color: "#888", fontSize: 11, position: "insideTopLeft" }, data: [...phaseAreas, ...heroAreas] },
+      },
+      {
+        name: "窗口", type: "line", xAxisIndex: 0, yAxisIndex: 0, data: [], silent: true,
+        markArea: { silent: true, itemStyle: { color: "rgba(120,180,255,0.18)" }, data: [] },
+      },
+      {
+        name: "死亡", type: "scatter", xAxisIndex: 0, yAxisIndex: 0, symbol: "triangle", symbolRotate: 180, symbolSize: 10,
+        itemStyle: { color: "#ff3b3b" },
+        data: data.deaths.map((d) => ({ value: [d.t, maxDmg * 1.06], d })),
+        tooltip: { formatter: (p) => `${mmss(p.data.d.t)} ${esc(p.data.d.name)} 死亡<br>${esc(p.data.d.zh || p.data.d.en || "")}` },
+      },
+      {
+        name: "大招", type: "scatter", xAxisIndex: 1, yAxisIndex: 1,
+        data: casts.map((c) => ({
+          value: [c.t, byId[c.sourceID].name], c,
+          symbol: `image://${iconUrl(c.icon)}`, symbolSize: c.category === "raid" ? 24 : 18,
+        })),
+        tooltip: { formatter: (p) => { const c = p.data.c; return `${mmss(c.t)} ${esc(byId[c.sourceID].name)}<br><b>${esc(c.zh || c.en)}</b><br>后 ${data.windowSec} 秒团伤 ${wan(c.dmgWindow)}（${c.ratio}×平均）`; } },
+      },
+    ],
+  }, true);
+
+  chart.off("mouseover"); chart.off("mouseout");
+  chart.on("mouseover", { seriesName: "大招" }, (p) => highlightWindow(p.data.c.t));
+  chart.on("mouseout", { seriesName: "大招" }, () => highlightWindow(null));
+}
+
+function highlightWindow(t) {
+  chart.setOption({ series: [{}, { markArea: { data: t == null ? [] : [[{ xAxis: t }, { xAxis: t + data.windowSec }]] } }] });
+}
+
+function renderTables(casts, byId) {
+  const who = (id) => { const h = byId[id]; return h ? `<span style="color:${CLASS_COLOR[h.cls]}">${esc(h.name)}</span>` : "?"; };
+  const rows = casts.map((c) => {
+    const cls = c.ratio >= 1.3 ? "hot" : c.ratio < 0.8 ? "cold" : "";
+    const overlap = c.overlap.map((o) => `${who(o.sourceID)} ${spellLink(o.spell, esc(o.zh || o.spell))}(${o.dt > 0 ? "+" : ""}${o.dt}s)`).join("，");
+    return `<tr data-t="${c.t}">
+      <td class="num">${mmss(c.t)}</td><td>${who(c.sourceID)}</td>
+      <td><img class="icon" src="${iconUrl(c.icon)}">${spellLink(c.spell, esc(c.zh || c.en))}${c.category === "external" ? ' <span class="muted">单体</span>' : ""}</td>
+      <td class="muted">${esc(phaseAt(c.t))}</td>
+      <td class="num">${wan(c.dmgWindow)}</td><td class="num ${cls}">${c.ratio}×</td>
+      <td>${overlap || '<span class="muted">—</span>'}</td></tr>`;
+  }).join("");
+  $("casts").innerHTML = `<tr><th>时间</th><th>治疗</th><th>技能</th><th>阶段</th><th>后 ${data.windowSec} 秒团伤</th><th>相对平均</th><th>±10 秒内其他团队大招</th></tr>${rows}`;
+  $("casts").querySelectorAll("tr[data-t]").forEach((tr) => {
+    tr.onmouseenter = () => highlightWindow(+tr.dataset.t);
+    tr.onmouseleave = () => highlightWindow(null);
+  });
+
+  $("deaths").innerHTML = `<tr><th>时间</th><th>玩家</th><th>致死技能</th></tr>` + data.deaths.map((d) =>
+    `<tr><td class="num">${mmss(d.t)}</td><td>${esc(d.name)}</td><td>${d.spell ? spellLink(d.spell, esc(d.zh || d.en)) : esc(d.en || "")}</td></tr>`).join("");
+}
+
+window.addEventListener("resize", () => chart.resize());
+</script>
+</body>
+</html>

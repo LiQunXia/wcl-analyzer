@@ -1,0 +1,49 @@
+{
+  "_说明": "category: raid = 团队大招（默认显示）；external = 单体保命（勾选后显示）。按技能 ID 匹配施法事件。",
+  "Priest-Holy": [
+    {"id": 200183, "category": "raid"},
+    {"id": 64843, "category": "raid"},
+    {"id": 265202, "category": "raid"},
+    {"id": 47788, "category": "external"}
+  ],
+  "Priest-Discipline": [
+    {"id": 62618, "category": "raid"},
+    {"id": 47536, "category": "raid"},
+    {"id": 109964, "category": "raid"},
+    {"id": 472433, "category": "raid"},
+    {"id": 421453, "category": "raid"},
+    {"id": 33206, "category": "external"}
+  ],
+  "Druid-Restoration": [
+    {"id": 740, "category": "raid"},
+    {"id": 33891, "category": "raid"},
+    {"id": 391528, "category": "raid"},
+    {"id": 102342, "category": "external"}
+  ],
+  "Shaman-Restoration": [
+    {"id": 98008, "category": "raid"},
+    {"id": 108280, "category": "raid"},
+    {"id": 114052, "category": "raid"}
+  ],
+  "Paladin-Holy": [
+    {"id": 31821, "category": "raid"},
+    {"id": 31884, "category": "raid"},
+    {"id": 216331, "category": "raid"},
+    {"id": 6940, "category": "external"}
+  ],
+  "Monk-Mistweaver": [
+    {"id": 115310, "category": "raid"},
+    {"id": 388615, "category": "raid"},
+    {"id": 322118, "category": "raid"},
+    {"id": 325197, "category": "raid"},
+    {"id": 443028, "category": "raid"},
+    {"id": 116849, "category": "external"}
+  ],
+  "Evoker-Preservation": [
+    {"id": 363534, "category": "raid"},
+    {"id": 359816, "category": "raid"},
+    {"id": 370960, "category": "raid"},
+    {"id": 370537, "category": "raid"},
+    {"id": 357170, "category": "external"}
+  ]
+}
