@@ -334,7 +334,7 @@ def api_fight(code, fight_id):
     info = spell_info({e["spell"] for e in events} | {d["spell"] for d in deaths if d["spell"]}
                       | {a["spell"] for a in abilities.values()} | {c["spell"] for c in boss_casts})
     for item in events + deaths:
-        item["zh"] = info[item["spell"]].get("name")
+        item["zh"] = (info.get(item["spell"]) or {}).get("name")
     boss_info = {
         name: {
             "spell": a["spell"],
