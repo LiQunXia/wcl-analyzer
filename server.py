@@ -363,6 +363,295 @@ def api_fight(code, fight_id):
     }
 
 
+# ---------- mythic+ route ----------
+
+PULL_PRE_SEC, PULL_POST_SEC = 12, 3
+MIN_PULL_SEC = 5
+TANK_SPECS = {"Blood", "Protection", "Guardian", "Brewmaster", "Vengeance"}
+HEALER_SPECS = {"Restoration", "Holy", "Discipline", "Mistweaver", "Preservation"}
+AFFIX = {9: "残暴", 10: "强韧", 147: "萨拉塔斯的狡诈", 148: "晋升：萨拉塔斯之力", 152: "挑战者的危境",
+         158: "虚空缚誓", 159: "萨拉塔斯的契约：宿主", 160: "萨拉塔斯的契约：吞噬",
+         161: "萨拉塔斯的契约：脉冲", 162: "萨拉塔斯的契约：交织"}
+MAP_URL = "https://assets.rpglogs.com/img/warcraft/maps/{}-map.png"
+
+
+def load_mplus_spells():
+    data = json.loads((ROOT / "mplus_spells.json").read_text("utf-8"))
+    by_class = {cls: {sid: cat for cat in ("offensive", "defensive") for sid in v.get(cat, [])}
+                for cls, v in data.items() if not cls.startswith("_")}
+    g = data["_global"]
+    common = {sid: cat for cat in ("interrupt", "rez", "lust", "potion", "healPotion") for sid in g.get(cat, [])}
+    common.update({sid: "offensive" for sid in g.get("racialOffensive", [])})
+    common.update({sid: "defensive" for sid in g.get("racialDefensive", [])})
+    return by_class, common
+
+
+def classify_cast(guid, name, cls, by_class, common):
+    cat = common.get(guid) or by_class.get(cls, {}).get(guid)
+    if cat:
+        return cat
+    if re.search(r"药水|饮剂|Potion|Elixir", name or ""):
+        return "healPotion" if re.search(r"生命|治疗|Healing|Health", name) else (
+            None if re.search(r"法力|Mana", name) else "potion")
+    return None
+
+
+def source_graph(code, fight_id, rng, view, persist, hostile=False):
+    """Graph grouped by source (player) rather than ability."""
+    suffix = "_enemy" if hostile else ""
+    return cached(f"{code}/{fight_id}_src_{view}{suffix}.json", lambda: wcl.get_json(
+        code, f"/reports/graph/{view}/{rng}/source/{int(hostile)}/0/0/0/0/0/-1.0.-1.-1/0/Any/Any/0/0"), persist)
+
+
+def player_role(icon):
+    spec = (icon or "").split("-")[-1]
+    return "tank" if spec in TANK_SPECS else "healer" if spec in HEALER_SPECS else "dps"
+
+
+def map_image(map_id):
+    path = CACHE / "maps" / f"{map_id}.png"
+    if not path.exists():
+        r = requests.get(MAP_URL.format(map_id), timeout=60)
+        if r.status_code != 200 or not r.headers.get("content-type", "").startswith("image/"):
+            raise WclError(f"地图 {map_id} 获取失败（HTTP {r.status_code}）")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(r.content)
+    return path.read_bytes()
+
+
+def real_pull(p):
+    """WCL sometimes records a few-second "pull" with no enemies (e.g. a floor transition)."""
+    return bool(p.get("enemies")) or (p["end_time"] - p["start_time"]) / 1000 >= MIN_PULL_SEC
+
+
+def api_mplus_list(link):
+    code, fight_id = parse_link(link)
+    meta = report_meta(code)
+    runs = [{
+        "id": f["id"],
+        "name": f.get("zoneName") or f.get("name"),
+        "level": f.get("keystoneLevel"),
+        "kill": bool(f.get("kill")),
+        "duration": round((f["end_time"] - f["start_time"]) / 1000),
+        "pulls": sum(map(real_pull, f["dungeonPulls"])),
+    } for f in meta["fights"] if f.get("dungeonPulls")]
+    if not runs:
+        raise WclError("这份日志里没有找到大秘境战斗")
+    return {"code": code, "fight": fight_id, "runs": runs}
+
+
+def api_mplus(code, fight_id):
+    meta = report_meta(code)
+    fight = next((f for f in meta["fights"] if f["id"] == fight_id), None)
+    if not fight or not fight.get("dungeonPulls"):
+        raise WclError(f"第 {fight_id} 场不是大秘境战斗（没有拉怪数据）")
+    start, end = fight["start_time"], fight["end_time"]
+    n_sec = int((end - start) / 1000) + 1
+    persist = not fight.get("inProgress")
+    rng = f"{code}/{fight_id}/{start}/{end}"
+    rel = lambda ts: round((ts - start) / 1000, 1)
+
+    tag = f".{fight_id}."
+    players = {p["id"]: p for p in meta["friendlies"]
+               if tag in (p.get("fights") or "") and p.get("type") in CLASS_TYPES}
+    enemies = {e["id"]: e for e in meta["enemies"]}
+    count_map = {int(k): v for k, v in (fight.get("npcCountMap") or {}).items()}
+    required = fight.get("countRequired") or 1
+
+    casts = graph(code, fight_id, rng, "casts", False, persist)
+    taken = graph(code, fight_id, rng, "damage-taken", False, persist)
+    enemy_taken = graph(code, fight_id, rng, "damage-taken", True, persist)
+    done_src = source_graph(code, fight_id, rng, "damage-done", persist)
+    heal_src = source_graph(code, fight_id, rng, "healing", persist)
+    taken_src = source_graph(code, fight_id, rng, "damage-taken", persist)
+
+    # pulls
+    pulls = []
+    for p in fight["dungeonPulls"]:
+        if not real_pull(p):
+            continue
+        engaged = {}
+        for g, actor_id, lo, hi, *_ in p.get("enemies") or []:
+            e = enemies.get(actor_id) or {}
+            engaged.setdefault(g, {"guid": g, "name": e.get("name") or str(g), "engaged": 0, "killed": 0,
+                                   "count": count_map.get(g, 0), "boss": e.get("type") == "Boss"})
+            engaged[g]["engaged"] += hi - lo + 1
+        pulls.append({
+            "id": p["id"], "name": p.get("name"), "boss": p.get("boss") or 0,
+            "start": rel(p["start_time"]), "end": rel(p["end_time"]),
+            "_ts": (p["start_time"], p["end_time"]),
+            "x": p.get("x"), "y": p.get("y"),
+            "box": [p.get("minX"), p.get("minY"), p.get("maxX"), p.get("maxY")],
+            "map": (p.get("maps") or [0])[0], "maps": p.get("maps") or [],
+            "enemies": engaged, "forces": 0, "casts": [], "deaths": [], "players": {},
+        })
+
+    def pull_at(ts, pre=PULL_PRE_SEC * 1000, post=PULL_POST_SEC * 1000):
+        best = None
+        for p in pulls:
+            s, e = p["_ts"]
+            if s - pre <= ts <= e + post and (best is None or abs(ts - s) < abs(ts - best["_ts"][0])):
+                best = p
+        return best
+
+    # enemy kills -> forces
+    for d in enemy_taken.get("deaths", []):
+        if d.get("targetIsFriendly"):
+            continue
+        actor = enemies.get(d.get("targetID")) or {}
+        g = actor.get("guid") or (d.get("target") or {}).get("guid")
+        name = actor.get("name") or (d.get("target") or {}).get("name")
+        p = pull_at(d["timestamp"], 1000, 1000)
+        if not p or g is None:
+            continue
+        e = p["enemies"].setdefault(g, {"guid": g, "name": name, "engaged": 0, "killed": 0,
+                                        "count": count_map.get(g, 0), "boss": actor.get("type") == "Boss"})
+        e["killed"] += 1
+        e["engaged"] = max(e["engaged"], e["killed"])
+        p["forces"] += count_map.get(g, 0)
+
+    # player casts
+    by_class, common = load_mplus_spells()
+    usage = {pid: {} for pid in players}
+    lust = []
+    for s, ev in event_list(casts.get("series", [])):
+        src = ev.get("sourceID")
+        if ev.get("type") != "cast" or src not in players:
+            continue
+        cat = classify_cast(s["guid"], s["name"], players[src].get("type"), by_class, common)
+        if not cat:
+            continue
+        ab = ev.get("ability") or {}
+        item = {"t": rel(ev["timestamp"]), "who": src, "spell": s["guid"], "name": s["name"],
+                "icon": (ab.get("abilityIcon") or "").removesuffix(".jpg"), "cat": cat}
+        if cat == "lust":
+            lust.append(item)
+        u = usage[src].setdefault(s["guid"], {"spell": s["guid"], "name": item["name"], "icon": item["icon"],
+                                              "cat": cat, "times": []})
+        u["times"].append(item["t"])
+        p = pull_at(ev["timestamp"])
+        if p:
+            p["casts"].append(item)
+    for p in pulls:
+        p["casts"].sort(key=lambda c: c["t"])
+
+    # friendly deaths
+    deaths = []
+    for d in taken.get("deaths", []):
+        if d.get("type") != "death" or d.get("targetID") not in players or d.get("feign"):
+            continue
+        ka = d.get("killingAbility") or {}
+        item = {"t": rel(d["timestamp"]), "who": d["targetID"], "spell": ka.get("guid"), "name": ka.get("name"),
+                "icon": (ka.get("abilityIcon") or "").removesuffix(".jpg")}
+        deaths.append(item)
+        p = pull_at(d["timestamp"], 0, 8000)
+        if p:
+            p["deaths"].append(item)
+    deaths.sort(key=lambda d: d["t"])
+
+    # per-pull player throughput
+    def per_player(g):
+        return {s["id"]: per_second(s, start, n_sec) for s in g.get("series", []) if s.get("id") in players}
+    metrics = {"dmg": per_player(done_src), "heal": per_player(heal_src), "taken": per_player(taken_src)}
+    for p in pulls:
+        i0, i1 = int(p["start"]), int(p["end"]) + 1
+        p["players"] = {pid: {k: round(sum(m[pid][i0:i1])) if pid in m else 0 for k, m in metrics.items()}
+                        for pid in players}
+
+    cumulative = 0
+    for p in pulls:
+        cumulative += p["forces"]
+        p["forcesPct"] = round(p["forces"] / required * 100, 2)
+        p["cumPct"] = round(cumulative / required * 100, 2)
+        p["enemies"] = sorted(p["enemies"].values(), key=lambda e: (-e["boss"], -e["count"] * e["killed"], e["name"]))
+        del p["_ts"]
+
+    maps, seen = [], set()
+    for m in (fight.get("dungeonReplay") or {}).get("maps", []):
+        if m["mapID"] not in seen:
+            seen.add(m["mapID"])
+            maps.append({"id": m["mapID"], "name": m.get("name"), "minX": m["mapMinX"], "maxX": m["mapMaxX"],
+                         "minY": m["mapMinY"], "maxY": m["mapMaxY"]})
+
+    roster = sorted(({
+        "id": pid, "name": p["name"], "cls": p.get("type"), "spec": (p.get("icon") or "").split("-")[-1],
+        "role": player_role(p.get("icon")), "server": p.get("server"),
+        "total": {k: round(sum(m.get(pid, []))) for k, m in metrics.items()},
+        "usage": sorted(usage[pid].values(), key=lambda u: (u["cat"], u["times"][0])),
+    } for pid, p in players.items()), key=lambda r: (["tank", "healer", "dps"].index(r["role"]), r["name"]))
+
+    return {
+        "code": code,
+        "run": {
+            "id": fight_id, "name": fight.get("zoneName") or fight.get("name"),
+            "level": fight.get("keystoneLevel"), "kill": bool(fight.get("kill")),
+            "duration": rel(end), "completion": round((fight.get("completionTime") or 0) / 1000),
+            "medal": fight.get("medal"), "rating": fight.get("rating"),
+            "affixes": [AFFIX.get(a, f"词缀 {a}") for a in fight.get("affixes") or []],
+            "countRequired": required, "countReached": fight.get("countReached"),
+        },
+        "maps": maps,
+        "players": roster,
+        "pulls": pulls,
+        "deaths": deaths,
+        "lust": lust,
+        "heroism": [{"t": rel(h["startTime"]), "end": rel(h["endTime"])} for h in taken.get("heroism", [])],
+    }
+
+
+REPLAY_SEGMENT_MS = 240000
+PATH_STEP_SEC = 2
+
+
+def api_mplus_paths(code, fight_id):
+    """Player tracks and enemy spawn spots, extracted from WCL's combat-replay segments (large, so cached)."""
+    meta = report_meta(code)
+    fight = next((f for f in meta["fights"] if f["id"] == fight_id), None)
+    if not fight or not fight.get("dungeonPulls"):
+        raise WclError(f"第 {fight_id} 场不是大秘境战斗（没有拉怪数据）")
+    persist = not fight.get("inProgress")
+    return cached(f"{code}/{fight_id}_paths.json", lambda: _extract_paths(code, fight, meta), persist)
+
+
+def _extract_paths(code, fight, meta):
+    start, end = fight["start_time"], fight["end_time"]
+    tag = f".{fight['id']}."
+    players = {p["id"] for p in meta["friendlies"] if tag in (p.get("fights") or "") and p.get("type") in CLASS_TYPES}
+    enemies = {e["id"]: e for e in meta["enemies"]}
+    tracks = {pid: {} for pid in players}
+    mobs = {}
+    seg = start
+    while seg <= end:
+        seg_end = min(seg + REPLAY_SEGMENT_MS - 1, end)
+        data = wcl.get_json(code, f"/reports/replaysegment/{code}/{fight['boss']}/{seg}/{seg_end}/")
+        for ev in data.get("events", []):
+            if "x" not in ev or ev.get("resourceActor") not in (1, 2):
+                continue
+            side = "source" if ev["resourceActor"] == 1 else "target"
+            actor = ev.get(f"{side}ID")
+            t = (ev["timestamp"] - start) / 1000
+            if actor in players:
+                tracks[actor].setdefault(int(t // PATH_STEP_SEC), (round(t, 1), ev["x"], ev["y"]))
+            elif actor in enemies and not ev.get(f"{side}IsFriendly"):
+                key = (actor, ev.get(f"{side}Instance", 1))
+                m = mobs.get(key)
+                if m is None:
+                    mobs[key] = {"actor": actor, "guid": enemies[actor].get("guid"), "t": round(t, 1),
+                                 "x": ev["x"], "y": ev["y"], "lastT": round(t, 1), "lx": ev["x"], "ly": ev["y"]}
+                else:
+                    m.update(lastT=round(t, 1), lx=ev["x"], ly=ev["y"])
+        seg = seg_end + 1
+    return {
+        "step": PATH_STEP_SEC,
+        "tracks": {pid: [list(v) for _, v in sorted(pts.items())] for pid, pts in tracks.items()},
+        "mobs": sorted(mobs.values(), key=lambda m: m["t"]),
+    }
+
+
+CLASS_TYPES = {"Warrior", "Paladin", "Hunter", "Rogue", "Priest", "DeathKnight", "Shaman", "Mage",
+               "Warlock", "Monk", "Druid", "DemonHunter", "Evoker"}
+
+
 def _spread(arr, t0, length, rate):
     t1 = t0 + length
     sec = int(max(t0, 0))
@@ -386,6 +675,17 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(api_report(q.get("link", "")))
             if url.path == "/api/fight":
                 return self._json(api_fight(q["code"], int(q["fight"])))
+            if url.path == "/mplus":
+                return self._send(200, (ROOT / "mplus.html").read_bytes(), "text/html; charset=utf-8")
+            if url.path == "/api/mplus/runs":
+                return self._json(api_mplus_list(q.get("link", "")))
+            if url.path == "/api/mplus/paths":
+                return self._json(api_mplus_paths(q["code"], int(q["fight"])))
+            if url.path == "/api/mplus":
+                return self._json(api_mplus(q["code"], int(q["fight"])))
+            m = re.fullmatch(r"/api/map/(\d+)\.png", url.path)
+            if m:
+                return self._send(200, map_image(int(m.group(1))), "image/png", cache=True)
             self._send(404, b"not found", "text/plain")
         except WclError as e:
             self._json({"error": str(e)}, 400)
@@ -395,9 +695,11 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, obj, status=200):
         self._send(status, json.dumps(obj, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
 
-    def _send(self, status, body, ctype):
+    def _send(self, status, body, ctype, cache=False):
         self.send_response(status)
         self.send_header("Content-Type", ctype)
+        if cache:
+            self.send_header("Cache-Control", "public, max-age=604800")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)

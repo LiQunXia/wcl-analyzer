@@ -1,0 +1,1205 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>大秘境复盘 · 路线、波次与爆发轴</title>
+<script>const whTooltips = { colorLinks: false, iconizeLinks: false, renameLinks: false };</script>
+<script src="https://wow.zamimg.com/js/tooltips.js"></script>
+<style>
+  :root {
+    --bg: #0a0b0e;
+    --surface: #111318;
+    --surface-2: #161920;
+    --line: rgba(255, 255, 255, 0.06);
+    --line-2: rgba(255, 255, 255, 0.1);
+    --text: #ebe8e3;
+    --text-2: #9b9ea8;
+    --text-3: #5e626c;
+    --accent: #e9b35a;
+    --accent-soft: rgba(233, 179, 90, 0.12);
+    --hot: #ef6a4c;
+    --kill: #5ccf8a;
+    --c-offensive: #f0a33c;
+    --c-defensive: #4fa8ff;
+    --c-potion: #c77dff;
+    --c-healPotion: #5ccf8a;
+    --c-interrupt: #9b9ea8;
+    --c-rez: #f2e18b;
+    --c-lust: #ef6a4c;
+    --radius: 14px;
+    --mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { background: var(--bg); }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text);
+    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Inter", "PingFang SC", "Hiragino Sans GB", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: radial-gradient(1200px 500px at 50% -220px, rgba(120, 160, 255, 0.08), transparent 70%), var(--bg);
+  }
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; }
+  img { display: block; }
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 0 32px; }
+
+  /* ---------- top bar ---------- */
+  .top { position: sticky; top: 0; z-index: 30; backdrop-filter: blur(14px) saturate(140%);
+    background: rgba(10, 11, 14, 0.78); border-bottom: 1px solid var(--line); }
+  .top .wrap { display: flex; align-items: center; gap: 24px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 11px; flex: none; }
+  .brand-mark { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+    background: linear-gradient(145deg, #8fb6ff, #4a63c9); box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 6px 18px rgba(90,130,233,.25); }
+  .brand-mark svg { width: 16px; height: 16px; }
+  .brand b { font-size: 15px; letter-spacing: .02em; font-weight: 600; }
+  .nav { display: flex; gap: 4px; }
+  .nav a { font-size: 13px; color: var(--text-2); padding: 6px 10px; border-radius: 7px; }
+  .nav a:hover { color: var(--text); background: rgba(255,255,255,.04); }
+  .nav a.on { color: var(--text); background: rgba(255,255,255,.07); }
+  .search { flex: 1; display: flex; align-items: center; max-width: 640px; margin-left: auto; height: 38px;
+    background: var(--surface); border: 1px solid var(--line-2); border-radius: 10px; padding: 0 4px 0 14px; }
+  .search:focus-within { border-color: rgba(233,179,90,.5); box-shadow: 0 0 0 4px rgba(233,179,90,.08); }
+  .search svg { width: 15px; height: 15px; color: var(--text-3); flex: none; }
+  .search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--text); font: inherit; padding: 0 10px; }
+  .search input::placeholder { color: var(--text-3); }
+  .btn { height: 30px; padding: 0 14px; border-radius: 7px; border: 0; cursor: pointer; font-weight: 600; font-size: 13px;
+    background: var(--accent); color: #1a1408; }
+  .btn:hover { filter: brightness(1.08); }
+  .ghost { height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--line-2); background: none; color: var(--text-2);
+    cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+  .ghost:hover { color: var(--text); border-color: rgba(255,255,255,.2); }
+  .ghost.on { color: var(--text); background: var(--accent-soft); border-color: rgba(233,179,90,.45); }
+
+  /* ---------- empty / status ---------- */
+  .hero { padding: 110px 0 80px; text-align: center; }
+  .hero h1 { margin: 0; font-size: 44px; line-height: 1.15; font-weight: 700; }
+  .hero h1 em { font-style: normal; background: linear-gradient(120deg, #a9c6ff, #6f8ef0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p { color: var(--text-2); font-size: 16px; margin: 18px auto 0; max-width: 600px; }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 900px; margin: 60px auto 0; text-align: left; }
+  .step { padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(180deg, rgba(255,255,255,.025), transparent); }
+  .step i { font-style: normal; font-family: var(--mono); font-size: 12px; color: #8fb6ff; }
+  .step h3 { margin: 10px 0 6px; font-size: 15px; font-weight: 600; }
+  .step p { margin: 0; color: var(--text-2); font-size: 13px; }
+  .example { margin-top: 36px; font-size: 13px; color: var(--text-3); }
+  .example a { color: #8fb6ff; cursor: pointer; }
+  #msg { margin: 20px 0 0; }
+  .notice { padding: 12px 16px; border-radius: 10px; font-size: 13px; background: rgba(239,106,76,.08); border: 1px solid rgba(239,106,76,.25); color: #f3a491; }
+  .loading { display: flex; gap: 10px; align-items: center; color: var(--text-2); font-size: 13px; padding: 12px 2px; }
+  .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line-2); border-top-color: var(--accent); animation: spin .8s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- runs ---------- */
+  .runs { display: flex; gap: 8px; overflow-x: auto; padding: 20px 0 0; scrollbar-width: none; }
+  .run-btn { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 8px; cursor: pointer; white-space: nowrap;
+    border: 1px solid var(--line); background: var(--surface); color: var(--text-2); font-size: 12px; }
+  .run-btn b { color: var(--text); font-weight: 600; }
+  .run-btn.on { background: var(--accent-soft); border-color: rgba(233,179,90,.45); color: var(--text); }
+  .run-btn .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--hot); }
+  .run-btn.kill .dot { background: var(--kill); }
+
+  /* ---------- header ---------- */
+  .runhead { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 26px 0 18px; flex-wrap: wrap; }
+  .eyebrow { font-size: 12px; color: var(--text-3); letter-spacing: .06em; }
+  .runhead h2 { margin: 4px 0 10px; font-size: 32px; line-height: 1.1; font-weight: 700; display: flex; align-items: baseline; gap: 12px; }
+  .runhead h2 .lvl { font-family: var(--mono); font-size: 22px; color: var(--accent); }
+  .meta { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 99px;
+    font-size: 12px; color: var(--text-2); background: rgba(255,255,255,.04); border: 1px solid var(--line); white-space: nowrap; }
+  .tag.kill { color: var(--kill); border-color: rgba(92,207,138,.25); background: rgba(92,207,138,.07); }
+  .tag.wipe { color: var(--hot); border-color: rgba(239,106,76,.25); background: rgba(239,106,76,.07); }
+  .tag b { color: var(--text); font-weight: 600; font-family: var(--mono); }
+  .roster { display: flex; gap: 8px; flex-wrap: wrap; }
+  .member { display: flex; align-items: center; gap: 9px; height: 42px; padding: 0 14px 0 5px; border-radius: 99px; cursor: pointer;
+    background: var(--surface); border: 1px solid var(--line); transition: all .15s; }
+  .member:hover { border-color: var(--line-2); }
+  .member img { width: 30px; height: 30px; border-radius: 50%; box-shadow: 0 0 0 1.5px var(--c); }
+  .member .who { display: flex; flex-direction: column; line-height: 1.2; text-align: left; }
+  .member .who b { font-size: 13px; font-weight: 600; color: var(--c); }
+  .member .who span { font-size: 11px; color: var(--text-3); }
+  .roster.filtering .member:not(.on) { opacity: .38; }
+  .member.on { background: var(--surface-2); border-color: color-mix(in srgb, var(--c) 45%, transparent); }
+
+  /* ---------- run timeline strip ---------- */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px 0; flex-wrap: wrap; }
+  .card-head h3 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .02em; }
+  .card-head .sub { font-size: 12px; color: var(--text-3); }
+  .strip { position: relative; height: 74px; margin: 12px 18px 16px; }
+  .strip .lane { position: absolute; left: 0; right: 0; top: 18px; height: 30px; border-radius: 6px; background: rgba(255,255,255,.025); }
+  .strip .seg { position: absolute; top: 18px; height: 30px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; font-family: var(--mono); color: rgba(0,0,0,.75); overflow: hidden; transition: filter .15s, box-shadow .15s; min-width: 3px; }
+  .strip .seg:hover { filter: brightness(1.15); }
+  .strip .seg.on { box-shadow: 0 0 0 2px var(--text); z-index: 2; }
+  .strip .seg.boss { background-image: repeating-linear-gradient(135deg, rgba(0,0,0,.18) 0 4px, transparent 4px 8px); }
+  .strip .lust { position: absolute; top: 12px; height: 42px; background: rgba(239,106,76,.13); border-left: 2px solid var(--hot); pointer-events: none; }
+  .strip .death { position: absolute; top: 52px; transform: translateX(-50%); font-size: 12px; cursor: default; }
+  .strip .tick { position: absolute; top: 0; font-size: 10px; color: var(--text-3); font-family: var(--mono); transform: translateX(-50%); }
+  .strip .cursor { position: absolute; top: 10px; height: 46px; width: 2px; background: #fff; box-shadow: 0 0 8px #fff; pointer-events: none; }
+
+  /* ---------- main layout ---------- */
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; margin-top: 20px; align-items: start; }
+  .mapcard { overflow: hidden; }
+  .map-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .floor-tabs { display: inline-flex; padding: 2px; border-radius: 8px; background: rgba(255,255,255,.05); }
+  .floor-tabs button { border: 0; background: none; height: 26px; padding: 0 11px; font-size: 12px; color: var(--text-2); border-radius: 6px; cursor: pointer; }
+  .floor-tabs button.on { background: var(--surface-2); color: var(--text); box-shadow: 0 0 0 1px var(--line-2); }
+  .mapbox { position: relative; margin: 12px; border-radius: 10px; overflow: hidden; background: #1a1712; aspect-ratio: 3 / 2; cursor: grab; touch-action: none; }
+  .mapbox.dragging { cursor: grabbing; }
+  .mapbox svg { width: 100%; height: 100%; display: block; user-select: none; }
+  .map-hint { position: absolute; left: 10px; bottom: 8px; font-size: 11px; color: rgba(255,255,255,.7); background: rgba(0,0,0,.45); padding: 3px 8px; border-radius: 6px; pointer-events: none; }
+  .map-loading { position: absolute; right: 10px; top: 10px; font-size: 11px; color: #fff; background: rgba(0,0,0,.6); padding: 4px 9px; border-radius: 6px; display: flex; gap: 6px; align-items: center; }
+  .pull-badge { cursor: pointer; }
+  .pull-badge text { font: 700 15px var(--mono); fill: #111; pointer-events: none; }
+  .replay { display: flex; align-items: center; gap: 12px; padding: 0 16px 14px; }
+  .replay input[type=range] { flex: 1; accent-color: var(--accent); }
+  .replay .clock { font-family: var(--mono); font-size: 13px; min-width: 96px; color: var(--text-2); }
+  .replay select { background: var(--surface-2); color: var(--text); border: 1px solid var(--line-2); border-radius: 6px; height: 28px; font-size: 12px; }
+  .play { width: 32px; height: 32px; border-radius: 50%; border: 0; background: var(--accent); color: #1a1408; cursor: pointer; display: grid; place-items: center; flex: none; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-3); flex-wrap: wrap; padding: 0 16px 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  /* pull list */
+  .pull-list { max-height: calc(100vh - 110px); overflow: auto; position: sticky; top: 84px; scrollbar-width: thin; scrollbar-color: #2a2d35 transparent; }
+  .pull-list .card-head { position: sticky; top: 0; background: var(--surface); z-index: 1; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .pitem { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .15s; }
+  .pitem:hover { background: rgba(255,255,255,.025); }
+  .pitem.on { background: var(--accent-soft); }
+  .pnum { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 700 12px var(--mono); color: #111; margin-top: 2px; }
+  .pitem .row1 { display: flex; align-items: baseline; gap: 8px; }
+  .pitem .row1 b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pitem .row1 .boss-tag { font-size: 10px; color: var(--accent); border: 1px solid rgba(233,179,90,.4); border-radius: 4px; padding: 0 4px; flex: none; }
+  .pitem .row1 .pct { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--kill); flex: none; }
+  .pitem .row2 { font-size: 11px; color: var(--text-3); font-family: var(--mono); display: flex; gap: 10px; }
+  .pitem .row2 .dead { color: var(--hot); }
+  .pitem .icons { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 6px; }
+  .pitem .icons img { width: 18px; height: 18px; border-radius: 4px; box-shadow: 0 0 0 1px var(--cc); }
+  .bar { height: 3px; background: rgba(255,255,255,.06); border-radius: 2px; margin-top: 6px; overflow: hidden; display: flex; }
+  .bar i { display: block; height: 100%; }
+
+  /* ---------- pull detail ---------- */
+  .detail { margin: 20px 0 0; }
+  .detail-head { display: flex; align-items: center; gap: 14px; padding: 18px 20px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .detail-head .pnum { width: 34px; height: 34px; font-size: 15px; margin: 0; }
+  .detail-head h3 { margin: 0; font-size: 20px; font-weight: 700; }
+  .detail-head .nav-btns { margin-left: auto; display: flex; gap: 6px; }
+  .detail-body { display: grid; grid-template-columns: 300px minmax(0, 1fr); }
+  .enemies { padding: 14px 18px; border-right: 1px solid var(--line); }
+  .enemies h4, .lanes-wrap h4, .stats h4 { margin: 0 0 10px; font-size: 12px; font-weight: 600; color: var(--text-3); letter-spacing: .06em; }
+  .enemy { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 13px; border-bottom: 1px dashed var(--line); }
+  .enemy .n { font-family: var(--mono); color: var(--text-2); min-width: 34px; }
+  .enemy .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .enemy.boss .nm { color: var(--accent); font-weight: 600; }
+  .enemy.miss { opacity: .45; }
+  .enemy .f { font-family: var(--mono); font-size: 11px; color: var(--kill); }
+  .note-small { font-size: 11px; color: var(--text-3); margin-top: 10px; line-height: 1.6; }
+  .lanes-wrap { padding: 14px 18px; min-width: 0; }
+  .lanes-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  .cat-filter { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cat-filter button { height: 24px; padding: 0 9px; border-radius: 99px; border: 1px solid var(--line-2); background: none; color: var(--text-3); font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+  .cat-filter button i { width: 8px; height: 8px; border-radius: 2px; background: var(--cc); }
+  .cat-filter button.on { color: var(--text); border-color: color-mix(in srgb, var(--cc) 60%, transparent); background: color-mix(in srgb, var(--cc) 12%, transparent); }
+  .lanes { position: relative; }
+  .axis { position: relative; height: 20px; margin-left: 120px; border-bottom: 1px solid var(--line-2); }
+  .axis span { position: absolute; bottom: 3px; font: 10px var(--mono); color: var(--text-3); transform: translateX(-50%); }
+  .lane-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); border-bottom: 1px solid var(--line); }
+  .lane-row .who { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--c); padding: 6px 8px 6px 0; overflow: hidden; }
+  .lane-row .who img { width: 20px; height: 20px; border-radius: 50%; flex: none; }
+  .lane-row .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .track { position: relative; }
+  .track .pre { position: absolute; top: 0; bottom: 0; left: 0; background: rgba(255,255,255,.025); border-right: 1px dashed var(--line-2); }
+  .track .lustbg { position: absolute; top: 0; bottom: 0; background: rgba(239,106,76,.08); }
+  .ic { position: absolute; width: 24px; height: 24px; transform: translateX(-50%); border-radius: 5px; box-shadow: 0 0 0 2px var(--cc); cursor: pointer; background: #000; }
+  .ic img { width: 24px; height: 24px; border-radius: 5px; }
+  .ic:hover { z-index: 5; transform: translateX(-50%) scale(1.25); }
+  .ic.death { box-shadow: 0 0 0 2px var(--hot); display: grid; place-items: center; font-size: 14px; background: #2a1210; }
+  .stats { padding: 14px 18px; border-top: 1px solid var(--line); grid-column: 1 / -1; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: right; font-weight: 500; color: var(--text-3); padding: 6px 8px; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--line); font-family: var(--mono); white-space: nowrap; }
+  td:first-child { font-family: inherit; font-weight: 600; color: var(--c); }
+  td .chips { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; }
+  td .chips img { width: 18px; height: 18px; border-radius: 4px; box-shadow: 0 0 0 1px var(--cc); }
+  td .meter { display: inline-block; height: 4px; border-radius: 2px; background: var(--c); vertical-align: middle; margin-right: 6px; opacity: .7; }
+
+  /* ---------- matrix ---------- */
+  .matrix-wrap { overflow-x: auto; padding: 12px 18px 16px; }
+  .matrix th { text-align: center; font-family: var(--mono); }
+  .matrix th .pn { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #111; font-weight: 700; cursor: pointer; }
+  .matrix td { text-align: center; vertical-align: top; padding: 6px 4px; }
+  .matrix td .chips { justify-content: center; max-width: 120px; margin: 0 auto; }
+  .matrix td.cur { background: var(--accent-soft); }
+  .section-title { display: flex; align-items: baseline; gap: 12px; margin: 28px 0 10px; }
+  .section-title h3 { margin: 0; font-size: 18px; font-weight: 650; }
+  .section-title p { margin: 0; font-size: 12px; color: var(--text-3); }
+
+  .insights { margin: 0; padding: 4px 18px 18px 36px; font-size: 13px; color: var(--text-2); line-height: 1.9; }
+  .insights b { color: var(--text); }
+  .insights a { color: #8fb6ff; cursor: pointer; }
+
+  /* tooltip */
+  #tip { position: fixed; z-index: 100; pointer-events: none; background: rgba(20,22,28,.97); border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
+    padding: 9px 12px; font-size: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.5); max-width: 320px; line-height: 1.5; }
+  #tip .t { color: var(--text-3); font-family: var(--mono); }
+  .footnote { color: var(--text-3); font-size: 12px; margin: 22px 0 60px; line-height: 1.8; }
+
+  @media (max-width: 1100px) {
+    .main { grid-template-columns: 1fr; }
+    .pull-list { position: static; max-height: 420px; }
+    .detail-body { grid-template-columns: 1fr; }
+    .enemies { border-right: 0; border-bottom: 1px solid var(--line); }
+  }
+  @media (max-width: 720px) {
+    .wrap { padding: 0 16px; }
+    .steps { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 30px; }
+    .nav { display: none; }
+    .top .wrap { gap: 12px; }
+    .brand b { display: none; }
+    .search { min-width: 0; }
+    .replay { flex-wrap: wrap; }
+    .lane-row { grid-template-columns: 70px minmax(0, 1fr); }
+    .axis { margin-left: 70px; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <div class="brand-mark"><svg viewBox="0 0 16 16" fill="none"><path d="M2 13 6 5l4 5 4-7" stroke="#0c1430" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <b>大秘境复盘</b>
+    </div>
+    <nav class="nav"><a href="/">治疗作业</a><a href="/mplus" class="on">大秘境复盘</a></nav>
+    <form class="search" id="form">
+      <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="m11 11 3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <input id="link" type="text" autocomplete="off" spellcheck="false" placeholder="粘贴大秘境的 WCL 链接，例如 cn.warcraftlogs.com/reports/xxxx?fight=5">
+      <button class="btn" type="submit">解析</button>
+    </form>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="msg"></div>
+
+  <section id="empty" class="hero">
+    <h1>把一整场大秘境<br><em>拆成每一波</em>来复盘</h1>
+    <p>在地图上画出整条路线与真实走位，逐波列出拉了哪些怪、每个人交了什么爆发、减伤和爆发药。</p>
+    <div class="steps">
+      <div class="step"><i>01</i><h3>路线地图</h3><p>按楼层绘制每一波的位置、怪物分布和队伍的真实移动轨迹，可拖动时间轴回放。</p></div>
+      <div class="step"><i>02</i><h3>逐波拆解</h3><p>每波的怪物、进度百分比、用时、死亡，以及每个人在波内的技能时间线。</p></div>
+      <div class="step"><i>03</i><h3>技能矩阵</h3><p>全程「人 × 波次」的爆发 / 减伤 / 药水矩阵，一眼看出大招都交在了哪几波。</p></div>
+    </div>
+    <div class="example">试试示例：<a id="exampleLink">cn.warcraftlogs.com/reports/XGdhCgWHtPpa9w6J?fight=5</a></div>
+  </section>
+
+  <nav id="runs" class="runs" hidden></nav>
+
+  <div id="result" hidden>
+    <section class="runhead">
+      <div>
+        <div class="eyebrow" id="eyebrow"></div>
+        <h2><span id="dungeon"></span><span class="lvl" id="lvl"></span></h2>
+        <div class="meta" id="meta"></div>
+      </div>
+      <div class="roster" id="roster"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h3>全程时间轴</h3>
+        <span class="sub">色块 = 每一波（斜纹为首领），红区 = 嗜血，💀 = 死亡。点击色块查看该波。</span>
+      </div>
+      <div class="strip" id="strip"></div>
+    </section>
+
+    <div class="main">
+      <section class="card mapcard">
+        <div class="card-head">
+          <h3>路线地图</h3>
+          <div class="map-tools">
+            <div class="floor-tabs" id="floors"></div>
+            <button class="ghost on" id="tglTracks" title="显示队伍真实移动轨迹">走位轨迹</button>
+            <button class="ghost on" id="tglMobs" title="显示每只怪被首次接触时的位置">怪物位置</button>
+            <button class="ghost" id="fitBtn" title="缩放到当前楼层路线">适应路线</button>
+          </div>
+        </div>
+        <div class="mapbox" id="mapbox">
+          <svg id="map" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="map-hint">滚轮缩放 · 拖动平移 · 点击编号查看该波</div>
+          <div class="map-loading" id="pathsLoading" hidden><div class="spinner"></div><span>正在读取战斗回放以绘制走位（首次约 30 秒）…</span></div>
+        </div>
+        <div class="replay">
+          <button class="play" id="play" title="回放"><svg width="12" height="12" viewBox="0 0 12 12"><path id="playIcon" d="M2 1l9 5-9 5z" fill="currentColor"/></svg></button>
+          <input type="range" id="scrub" min="0" max="100" step="0.5" value="0">
+          <span class="clock" id="clock">0:00</span>
+          <select id="speed"><option value="10">10×</option><option value="20" selected>20×</option><option value="40">40×</option><option value="80">80×</option></select>
+        </div>
+        <div class="legend">
+          <span><i style="background:#fff;border-radius:50%"></i>队员实时位置（回放）</span>
+          <span><i style="background:rgba(255,255,255,.5);height:2px"></i>队伍移动轨迹（坦克）</span>
+          <span><i style="border:2px dashed #fff;background:none;height:2px"></i>波次顺序</span>
+          <span>✕ 死亡位置</span>
+        </div>
+      </section>
+
+      <aside class="card pull-list" id="pullList"></aside>
+    </div>
+
+    <section class="card detail" id="detail"></section>
+
+    <div class="section-title">
+      <h3>技能矩阵</h3>
+      <p>每一格 = 某人在某一波交的技能。点击列头跳到该波。</p>
+      <div class="floor-tabs" id="matrixMode" style="margin-left:auto">
+        <button data-v="burst" class="on">爆发 + 爆发药</button><button data-v="def">减伤 / 保命</button><button data-v="all">全部</button>
+      </div>
+    </div>
+    <section class="card">
+      <div class="matrix-wrap" id="matrix"></div>
+    </section>
+
+    <div class="section-title">
+      <h3>全程总览</h3>
+      <p>每个人整场的技能使用与表现；下方要点由数据自动生成，适合快速找复盘切入点。</p>
+    </div>
+    <section class="card">
+      <div class="matrix-wrap" id="summary"></div>
+      <ul class="insights" id="insights"></ul>
+    </section>
+
+    <p class="footnote">
+      数据来自 Warcraft Logs：波次、怪物和位置来自 WCL 的大秘境拉怪划分与战斗回放；技能按 <code>mplus_spells.json</code> 中的法术 ID 分类，药水按名称识别。
+      一波的技能时间线包含开怪前 12 秒（灰底，便于看预铺/提前开爆发）。“进度”按该波内被击杀怪物的小怪值计算；若某一波怪物被并入下一波一起击杀，进度会记在下一波。
+      走位轨迹由回放事件中队员的坐标每 2 秒采样一次，脱战跑图时如无事件则会有空隙。
+    </p>
+  </div>
+</main>
+<div id="tip" hidden></div>
+
+<script>
+const CLASS_COLOR = {
+  Warrior: "#C69B6D", Paladin: "#F48CBA", Hunter: "#AAD372", Rogue: "#FFF468", Priest: "#FFFFFF", DeathKnight: "#C41E3A",
+  Shaman: "#0070DD", Mage: "#3FC7EB", Warlock: "#8788EE", Monk: "#00FF98", Druid: "#FF7C0A", DemonHunter: "#A330C9", Evoker: "#33937F",
+};
+const LANE_COLOR = { ...CLASS_COLOR, Shaman: "#3d9bff" };
+const SPEC_ZH = {
+  Blood: "鲜血", Frost: "冰霜", Unholy: "邪恶", Havoc: "浩劫", Vengeance: "复仇", Devourer: "噬灭", Balance: "平衡", Feral: "野性",
+  Guardian: "守护", Restoration: "恢复", Augmentation: "增辉", Devastation: "湮灭", Preservation: "恩护", BeastMastery: "野兽控制",
+  Marksmanship: "射击", Survival: "生存", Arcane: "奥术", Fire: "火焰", Brewmaster: "酒仙", Mistweaver: "织雾", Windwalker: "踏风",
+  Holy: "神圣", Protection: "防护", Retribution: "惩戒", Discipline: "戒律", Shadow: "暗影", Assassination: "奇袭", Outlaw: "狂徒",
+  Subtlety: "敏锐", Elemental: "元素", Enhancement: "增强", Affliction: "痛苦", Demonology: "恶魔学识", Destruction: "毁灭",
+  Arms: "武器", Fury: "狂怒",
+};
+const CLASS_ZH = {
+  Warrior: "战士", Paladin: "圣骑士", Hunter: "猎人", Rogue: "潜行者", Priest: "牧师", DeathKnight: "死亡骑士", Shaman: "萨满祭司",
+  Mage: "法师", Warlock: "术士", Monk: "武僧", Druid: "德鲁伊", DemonHunter: "恶魔猎手", Evoker: "唤魔师",
+};
+const ROLE_ZH = { tank: "坦克", healer: "治疗", dps: "输出" };
+const CATS = [
+  ["offensive", "爆发"], ["defensive", "减伤/保命"], ["potion", "爆发药"], ["healPotion", "治疗药/糖"],
+  ["interrupt", "打断"], ["lust", "嗜血"], ["rez", "战复"],
+];
+const CAT_ZH = Object.fromEntries(CATS);
+const CAT_COLOR = Object.fromEntries(CATS.map(([k]) => [k, getComputedStyle(document.documentElement).getPropertyValue(`--c-${k}`).trim()]));
+const PULL_COLORS = ["#f6c85f", "#6fcf97", "#56ccf2", "#bb6bd9", "#f2994a", "#eb5757", "#9be15d", "#2f80ed", "#f78fb3", "#27ae60",
+  "#e2b714", "#00b8a9", "#c56cf0", "#ff9f43", "#48dbfb", "#ff6b6b", "#1dd1a1", "#feca57", "#5f27cd", "#ee5253"];
+const PRE_SEC = 12;
+const MATRIX_CATS = {
+  burst: ["offensive", "potion", "lust"],
+  def: ["defensive", "healPotion", "rez"],
+  all: ["offensive", "potion", "lust", "defensive", "healPotion", "rez"],
+};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const mmss = (s) => { const v = Math.max(0, Math.round(s)); return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, "0")}`; };
+const signed = (s) => (s < 0 ? "-" : "+") + mmss(Math.abs(s));
+const wan = (v) => v >= 1e8 ? `${(v / 1e8).toFixed(2)}亿` : v >= 1e4 ? `${Math.round(v / 1e4).toLocaleString()}万` : String(Math.round(v));
+const iconUrl = (icon, size = "medium") => `https://wow.zamimg.com/images/wow/icons/${size}/${icon || "inv_misc_questionmark"}.jpg`;
+const classIcon = (cls) => iconUrl(`classicon_${(cls || "").toLowerCase()}`);
+const spellHref = (id) => `href="https://www.wowhead.com/cn/spell=${id}" data-wowhead="spell=${id}&domain=cn" target="_blank"`;
+const pullColor = (i) => PULL_COLORS[i % PULL_COLORS.length];
+
+const state = {
+  code: null, runs: [], runId: null, data: null, paths: null,
+  pullIdx: 0, floor: null, selected: new Set(),
+  cats: new Set(["offensive", "defensive", "potion", "healPotion", "lust", "rez"]),
+  showTracks: true, showMobs: true, t: 0, playing: false, view: null, matrixMode: "burst",
+};
+
+async function api(path) {
+  const r = await fetch(path);
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+
+function showMsg(kind, text) {
+  $("msg").innerHTML = !kind ? "" : kind === "loading"
+    ? `<div class="loading"><div class="spinner"></div>${esc(text)}</div>`
+    : `<div class="notice">${esc(text)}</div>`;
+}
+
+/* ---------- tooltip ---------- */
+
+const tip = $("tip");
+function showTip(e, html) {
+  tip.innerHTML = html;
+  tip.hidden = false;
+  const r = tip.getBoundingClientRect();
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+  tip.style.left = `${x}px`;
+  tip.style.top = `${y}px`;
+}
+const hideTip = () => { tip.hidden = true; };
+document.addEventListener("mousemove", (e) => {
+  const el = e.target.closest?.("[data-tip]");
+  if (el) showTip(e, el.dataset.tip); else if (!e.target.closest?.("#map")) hideTip();
+});
+
+/* ---------- loading ---------- */
+
+$("form").onsubmit = (e) => { e.preventDefault(); loadReport($("link").value); };
+$("exampleLink").onclick = () => {
+  $("link").value = "https://cn.warcraftlogs.com/reports/XGdhCgWHtPpa9w6J?fight=5";
+  loadReport($("link").value);
+};
+
+async function loadReport(link, runId) {
+  showMsg("loading", "读取日志…");
+  try {
+    const rep = await api(`/api/mplus/runs?link=${encodeURIComponent(link)}`);
+    state.code = rep.code;
+    state.runs = rep.runs;
+    const want = runId ?? rep.fight;
+    const pick = rep.runs.find((r) => r.id === want) || rep.runs.filter((r) => r.kill).pop() || rep.runs[rep.runs.length - 1];
+    $("empty").hidden = true;
+    renderRuns();
+    await loadRun(pick.id);
+  } catch (e) { showMsg("error", e.message); }
+}
+
+function renderRuns() {
+  $("runs").innerHTML = state.runs.map((r) => `
+    <button class="run-btn ${r.kill ? "kill" : ""} ${r.id === state.runId ? "on" : ""}" data-id="${r.id}">
+      <span class="dot"></span><b>${esc(r.name)}</b> +${r.level ?? "?"} · ${mmss(r.duration)} · ${r.pulls} 波
+    </button>`).join("");
+  $("runs").hidden = state.runs.length < 2;
+  $("runs").querySelectorAll(".run-btn").forEach((b) => b.onclick = () => loadRun(+b.dataset.id));
+}
+
+async function loadRun(id) {
+  state.runId = id;
+  stopPlay();
+  $("runs").querySelectorAll(".run-btn").forEach((b) => b.classList.toggle("on", +b.dataset.id === id));
+  showMsg("loading", "分析大秘境中，首次读取需要十几秒…");
+  try {
+    const data = await api(`/api/mplus?code=${state.code}&fight=${id}`);
+    if (state.runId !== id) return;
+    state.data = data;
+    state.paths = null;
+    state.selected.clear();
+    state.pullIdx = 0;
+    state.t = data.pulls[0]?.start ?? 0;
+    state.floor = data.pulls[0]?.map ?? data.maps[0]?.id;
+    state.view = null;
+    history.replaceState(null, "", `?r=${state.code}&f=${id}`);
+    showMsg(null);
+    $("result").hidden = false;
+    renderAll();
+    loadPaths(id);
+  } catch (e) { showMsg("error", e.message); }
+}
+
+async function loadPaths(id) {
+  $("pathsLoading").hidden = false;
+  try {
+    const paths = await api(`/api/mplus/paths?code=${state.code}&fight=${id}`);
+    if (state.runId !== id) return;
+    state.paths = preparePaths(paths);
+    drawMap(true);
+  } catch (e) {
+    $("pathsLoading").querySelector("span").textContent = `走位读取失败：${e.message}`;
+    return;
+  }
+  $("pathsLoading").hidden = true;
+}
+
+/* ---------- derived ---------- */
+
+const D = () => state.data;
+const playerById = () => Object.fromEntries(D().players.map((p) => [p.id, p]));
+const curPull = () => D().pulls[state.pullIdx];
+const mapById = (id) => D().maps.find((m) => m.id === id);
+const visibleCast = (c) => state.cats.has(c.cat) && (!state.selected.size || state.selected.has(c.who));
+
+function pullIndexAt(t) {
+  const ps = D().pulls;
+  let i = 0;
+  while (i + 1 < ps.length && ps[i + 1].start <= t) i++;
+  return i + 1 < ps.length && t > ps[i].end && t >= ps[i + 1].start - PRE_SEC ? i + 1 : i;
+}
+
+/** Which floor a point at time t belongs to: the current pull's floor, else the next pull's, else any containing map. */
+function floorAt(t, x, y) {
+  const ps = D().pulls;
+  const i = ps.findIndex((p) => t < p.end + 2);
+  const cands = [];
+  if (i >= 0) {
+    if (t >= ps[i].start - 2) cands.push(...ps[i].maps);
+    else { if (i > 0) cands.push(...ps[i - 1].maps); cands.push(...ps[i].maps); }
+  } else cands.push(...ps[ps.length - 1].maps);
+  const inside = (m) => m && x >= m.minX && x <= m.maxX && y >= m.minY && y <= m.maxY;
+  for (const id of cands) if (inside(mapById(id))) return id;
+  for (const m of D().maps) if (inside(m)) return m.id;
+  return cands[0] ?? D().maps[0]?.id;
+}
+
+function preparePaths(raw) {
+  const tracks = {};
+  for (const [pid, pts] of Object.entries(raw.tracks)) {
+    tracks[pid] = pts.map(([t, x, y]) => ({ t, x, y, floor: floorAt(t, x, y) }));
+  }
+  const ps = D().pulls;
+  const mobs = raw.mobs.map((m) => {
+    const idx = ps.findIndex((p) => m.t >= p.start - 3 && m.t <= p.end + 1);
+    return { ...m, pull: idx, floor: idx >= 0 ? floorAt(m.t, m.x, m.y) : null };
+  }).filter((m) => m.pull >= 0);
+  return { tracks, mobs, step: raw.step };
+}
+
+function posAt(track, t) {
+  if (!track?.length || t < track[0].t - 5) return null;
+  let lo = 0, hi = track.length - 1;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (track[mid].t <= t) lo = mid; else hi = mid - 1; }
+  const a = track[lo], b = track[lo + 1];
+  if (!b || b.t - a.t > 20 || a.floor !== b.floor) return a;
+  const k = (t - a.t) / (b.t - a.t);
+  return { t, x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, floor: a.floor };
+}
+
+function tankId() {
+  return (D().players.find((p) => p.role === "tank") || D().players[0])?.id;
+}
+
+/* ---------- render ---------- */
+
+function renderAll() {
+  renderHeader();
+  renderStrip();
+  renderFloors();
+  renderPullList();
+  renderDetail();
+  renderMatrix();
+  renderSummary();
+  setupScrub();
+  drawMap(true);
+}
+
+function renderHeader() {
+  const { run, players, deaths, pulls } = D();
+  $("eyebrow").textContent = `第 ${run.id} 场 · 大秘境 · ${run.affixes.join(" / ")}`;
+  $("dungeon").textContent = run.name;
+  $("lvl").textContent = `+${run.level ?? "?"}`;
+  const forces = run.countReached != null ? Math.round(run.countReached / run.countRequired * 1000) / 10 : null;
+  $("meta").innerHTML = `
+    <span class="tag ${run.kill ? "kill" : "wipe"}">${run.kill ? "限时内完成" : "未完成 / 超时"}</span>
+    <span class="tag">用时 <b>${mmss(run.completion || run.duration)}</b></span>
+    <span class="tag">波次 <b>${pulls.length}</b></span>
+    ${forces != null ? `<span class="tag">进度 <b>${forces}%</b></span>` : ""}
+    <span class="tag">死亡 <b>${deaths.length}</b></span>
+    <span class="tag">嗜血 <b>${D().heroism.length}</b> 次</span>
+    ${run.rating ? `<span class="tag">分数 <b>${Math.round(run.rating)}</b></span>` : ""}`;
+  $("roster").innerHTML = players.map((p) => `
+    <button class="member ${state.selected.has(p.id) ? "on" : ""}" data-id="${p.id}" style="--c:${CLASS_COLOR[p.cls] || "#ccc"}"
+      data-tip="${esc(`<b>${esc(p.name)}</b> ${esc(p.server || "")}<br>${SPEC_ZH[p.spec] || p.spec}${CLASS_ZH[p.cls] || p.cls} · ${ROLE_ZH[p.role]}<br>全程伤害 ${wan(p.total.dmg)} · 治疗 ${wan(p.total.heal)} · 承伤 ${wan(p.total.taken)}<br><span class=t>点击只看此人（可多选）</span>`)}">
+      <img src="${classIcon(p.cls)}" alt="">
+      <div class="who"><b>${esc(p.name)}</b><span>${SPEC_ZH[p.spec] || p.spec}${CLASS_ZH[p.cls] || ""} · ${ROLE_ZH[p.role]}</span></div>
+    </button>`).join("");
+  $("roster").classList.toggle("filtering", state.selected.size > 0);
+  $("roster").querySelectorAll(".member").forEach((b) => b.onclick = () => {
+    const id = +b.dataset.id;
+    state.selected.has(id) ? state.selected.delete(id) : state.selected.add(id);
+    renderHeader(); renderPullList(); renderDetail(); renderMatrix(); drawMap();
+  });
+}
+
+function renderStrip() {
+  const { run, pulls, deaths, heroism } = D();
+  const total = run.duration || 1;
+  const pct = (t) => `${(t / total) * 100}%`;
+  const ticks = [];
+  for (let t = 0; t <= total; t += 300) ticks.push(`<span class="tick" style="left:${pct(t)}">${mmss(t)}</span>`);
+  const by = playerById();
+  $("strip").innerHTML = `
+    <div class="lane"></div>
+    ${ticks.join("")}
+    ${heroism.map((h) => `<div class="lust" style="left:${pct(h.t)};width:${pct(h.end - h.t)}"></div>`).join("")}
+    ${pulls.map((p, i) => `<div class="seg ${p.boss ? "boss" : ""} ${i === state.pullIdx ? "on" : ""}" data-i="${i}"
+        style="left:${pct(p.start)};width:${pct(Math.max(p.end - p.start, 1))};background-color:${pullColor(i)}"
+        data-tip="${esc(`<b>第 ${i + 1} 波 · ${esc(p.name)}</b><br><span class=t>${mmss(p.start)} – ${mmss(p.end)}（${mmss(p.end - p.start)}）</span><br>进度 +${p.forcesPct}% → ${p.cumPct}%`)}">${i + 1}</div>`).join("")}
+    ${deaths.map((d) => `<span class="death" style="left:${pct(d.t)}" data-tip="${esc(`<b style='color:${CLASS_COLOR[by[d.who]?.cls]}'>${esc(by[d.who]?.name)}</b> 死亡 · ${mmss(d.t)}<br>${esc(d.name || "")}`)}">💀</span>`).join("")}
+    <div class="cursor" id="stripCursor" style="left:${pct(state.t)}"></div>`;
+  $("strip").querySelectorAll(".seg").forEach((s) => s.onclick = () => selectPull(+s.dataset.i, true));
+}
+
+function renderFloors() {
+  const used = new Set(D().pulls.flatMap((p) => p.maps));
+  const floors = D().maps.filter((m) => used.has(m.id));
+  $("floors").innerHTML = floors.map((m) => {
+    const n = D().pulls.filter((p) => p.map === m.id).length;
+    return `<button data-id="${m.id}" class="${m.id === state.floor ? "on" : ""}">${esc(m.name)}${n ? ` · ${n}波` : ""}</button>`;
+  }).join("");
+  $("floors").hidden = floors.length < 2;
+  $("floors").querySelectorAll("button").forEach((b) => b.onclick = () => { setFloor(+b.dataset.id); drawMap(true); });
+}
+
+function setFloor(id) {
+  if (state.floor === id) return;
+  state.floor = id;
+  state.view = null;
+  $("floors").querySelectorAll("button").forEach((b) => b.classList.toggle("on", +b.dataset.id === id));
+}
+
+function castIcons(casts, max = 14) {
+  const vis = casts.filter((c) => visibleCast(c) && c.cat !== "interrupt");
+  const by = playerById();
+  const html = vis.slice(0, max).map((c) => `<img src="${iconUrl(c.icon, "small")}" style="--cc:${CAT_COLOR[c.cat]}" alt=""
+    data-tip="${esc(`<b>${esc(c.name)}</b> · ${CAT_ZH[c.cat]}<br><span style='color:${CLASS_COLOR[by[c.who]?.cls]}'>${esc(by[c.who]?.name)}</span> <span class=t>${mmss(c.t)}</span>`)}">`).join("");
+  return html + (vis.length > max ? `<span style="font-size:11px;color:var(--text-3);align-self:center">+${vis.length - max}</span>` : "");
+}
+
+function renderPullList() {
+  const { pulls, run } = D();
+  const by = playerById();
+  $("pullList").innerHTML = `
+    <div class="card-head"><h3>拉怪波次</h3><span class="sub">${pulls.length} 波 · 目标 ${run.countRequired}</span></div>
+    ${pulls.map((p, i) => {
+      const dead = p.deaths.filter((d) => !state.selected.size || state.selected.has(d.who));
+      const prev = i ? pulls[i - 1].cumPct : 0;
+      return `<div class="pitem ${i === state.pullIdx ? "on" : ""}" data-i="${i}">
+        <div class="pnum" style="background:${pullColor(i)}">${i + 1}</div>
+        <div>
+          <div class="row1"><b>${esc(p.name)}</b>${p.boss ? `<span class="boss-tag">首领</span>` : ""}<span class="pct">${p.forcesPct ? `+${p.forcesPct}%` : ""}</span></div>
+          <div class="row2"><span>${mmss(p.start)}</span><span>用时 ${mmss(p.end - p.start)}</span><span>累计 ${p.cumPct}%</span>${dead.length ? `<span class="dead">💀×${dead.length}</span>` : ""}</div>
+          <div class="bar"><i style="width:${Math.min(prev, 100)}%;background:rgba(92,207,138,.35)"></i><i style="width:${Math.min(p.forcesPct, 100 - Math.min(prev, 100))}%;background:${pullColor(i)}"></i></div>
+          <div class="icons">${castIcons(p.casts)}</div>
+        </div>
+      </div>`;
+    }).join("")}`;
+  $("pullList").querySelectorAll(".pitem").forEach((el) => el.onclick = () => selectPull(+el.dataset.i, true));
+}
+
+function selectPull(i, moveTime) {
+  const ps = D().pulls;
+  state.pullIdx = Math.max(0, Math.min(ps.length - 1, i));
+  const p = curPull();
+  if (moveTime) { stopPlay(); state.t = p.start; $("scrub").value = state.t; }
+  if (p.map !== state.floor) setFloor(p.map);
+  $("strip").querySelectorAll(".seg").forEach((s) => s.classList.toggle("on", +s.dataset.i === state.pullIdx));
+  $("pullList").querySelectorAll(".pitem").forEach((el) => el.classList.toggle("on", +el.dataset.i === state.pullIdx));
+  $("pullList").querySelector(".pitem.on")?.scrollIntoView({ block: "nearest" });
+  renderDetail();
+  renderMatrix();
+  updateClock();
+  drawMap(moveTime);
+}
+
+function renderDetail() {
+  const p = curPull(), i = state.pullIdx;
+  const by = playerById();
+  const span0 = p.start - PRE_SEC, span = Math.max(p.end - span0, 10);
+  const x = (t) => ((t - span0) / span) * 100;
+  const step = span > 240 ? 60 : span > 100 ? 30 : span > 40 ? 10 : 5;
+  const ticks = [];
+  for (let t = 0; t <= p.end - p.start; t += step) ticks.push(`<span style="left:${x(p.start + t)}%">${signed(t)}</span>`);
+  const lustBgs = D().heroism.filter((h) => h.end > span0 && h.t < p.end)
+    .map((h) => `<div class="lustbg" style="left:${Math.max(0, x(h.t))}%;width:${Math.min(100, x(h.end)) - Math.max(0, x(h.t))}%"></div>`).join("");
+
+  const players = D().players.filter((pl) => !state.selected.size || state.selected.has(pl.id));
+  const lanes = players.map((pl) => {
+    const items = p.casts.filter((c) => c.who === pl.id && visibleCast(c))
+      .map((c) => ({ ...c, kind: "cast" }))
+      .concat(p.deaths.filter((d) => d.who === pl.id).map((d) => ({ ...d, kind: "death" })))
+      .sort((a, b) => a.t - b.t);
+    const rows = [];
+    const placed = items.map((it) => {
+      const px = x(it.t);
+      let r = rows.findIndex((last) => px - last > 3.2);
+      if (r < 0) { r = rows.length; rows.push(px); } else rows[r] = px;
+      return { it, px, r };
+    });
+    const h = Math.max(1, rows.length) * 28 + 8;
+    const icons = placed.map(({ it, px, r }) => {
+      const off = signed(it.t - p.start);
+      if (it.kind === "death") {
+        return `<div class="ic death" style="left:${px}%;top:${4 + r * 28}px"
+          data-tip="${esc(`<b style='color:${CLASS_COLOR[pl.cls]}'>${esc(pl.name)}</b> 死亡<br><span class=t>波内 ${off} · 全程 ${mmss(it.t)}</span><br>致死：${esc(it.name || "未知")}`)}">💀</div>`;
+      }
+      return `<a class="ic" ${spellHref(it.spell)} style="left:${px}%;top:${4 + r * 28}px;--cc:${CAT_COLOR[it.cat]}"
+        data-tip="${esc(`<b>${esc(it.name)}</b> · <span style='color:${CAT_COLOR[it.cat]}'>${CAT_ZH[it.cat]}</span><br><span class=t>波内 ${off} · 全程 ${mmss(it.t)}</span>`)}"><img src="${iconUrl(it.icon, "small")}" alt=""></a>`;
+    }).join("");
+    return `<div class="lane-row" style="--c:${LANE_COLOR[pl.cls] || "#ccc"}">
+      <div class="who"><img src="${classIcon(pl.cls)}" alt=""><span>${esc(pl.name)}</span></div>
+      <div class="track" style="height:${h}px"><div class="pre" style="width:${x(p.start)}%"></div>${lustBgs}${icons}</div>
+    </div>`;
+  }).join("");
+
+  const dur = Math.max(p.end - p.start, 1);
+  const maxDmg = Math.max(...D().players.map((pl) => p.players[pl.id]?.dmg || 0), 1);
+  const rows = players.map((pl) => {
+    const s = p.players[pl.id] || {};
+    const mine = p.casts.filter((c) => c.who === pl.id);
+    const cnt = (cat) => mine.filter((c) => c.cat === cat).length;
+    const chips = (cat) => mine.filter((c) => c.cat === cat).map((c) => `<img src="${iconUrl(c.icon, "small")}" style="--cc:${CAT_COLOR[cat]}" alt=""
+      data-tip="${esc(`<b>${esc(c.name)}</b><br><span class=t>波内 ${signed(c.t - p.start)}</span>`)}">`).join("") || `<span style="color:var(--text-3)">—</span>`;
+    return `<tr style="--c:${CLASS_COLOR[pl.cls]}">
+      <td>${esc(pl.name)}</td>
+      <td><span class="meter" style="width:${Math.round((s.dmg || 0) / maxDmg * 60)}px"></span>${wan((s.dmg || 0) / dur)}</td>
+      <td>${wan((s.heal || 0) / dur)}</td>
+      <td>${wan(s.taken || 0)}</td>
+      <td><div class="chips">${chips("offensive")}</div></td>
+      <td><div class="chips">${chips("defensive")}</div></td>
+      <td><div class="chips">${chips("potion")}${chips("healPotion").includes("<img") ? chips("healPotion") : ""}</div></td>
+      <td>${cnt("interrupt") || "—"}</td>
+    </tr>`;
+  }).join("");
+
+  const enemies = p.enemies.map((e) => `
+    <div class="enemy ${e.boss ? "boss" : ""} ${e.killed ? "" : "miss"}" data-tip="${esc(`<b>${esc(e.name)}</b><br>击杀 ${e.killed} / 接触 ${e.engaged}<br>每只小怪值 ${e.count}`)}">
+      <span class="n">×${e.killed || e.engaged}</span><span class="nm">${esc(e.name)}</span>
+      <span class="f">${e.count && e.killed ? `${(e.count * e.killed / D().run.countRequired * 100).toFixed(1)}%` : ""}</span>
+    </div>`).join("");
+
+  const deadNames = p.deaths.map((d) => `<span style="color:${CLASS_COLOR[by[d.who]?.cls]}">${esc(by[d.who]?.name)}</span>（${signed(d.t - p.start)}，${esc(d.name || "未知")}）`).join("、");
+  $("detail").innerHTML = `
+    <div class="detail-head">
+      <div class="pnum" style="background:${pullColor(i)}">${i + 1}</div>
+      <div>
+        <h3>${esc(p.name)} ${p.boss ? `<span class="tag" style="vertical-align:3px">首领战</span>` : ""}</h3>
+        <div class="meta" style="margin-top:6px">
+          <span class="tag">开怪 <b>${mmss(p.start)}</b></span>
+          <span class="tag">用时 <b>${mmss(p.end - p.start)}</b></span>
+          <span class="tag">进度 <b>+${p.forcesPct}%</b> → <b>${p.cumPct}%</b></span>
+          <span class="tag">${esc(mapById(p.map)?.name || "")}</span>
+          ${p.deaths.length ? `<span class="tag wipe">死亡 ${p.deaths.length}</span>` : ""}
+        </div>
+      </div>
+      <div class="nav-btns">
+        <button class="ghost" id="prevPull" ${i === 0 ? "disabled" : ""}>← 上一波</button>
+        <button class="ghost" id="nextPull" ${i === D().pulls.length - 1 ? "disabled" : ""}>下一波 →</button>
+      </div>
+    </div>
+    <div class="detail-body">
+      <div class="enemies">
+        <h4>本波怪物</h4>
+        ${enemies || `<div class="note-small">没有记录到怪物</div>`}
+        ${p.forcesPct === 0 && !p.boss ? `<div class="note-small">本波没有击杀记录：怪物多半被带到下一波一起击杀。</div>` : ""}
+        ${deadNames ? `<div class="note-small" style="color:#f3a491">💀 ${deadNames}</div>` : ""}
+      </div>
+      <div class="lanes-wrap">
+        <div class="lanes-top">
+          <h4 style="margin:0">技能时间线（灰底为开怪前 ${PRE_SEC} 秒，红底为嗜血）</h4>
+          <div class="cat-filter" id="catFilter">${CATS.map(([k, v]) => `<button data-k="${k}" class="${state.cats.has(k) ? "on" : ""}" style="--cc:${CAT_COLOR[k]}"><i></i>${v}</button>`).join("")}</div>
+        </div>
+        <div class="lanes">
+          <div class="axis">${ticks.join("")}</div>
+          ${lanes}
+        </div>
+      </div>
+      <div class="stats">
+        <h4>本波数据</h4>
+        <table>
+          <thead><tr><th>队员</th><th>DPS</th><th>HPS</th><th>承伤</th><th>爆发</th><th>减伤/保命</th><th>药水</th><th>打断</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  $("prevPull").onclick = () => selectPull(state.pullIdx - 1, true);
+  $("nextPull").onclick = () => selectPull(state.pullIdx + 1, true);
+  $("catFilter").querySelectorAll("button").forEach((b) => b.onclick = () => {
+    const k = b.dataset.k;
+    state.cats.has(k) ? state.cats.delete(k) : state.cats.add(k);
+    renderDetail(); renderPullList(); renderMatrix();
+  });
+  if (window.$WowheadPower) $WowheadPower.refreshLinks();
+}
+
+function renderMatrix() {
+  const { pulls } = D();
+  const players = D().players.filter((pl) => !state.selected.size || state.selected.has(pl.id));
+  const by = playerById();
+  const head = `<tr><th>队员</th>${pulls.map((p, i) => `<th><span class="pn" data-i="${i}" style="background:${pullColor(i)}" data-tip="${esc(`第 ${i + 1} 波 · ${esc(p.name)}`)}">${i + 1}</span></th>`).join("")}</tr>`;
+  const body = players.map((pl) => `<tr style="--c:${CLASS_COLOR[pl.cls]}"><td>${esc(pl.name)}</td>${pulls.map((p, i) => {
+    const cs = p.casts.filter((c) => c.who === pl.id && MATRIX_CATS[state.matrixMode].includes(c.cat));
+    const dead = p.deaths.some((d) => d.who === pl.id);
+    return `<td class="${i === state.pullIdx ? "cur" : ""}"><div class="chips">${cs.map((c) => `<img src="${iconUrl(c.icon, "small")}" style="--cc:${CAT_COLOR[c.cat]}" alt=""
+      data-tip="${esc(`<b>${esc(c.name)}</b> · ${CAT_ZH[c.cat]}<br><span class=t>第 ${i + 1} 波 ${signed(c.t - p.start)}</span>`)}">`).join("")}${dead ? "💀" : ""}</div></td>`;
+  }).join("")}</tr>`).join("");
+  $("matrix").innerHTML = `<table class="matrix">${head}${body}</table>`;
+  $("matrix").querySelectorAll(".pn").forEach((el) => el.onclick = () => { selectPull(+el.dataset.i, true); $("detail").scrollIntoView({ behavior: "smooth" }); });
+}
+
+function renderSummary() {
+  const { pulls, players, run, deaths } = D();
+  const dur = Math.max(run.duration, 1);
+  const pullsOf = (pid, cat) => pulls.map((p, i) => p.casts.some((c) => c.who === pid && c.cat === cat) ? i + 1 : null).filter(Boolean);
+  const count = (pid, cat) => pulls.reduce((n, p) => n + p.casts.filter((c) => c.who === pid && c.cat === cat).length, 0);
+  const rows = players.map((pl) => {
+    const potPulls = pullsOf(pl.id, "potion");
+    const offs = pl.usage.filter((u) => u.cat === "offensive");
+    return `<tr style="--c:${CLASS_COLOR[pl.cls]}">
+      <td>${esc(pl.name)}</td>
+      <td>${wan(pl.total.dmg / dur)}</td>
+      <td>${wan(pl.total.heal / dur)}</td>
+      <td>${wan(pl.total.taken)}</td>
+      <td><div class="chips">${offs.map((u) => `<img src="${iconUrl(u.icon, "small")}" style="--cc:${CAT_COLOR.offensive}" alt=""
+        data-tip="${esc(`<b>${esc(u.name)}</b><br>使用 ${u.times.length} 次`)}">`).join("") || "—"} ${count(pl.id, "offensive") || ""}</div></td>
+      <td>${count(pl.id, "defensive") || "—"}</td>
+      <td>${potPulls.length ? `${count(pl.id, "potion")} 次（第 ${potPulls.join("、")} 波）` : "—"}</td>
+      <td>${count(pl.id, "healPotion") || "—"}</td>
+      <td>${count(pl.id, "interrupt") || "—"}</td>
+      <td>${deaths.filter((d) => d.who === pl.id).length || "—"}</td>
+    </tr>`;
+  }).join("");
+  $("summary").innerHTML = `<table>
+    <thead><tr><th>队员</th><th>DPS</th><th>HPS</th><th>承伤</th><th>爆发技能（总次数）</th><th>减伤次数</th><th>爆发药</th><th>治疗药/糖</th><th>打断</th><th>死亡</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+
+  const by = playerById();
+  const link = (i) => `<a data-i="${i}">第 ${i + 1} 波</a>`;
+  const notes = [];
+  const trash = pulls.map((p, i) => ({ p, i })).filter(({ p }) => !p.boss && p.forces > 0);
+  if (trash.length) {
+    const rate = trash.map(({ p, i }) => ({ i, r: p.forcesPct / Math.max((p.end - p.start) / 60, 0.1) })).sort((a, b) => b.r - a.r);
+    notes.push(`小怪效率最高的是 ${link(rate[0].i)}（每分钟 <b>${rate[0].r.toFixed(1)}%</b>），最低的是 ${link(rate[rate.length - 1].i)}（每分钟 ${rate[rate.length - 1].r.toFixed(1)}%）。`);
+    const big = [...trash].sort((a, b) => b.p.forcesPct - a.p.forcesPct)[0];
+    notes.push(`最大的一波是 ${link(big.i)} ${esc(big.p.name)}，一次拿下 <b>${big.p.forcesPct}%</b> 进度，用时 ${mmss(big.p.end - big.p.start)}。`);
+  }
+  const bossTime = pulls.filter((p) => p.boss).reduce((s, p) => s + p.end - p.start, 0);
+  const fightTime = pulls.reduce((s, p) => s + p.end - p.start, 0);
+  notes.push(`战斗时间 ${mmss(fightTime)}（首领 ${mmss(bossTime)}、小怪 ${mmss(fightTime - bossTime)}），跑图与等待 <b>${mmss(Math.max(0, run.duration - fightTime))}</b>。`);
+  const lustPulls = D().heroism.map((h) => pullIndexAt(h.t));
+  if (lustPulls.length) notes.push(`嗜血开在 ${lustPulls.map(link).join("、")}。`);
+  const potionPulls = pulls.map((p, i) => ({ i, n: new Set(p.casts.filter((c) => c.cat === "potion").map((c) => c.who)).size })).filter((x) => x.n >= 2);
+  if (potionPulls.length) notes.push(`多人同时喝爆发药的波次：${potionPulls.map((x) => `${link(x.i)}（${x.n} 人）`).join("、")}。`);
+  const noBurst = pulls.map((p, i) => ({ p, i })).filter(({ p }) => p.end - p.start > 40 && !p.casts.some((c) => c.cat === "offensive"));
+  if (noBurst.length) notes.push(`持续超过 40 秒却没人开爆发的波次：${noBurst.map(({ i }) => link(i)).join("、")}。`);
+  for (const d of deaths) {
+    const i = pulls.findIndex((p) => d.t >= p.start - 2 && d.t <= p.end + 8);
+    notes.push(`<span style="color:${CLASS_COLOR[by[d.who]?.cls]}">${esc(by[d.who]?.name)}</span> 死于 ${i >= 0 ? link(i) : mmss(d.t)}（${esc(d.name || "未知")}，${mmss(d.t)}）。`);
+  }
+  $("insights").innerHTML = notes.map((n) => `<li>${n}</li>`).join("");
+  $("insights").querySelectorAll("a[data-i]").forEach((a) => a.onclick = () => { selectPull(+a.dataset.i, true); $("detail").scrollIntoView({ behavior: "smooth" }); });
+}
+
+/* ---------- map ---------- */
+
+const svgNS = "http://www.w3.org/2000/svg";
+const imgSize = {};
+
+function project(m, x, y, W, H) {
+  return [W * (x - m.minX) / (m.maxX - m.minX), H * (m.maxY - y) / (m.maxY - m.minY)];
+}
+
+function loadImgSize(id) {
+  if (imgSize[id]) return Promise.resolve(imgSize[id]);
+  return new Promise((ok) => {
+    const im = new Image();
+    im.onload = () => ok(imgSize[id] = [im.naturalWidth, im.naturalHeight]);
+    im.onerror = () => ok(imgSize[id] = [1500, 1000]);
+    im.src = `/api/map/${id}.png`;
+  });
+}
+
+function hull(points) {
+  if (points.length < 3) return points;
+  const p = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower = [], upper = [];
+  for (const q of p) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0) lower.pop(); lower.push(q); }
+  for (const q of p.reverse()) { while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0) upper.pop(); upper.push(q); }
+  return lower.slice(0, -1).concat(upper.slice(0, -1));
+}
+
+let drawToken = 0;
+async function drawMap(refit) {
+  if (!D()) return;
+  const token = ++drawToken;
+  const m = mapById(state.floor);
+  if (!m) return;
+  const [W, H] = await loadImgSize(m.id);
+  if (token !== drawToken) return;
+  const svg = $("map");
+  const pr = (x, y) => project(m, x, y, W, H);
+  const scale = W / 1500;
+  const ps = D().pulls;
+  const by = playerById();
+  let out = `<image href="/api/map/${m.id}.png" x="0" y="0" width="${W}" height="${H}"/>`;
+  out += `<rect x="0" y="0" width="${W}" height="${H}" fill="rgba(0,0,0,.18)"/>`;
+
+  // pull areas from mob positions
+  const mobs = state.paths?.mobs || [];
+  ps.forEach((p, i) => {
+    if (p.map !== m.id) return;
+    const pts = mobs.filter((mb) => mb.pull === i && mb.floor === m.id).map((mb) => pr(mb.x, mb.y));
+    const sel = i === state.pullIdx;
+    if (pts.length >= 3) {
+      const h = hull(pts);
+      out += `<polygon points="${h.map((q) => q.join(",")).join(" ")}" fill="${pullColor(i)}" fill-opacity="${sel ? .32 : .14}"
+        stroke="${pullColor(i)}" stroke-opacity="${sel ? 1 : .55}" stroke-width="${(sel ? 3 : 1.5) * scale}" stroke-linejoin="round"/>`;
+    } else if (!state.paths && p.box[0] != null) {
+      const [x1, y1] = pr(p.box[0], p.box[3]), [x2, y2] = pr(p.box[2], p.box[1]);
+      out += `<rect x="${x1}" y="${y1}" width="${x2 - x1}" height="${y2 - y1}" rx="${8 * scale}" fill="${pullColor(i)}" fill-opacity="${sel ? .25 : .1}" stroke="${pullColor(i)}" stroke-opacity=".6" stroke-width="${1.5 * scale}"/>`;
+    }
+  });
+
+  // tank movement track
+  if (state.paths && state.showTracks) {
+    const tid = state.selected.size === 1 ? [...state.selected][0] : tankId();
+    const tr = state.paths.tracks[tid] || [];
+    const cur = ps[state.pullIdx];
+    const prevEnd = state.pullIdx ? ps[state.pullIdx - 1].end : 0;
+    let segs = [], cur_seg = [], hi = [], hiSeg = [];
+    for (let k = 0; k < tr.length; k++) {
+      const a = tr[k];
+      const gap = k && (a.t - tr[k - 1].t > 25 || a.floor !== tr[k - 1].floor);
+      if (gap) { if (cur_seg.length > 1) segs.push(cur_seg); cur_seg = []; if (hiSeg.length > 1) hi.push(hiSeg); hiSeg = []; }
+      if (a.floor !== m.id) continue;
+      const q = pr(a.x, a.y);
+      cur_seg.push(q);
+      if (a.t >= prevEnd && a.t <= cur.end) hiSeg.push(q); else if (hiSeg.length) { if (hiSeg.length > 1) hi.push(hiSeg); hiSeg = []; }
+    }
+    if (cur_seg.length > 1) segs.push(cur_seg);
+    if (hiSeg.length > 1) hi.push(hiSeg);
+    const color = CLASS_COLOR[by[tid]?.cls] || "#fff";
+    out += segs.map((s) => `<polyline points="${s.map((q) => q.join(",")).join(" ")}" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="${2.2 * scale}" stroke-linejoin="round" stroke-linecap="round"/>`).join("");
+    out += hi.map((s) => `<polyline points="${s.map((q) => q.join(",")).join(" ")}" fill="none" stroke="${color}" stroke-width="${4 * scale}" stroke-linejoin="round" stroke-linecap="round" filter="drop-shadow(0 0 3px #000)"/>`).join("");
+  }
+
+  // mob dots
+  if (state.paths && state.showMobs) {
+    out += mobs.filter((mb) => mb.floor === m.id).map((mb) => {
+      const [x, y] = pr(mb.x, mb.y);
+      const sel = mb.pull === state.pullIdx;
+      return `<circle cx="${x}" cy="${y}" r="${(sel ? 5 : 3.5) * scale}" fill="${pullColor(mb.pull)}" stroke="#000" stroke-width="${scale}" opacity="${sel ? 1 : .7}"/>`;
+    }).join("");
+  }
+
+  // pull order (dashed) + badges
+  const onFloor = ps.map((p, i) => ({ p, i })).filter(({ p }) => p.map === m.id && p.x != null);
+  for (let k = 1; k < onFloor.length; k++) {
+    const a = onFloor[k - 1], b = onFloor[k];
+    if (b.i !== a.i + 1) continue;
+    const [x1, y1] = pr(a.p.x, a.p.y), [x2, y2] = pr(b.p.x, b.p.y);
+    out += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#fff" stroke-opacity=".85" stroke-width="${2.4 * scale}" stroke-dasharray="${8 * scale} ${6 * scale}" marker-end="url(#arrow)"/>`;
+  }
+  // deaths
+  if (state.paths) {
+    for (const d of D().deaths) {
+      if (state.selected.size && !state.selected.has(d.who)) continue;
+      const pos = posAt(state.paths.tracks[d.who], d.t);
+      if (!pos || pos.floor !== m.id) continue;
+      const [x, y] = pr(pos.x, pos.y);
+      const s = 9 * scale;
+      out += `<g data-tip="${esc(`<b style='color:${CLASS_COLOR[by[d.who]?.cls]}'>${esc(by[d.who]?.name)}</b> 死亡 · ${mmss(d.t)}<br>${esc(d.name || "")}`)}">
+        <circle cx="${x}" cy="${y}" r="${s * 1.2}" fill="rgba(0,0,0,.6)"/>
+        <path d="M${x - s / 1.4} ${y - s / 1.4}L${x + s / 1.4} ${y + s / 1.4}M${x + s / 1.4} ${y - s / 1.4}L${x - s / 1.4} ${y + s / 1.4}" stroke="#ef6a4c" stroke-width="${3 * scale}" stroke-linecap="round"/></g>`;
+    }
+  }
+  for (const { p, i } of onFloor) {
+    const [x, y] = pr(p.x, p.y);
+    const sel = i === state.pullIdx;
+    const r = (sel ? 19 : 15) * scale;
+    out += `<g class="pull-badge" data-i="${i}" data-tip="${esc(`<b>第 ${i + 1} 波 · ${esc(p.name)}</b><br><span class=t>${mmss(p.start)} 开怪 · 用时 ${mmss(p.end - p.start)}</span><br>进度 +${p.forcesPct}% → ${p.cumPct}%`)}">
+      ${p.boss ? `<circle cx="${x}" cy="${y}" r="${r + 6 * scale}" fill="none" stroke="${pullColor(i)}" stroke-width="${2.5 * scale}" stroke-dasharray="${4 * scale} ${3 * scale}"/>` : ""}
+      <circle cx="${x}" cy="${y}" r="${r}" fill="${pullColor(i)}" stroke="${sel ? "#fff" : "#111"}" stroke-width="${(sel ? 3.5 : 2) * scale}"/>
+      <text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" style="font-size:${(sel ? 17 : 14) * scale}px">${i + 1}</text></g>`;
+  }
+  out += `<g id="liveDots"></g>`;
+  svg.innerHTML = `<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#fff"/></marker></defs>${out}`;
+  svg.dataset.w = W; svg.dataset.h = H;
+  svg.querySelectorAll(".pull-badge").forEach((g) => g.addEventListener("click", (e) => { if (!panMoved) selectPull(+g.dataset.i, true); }));
+  svg.querySelectorAll("[data-tip]").forEach((g) => {
+    g.addEventListener("mousemove", (e) => showTip(e, g.dataset.tip));
+    g.addEventListener("mouseleave", hideTip);
+  });
+  if (refit || !state.view) fitView(m, W, H);
+  applyView();
+  drawLive();
+}
+
+function fitView(m, W, H) {
+  const pts = [];
+  const pr = (x, y) => project(m, x, y, W, H);
+  D().pulls.forEach((p) => { if (p.map === m.id && p.x != null) pts.push(pr(p.x, p.y)); });
+  (state.paths?.mobs || []).forEach((mb) => { if (mb.floor === m.id) pts.push(pr(mb.x, mb.y)); });
+  const inImg = pts.filter(([x, y]) => x >= 0 && x <= W && y >= 0 && y <= H);
+  const box = $("mapbox"), ar = box.clientWidth / box.clientHeight || 1.5;
+  if (inImg.length < 2) { state.view = W / H > ar ? [0, (H - W / ar) / 2, W, W / ar] : [(W - H * ar) / 2, 0, H * ar, H]; return; }
+  let x1 = Math.min(...inImg.map((q) => q[0])), x2 = Math.max(...inImg.map((q) => q[0]));
+  let y1 = Math.min(...inImg.map((q) => q[1])), y2 = Math.max(...inImg.map((q) => q[1]));
+  const pad = Math.max(x2 - x1, y2 - y1) * 0.15 + 60 * (W / 1500);
+  x1 -= pad; x2 += pad; y1 -= pad; y2 += pad;
+  // grow to the box's aspect ratio around the route's center
+  let w = x2 - x1, h = y2 - y1;
+  const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+  if (w / h > ar) h = w / ar; else w = h * ar;
+  if (w > W * 1.05) { w = W * 1.05; h = w / ar; }
+  state.view = [cx - w / 2, cy - h / 2, w, h];
+}
+
+function applyView() {
+  const v = state.view;
+  if (v) $("map").setAttribute("viewBox", v.join(" "));
+}
+
+function drawLive() {
+  const g = $("liveDots");
+  if (!g || !state.paths) return;
+  const W = +$("map").dataset.w;
+  const scale = W / 1500;
+  const m = mapById(state.floor);
+  const H = +$("map").dataset.h;
+  let out = "";
+  for (const pl of D().players) {
+    if (state.selected.size && !state.selected.has(pl.id)) continue;
+    const pos = posAt(state.paths.tracks[pl.id], state.t);
+    if (!pos || pos.floor !== m.id) continue;
+    const [x, y] = project(m, pos.x, pos.y, W, H);
+    out += `<circle cx="${x}" cy="${y}" r="${7 * scale}" fill="${CLASS_COLOR[pl.cls]}" stroke="#000" stroke-width="${2 * scale}"><title>${esc(pl.name)}</title></circle>`;
+  }
+  g.innerHTML = out;
+}
+
+/* pan & zoom */
+let pan = null, panMoved = false;
+$("mapbox").addEventListener("wheel", (e) => {
+  if (!state.view) return;
+  e.preventDefault();
+  const r = $("mapbox").getBoundingClientRect();
+  const [vx, vy, vw, vh] = state.view;
+  const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
+  const k = Math.exp(e.deltaY * 0.0015);
+  const W = +$("map").dataset.w;
+  const nw = Math.min(Math.max(vw * k, W / 30), W * 1.5), nh = nw * vh / vw;
+  state.view = [vx + (vw - nw) * fx, vy + (vh - nh) * fy, nw, nh];
+  applyView();
+}, { passive: false });
+$("mapbox").addEventListener("pointerdown", (e) => {
+  if (!state.view || e.button !== 0) return;
+  pan = { x: e.clientX, y: e.clientY, v: [...state.view] };
+  panMoved = false;
+});
+window.addEventListener("pointermove", (e) => {
+  if (!pan) return;
+  const dx = e.clientX - pan.x, dy = e.clientY - pan.y;
+  if (!panMoved && Math.hypot(dx, dy) < 4) return;
+  panMoved = true;
+  $("mapbox").classList.add("dragging");
+  const r = $("mapbox").getBoundingClientRect();
+  const [vx, vy, vw, vh] = pan.v;
+  state.view = [vx - dx * vw / r.width, vy - dy * vh / r.height, vw, vh];
+  applyView();
+});
+window.addEventListener("pointerup", () => {
+  pan = null;
+  $("mapbox").classList.remove("dragging");
+  setTimeout(() => { panMoved = false; }, 0);
+});
+$("fitBtn").onclick = () => { state.view = null; drawMap(true); };
+$("tglTracks").onclick = () => { state.showTracks = !state.showTracks; $("tglTracks").classList.toggle("on", state.showTracks); drawMap(); };
+$("tglMobs").onclick = () => { state.showMobs = !state.showMobs; $("tglMobs").classList.toggle("on", state.showMobs); drawMap(); };
+
+$("matrixMode").querySelectorAll("button").forEach((b) => b.onclick = () => {
+  state.matrixMode = b.dataset.v;
+  $("matrixMode").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+  renderMatrix();
+});
+
+/* ---------- replay ---------- */
+
+function setupScrub() {
+  const s = $("scrub");
+  s.max = D().run.duration;
+  s.value = state.t;
+  updateClock();
+}
+
+function updateClock() {
+  const p = D().pulls[pullIndexAt(state.t)];
+  const inPull = p && state.t >= p.start && state.t <= p.end;
+  $("clock").textContent = `${mmss(state.t)}${inPull ? ` · 第${pullIndexAt(state.t) + 1}波` : ""}`;
+  const c = $("stripCursor");
+  if (c) c.style.left = `${(state.t / D().run.duration) * 100}%`;
+}
+
+function setTime(t) {
+  state.t = Math.max(0, Math.min(D().run.duration, t));
+  $("scrub").value = state.t;
+  const i = pullIndexAt(state.t);
+  let floorChanged = false;
+  if (state.paths) {
+    const tr = state.paths.tracks[tankId()];
+    const pos = posAt(tr, state.t);
+    if (pos && pos.floor !== state.floor) { setFloor(pos.floor); floorChanged = true; }
+  }
+  if (i !== state.pullIdx) {
+    state.pullIdx = i;
+    $("strip").querySelectorAll(".seg").forEach((s) => s.classList.toggle("on", +s.dataset.i === i));
+    $("pullList").querySelectorAll(".pitem").forEach((el) => el.classList.toggle("on", +el.dataset.i === i));
+    renderDetail();
+    renderMatrix();
+    drawMap(floorChanged);
+  } else if (floorChanged) drawMap(true);
+  else drawLive();
+  updateClock();
+}
+
+$("scrub").oninput = () => { stopPlay(); setTime(+$("scrub").value); };
+let raf = null, lastTs = 0;
+function frame(ts) {
+  if (!state.playing) return;
+  const dt = lastTs ? (ts - lastTs) / 1000 : 0;
+  lastTs = ts;
+  setTime(state.t + dt * +$("speed").value);
+  if (state.t >= D().run.duration) return stopPlay();
+  raf = requestAnimationFrame(frame);
+}
+function stopPlay() {
+  state.playing = false;
+  cancelAnimationFrame(raf);
+  $("playIcon").setAttribute("d", "M2 1l9 5-9 5z");
+}
+$("play").onclick = () => {
+  if (state.playing) return stopPlay();
+  if (!state.paths) { showTip({ clientX: innerWidth / 2, clientY: 120 }, "走位数据还在加载中…"); setTimeout(hideTip, 1500); }
+  state.playing = true;
+  lastTs = 0;
+  $("playIcon").setAttribute("d", "M2 1h3v10H2zM7 1h3v10H7z");
+  raf = requestAnimationFrame(frame);
+};
+
+document.addEventListener("keydown", (e) => {
+  if (!D() || e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  if (e.key === "ArrowRight" || e.key === "j") selectPull(state.pullIdx + 1, true);
+  if (e.key === "ArrowLeft" || e.key === "k") selectPull(state.pullIdx - 1, true);
+  if (e.key === " ") { e.preventDefault(); $("play").click(); }
+});
+window.addEventListener("resize", () => { if (D()) { state.view = null; drawMap(true); } });
+
+/* ---------- boot ---------- */
+
+const params = new URLSearchParams(location.search);
+if (params.get("r")) {
+  $("link").value = `https://www.warcraftlogs.com/reports/${params.get("r")}`;
+  loadReport($("link").value, params.get("f") ? +params.get("f") : undefined);
+}
+</script>
+</body>
+</html>

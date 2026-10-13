@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This is a small Warcraft Logs analysis app with no build step. `server.py` runs the HTTP server, fetches and analyzes report data, and serves the UI. `index.html` contains the page, styles, and browser-side JavaScript. `cooldowns.json` lists healer spell IDs by specialization and category (`raid` or `external`). `requirements.txt` contains the Python dependency. Runtime responses and spell metadata go under `cache/`, which is ignored by Git. There is currently no `tests/` directory or separate asset pipeline.
+This is a small Warcraft Logs analysis app with no build step. `server.py` runs the HTTP server, fetches and analyzes report data, and serves the UI. `index.html` contains the page, styles, and browser-side JavaScript. `cooldowns.json` lists healer spell IDs by specialization and category (`raid` or `external`). `mplus.html` is the Mythic+ review page (served at `/mplus`), and `mplus_spells.json` classifies spells for it by class (`offensive`/`defensive`) plus `_global` lists (interrupt, rez, lust, potion, healPotion, racials). `requirements.txt` contains the Python dependency. Runtime responses and spell metadata go under `cache/`, which is ignored by Git. Offline unit tests live in `tests/`; there is no separate asset pipeline.
 
 ## Build, Test, and Development Commands
 
@@ -22,7 +22,7 @@ Follow the existing style: four-space indentation and `snake_case` for Python fu
 
 ## Testing Guidelines
 
-There is no test framework or coverage target yet. For behavior changes, start the server, load a public Warcraft Logs report, select a fight, and check the summary, cooldown timeline, and browser console. Exercise the affected `/api/report` or `/api/fight` endpoint when changing response logic. If adding automated tests, place them in `tests/` with `test_*.py` names and document the command needed to run them.
+Run `.venv/bin/python -m unittest discover -s tests` for the offline unit tests (no coverage target). For behavior changes, start the server, load a public Warcraft Logs report, select a fight, and check the summary, cooldown timeline, and browser console. Exercise the affected `/api/report`, `/api/fight`, or `/api/mplus*` endpoint when changing response logic; for Mythic+ changes, open `/mplus`, load a report, and check the map, pull detail, and matrix. If adding automated tests, place them in `tests/` with `test_*.py` names and document the command needed to run them.
 
 ## Commit & Pull Request Guidelines
 

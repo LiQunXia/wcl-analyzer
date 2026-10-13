@@ -50,6 +50,8 @@
   .brand-mark svg { width: 16px; height: 16px; }
   .brand b { font-size: 15px; letter-spacing: .02em; font-weight: 600; }
   .brand span { color: var(--text-3); font-size: 12px; margin-left: 2px; }
+  .nav-link { flex: none; font-size: 13px; color: var(--text-2); padding: 6px 10px; border-radius: 7px; }
+  .nav-link:hover { color: var(--text); background: rgba(255,255,255,.05); }
   .search { flex: 1; display: flex; align-items: center; max-width: 640px; margin-left: auto; height: 38px;
     background: var(--surface); border: 1px solid var(--line-2); border-radius: 10px; padding: 0 4px 0 14px; transition: border-color .15s, box-shadow .15s; }
   .search:focus-within { border-color: rgba(233,179,90,.5); box-shadow: 0 0 0 4px rgba(233,179,90,.08); }
@@ -256,6 +258,7 @@
       <div class="brand-mark"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5v13M1.5 8h13" stroke="#1a1408" stroke-width="2.6" stroke-linecap="round"/></svg></div>
       <b>治疗作业</b><span>Healing Playbook</span>
     </div>
+    <a href="/mplus" class="nav-link">大秘境复盘 →</a>
     <form class="search" id="form">
       <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="m11 11 3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       <input id="link" type="text" autocomplete="off" spellcheck="false" placeholder="粘贴一份 Warcraft Logs 链接，例如 warcraftlogs.com/reports/xxxx?fight=12">
