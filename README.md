@@ -58,6 +58,7 @@ Warcraft Logs 偶尔会要求人机验证。这时会弹出一个小窗口，自
 | 浏览器没有自动打开 | 手动打开 <http://127.0.0.1:8000>。如果 8000 被占用，按窗口里打印的地址打开。 |
 | 弹出 WCL 人机验证 | 在弹出的窗口里自己点「I am a human and not a bot」，验证完会自动继续。 |
 | 第一次分析很慢 | 第一次要从 WCL 拉数据（大秘境回放可能要几十秒），之后会走本地缓存。 |
+| 技能图标显示成灰色问号 | 图标由程序从 WCL / 暴雪的图源取回并缓存在本机；能正常访问 Warcraft Logs 时刷新页面即可。Wowhead 的图片域名在中国大陆打不开，但不影响图标（只有鼠标悬浮的 Wowhead 提示不会出现）。 |
 | 导出 MDT 提示找不到插件 | 需要安装 Mythic Dungeon Tools。插件不在默认路径时，设置环境变量 `WCL_MDT_PATH` 指向插件目录。 |
 
 所有缓存都在本机：Windows 在 `%LOCALAPPDATA%\WCLAnalyzer`，macOS 在 `~/WCLAnalyzer`。删掉不影响使用，只是下次会重新拉取。

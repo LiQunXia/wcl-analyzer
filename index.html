@@ -369,7 +369,8 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 const wan = (v) => v >= 1e8 ? `${(v / 1e8).toFixed(2)}亿` : `${Math.round(v / 1e4).toLocaleString()}万`;
-const iconUrl = (icon, size = "medium") => `https://wow.zamimg.com/images/wow/icons/${size}/${icon || "inv_misc_questionmark"}.jpg`;
+/* 图标经本地服务代理并缓存（Wowhead 的图片域名在中国大陆返回 403）；显示尺寸由 CSS 决定。 */
+const iconUrl = (icon) => `/api/icon/${encodeURIComponent(icon || "inv_misc_questionmark")}`;
 const spellAttr = (id) => `href="https://www.wowhead.com/cn/spell=${id}" data-wowhead="spell=${id}&domain=cn" target="_blank"`;
 
 const state = { code: null, fights: [], fightId: null, data: null, selected: new Set(), focusBoss: null, nameMode: "spec", zoom: 1 };

@@ -449,14 +449,11 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const mmss = (s) => { const v = Math.max(0, Math.round(s)); return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, "0")}`; };
 const signed = (s) => (s < 0 ? "-" : "+") + mmss(Math.abs(s));
 const wan = (v) => v >= 1e8 ? `${(v / 1e8).toFixed(2)}亿` : v >= 1e4 ? `${Math.round(v / 1e4).toLocaleString()}万` : String(Math.round(v));
-const iconUrl = (icon, size = "medium") => `https://wow.zamimg.com/images/wow/icons/${size}/${icon || "inv_misc_questionmark"}.jpg`;
+/* 图标经本地服务代理并缓存（Wowhead 的图片域名在中国大陆返回 403）；显示尺寸由 CSS 决定。 */
+const iconUrl = (icon) => `/api/icon/${encodeURIComponent(icon || "inv_misc_questionmark")}`;
 const classIcon = (cls) => iconUrl(`classicon_${(cls || "").toLowerCase()}`);
-/** Enemy icons come from WCL ("custom-icon-inv_xxx.jpg"), served by the rpglogs asset host. */
-const mobIconUrl = (icon) => {
-  const name = (icon || "").replace(/^custom-icon-/, "");
-  const file = /^[a-z0-9_-]+\.(jpe?g|png|tga)$/i.test(name) ? name : "inv_misc_questionmark.jpg";
-  return `https://assets.rpglogs.com/img/warcraft/abilities/${file}`;
-};
+/** Enemy icons come from WCL ("custom-icon-inv_xxx.jpg"); the proxy strips the prefix/suffix. */
+const mobIconUrl = (icon) => iconUrl((icon || "").replace(/^custom-icon-/, ""));
 const spellHref = (id) => `href="https://www.wowhead.com/cn/spell=${id}" data-wowhead="spell=${id}&domain=cn" target="_blank"`;
 const pullColor = (i) => PULL_COLORS[i % PULL_COLORS.length];
 

@@ -815,6 +815,100 @@ def _spread(arr, t0, length, rate):
         sec += 1
 
 
+# ---------- icons ----------
+
+ICON_DIR = CACHE / "icons"
+ICON_NAME_RE = re.compile(r"[a-z0-9_-]{1,80}")
+# Wowhead 的图片域名（wow.zamimg.com）对中国大陆的访问直接返回 403，所以优先用
+# WCL 自己的素材域名和暴雪的图标 CDN，Wowhead 只作为最后的兜底。
+ICON_UPSTREAMS = (
+    "https://assets.rpglogs.com/img/warcraft/abilities/{name}.jpg",
+    "https://render.worldofwarcraft.com/us/icons/56/{name}.jpg",
+    "https://wow.zamimg.com/images/wow/icons/medium/{name}.jpg",
+)
+ICON_RETRY_SEC = 300
+ICON_PLACEHOLDER = (
+    b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56">'
+    b'<rect width="56" height="56" rx="9" fill="#23272e"/>'
+    b'<text x="28" y="39" text-anchor="middle" font-family="Arial, sans-serif"'
+    b' font-size="30" font-weight="700" fill="#5f6773">?</text></svg>'
+)
+_icon_locks_guard = threading.Lock()
+_icon_locks = {}
+_icon_misses = {}
+
+
+def normalize_icon(name):
+    """把 WCL / Wowhead 的图标引用整理成安全的 CDN 文件名。"""
+    slug = (name or "").strip().lower()
+    slug = re.sub(r"^custom-icon-", "", slug)
+    slug = re.sub(r"\.(?:jpe?g|png|tga|gif|webp|bmp)$", "", slug)
+    return slug if ICON_NAME_RE.fullmatch(slug) else ""
+
+
+def icon_mime(data):
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data.startswith(b"GIF8"):
+        return "image/gif"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return "image/jpeg"
+
+
+def _icon_lock(slug):
+    with _icon_locks_guard:
+        return _icon_locks.setdefault(slug, threading.Lock())
+
+
+def _download_icon(slug):
+    for template in ICON_UPSTREAMS:
+        try:
+            r = requests.get(template.format(name=slug), timeout=15, impersonate="chrome")
+        except Exception:
+            continue
+        if (r.status_code == 200 and r.headers.get("content-type", "").startswith("image/")
+                and len(r.content) > 128):
+            return r.content
+    return None
+
+
+def icon_bytes(name):
+    """图标字节；全部图源都失败时返回 ``None``，由调用方给出占位图。
+
+    第一张图从 CDN 取回后落盘到 ``cache/icons/``，之后完全离线可用。
+    """
+    slug = normalize_icon(name)
+    if not slug:
+        return None
+    path = ICON_DIR / f"{slug}.jpg"
+    try:
+        if path.exists():
+            return path.read_bytes()
+    except OSError:
+        pass
+    missed = _icon_misses.get(slug)
+    if missed and time.time() - missed < ICON_RETRY_SEC:
+        return None
+    with _icon_lock(slug):
+        try:
+            if path.exists():
+                return path.read_bytes()
+        except OSError:
+            pass
+        data = _download_icon(slug)
+        if not data:
+            _icon_misses[slug] = time.time()
+            return None
+        _icon_misses.pop(slug, None)
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+        except OSError:
+            pass
+        return data
+
+
 # ---------- http ----------
 
 class Handler(BaseHTTPRequestHandler):
@@ -841,6 +935,13 @@ class Handler(BaseHTTPRequestHandler):
             m = re.fullmatch(r"/api/map/(\d+)\.png", url.path)
             if m:
                 return self._send(200, map_image(int(m.group(1))), "image/png", cache=True)
+            m = re.fullmatch(r"/api/icon/([A-Za-z0-9_.-]{1,120})", url.path)
+            if m:
+                data = icon_bytes(m.group(1))
+                if data:
+                    return self._send(200, data, icon_mime(data), cache=True)
+                # 占位图不缓存，等 CDN 恢复后刷新页面就能拿到真图。
+                return self._send(200, ICON_PLACEHOLDER, "image/svg+xml", cache_control="no-store")
             self._send(404, b"not found", "text/plain")
         except WclError as e:
             self._json({"error": str(e)}, 400)
@@ -850,10 +951,12 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, obj, status=200):
         self._send(status, json.dumps(obj, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
 
-    def _send(self, status, body, ctype, cache=False):
+    def _send(self, status, body, ctype, cache=False, cache_control=None):
         self.send_response(status)
         self.send_header("Content-Type", ctype)
-        if cache:
+        if cache_control:
+            self.send_header("Cache-Control", cache_control)
+        elif cache:
             self.send_header("Cache-Control", "public, max-age=604800")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
