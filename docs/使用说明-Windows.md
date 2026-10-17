@@ -4,7 +4,8 @@
 
 ## 三步用起来
 
-1. 下载 `WCL-Analyzer.exe`（几十 MB，单个文件，不用解压）。
+1. 打开 <https://github.com/LiQunXia/wcl-analyzer/releases/latest>，下载 `WCL-Analyzer.exe`
+   （约 12 MB，单个文件，不用解压，不用注册 GitHub）。
 2. 双击它。会弹出一个黑色窗口，**不要关它**，浏览器大约 1 秒后自动打开
    <http://127.0.0.1:8000>。
 3. 把 Warcraft Logs 的报告链接粘进输入框，选择战斗即可。

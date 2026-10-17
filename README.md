@@ -1,5 +1,8 @@
 # 治疗作业（WCL 日志分析）
 
+> **不想装 Python？** 直接下 [Windows 单文件版](https://github.com/LiQunXia/wcl-analyzer/releases/latest/download/WCL-Analyzer.exe)，双击即用。
+> 给朋友的说明见 [docs/使用说明-Windows.md](docs/使用说明-Windows.md)。
+
 这是一个本地运行的 Warcraft Logs 治疗技能时间轴分析工具。输入公开报告链接，选择首领战斗后，页面会展示团队承伤、首领技能、治疗大招、死亡和阶段，并生成可复制的 MRT 备忘。界面和错误提示以中文为主。
 
 ## 大秘境复盘（`/mplus`）
