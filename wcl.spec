@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller 打包配置：把整个应用压成一个可双击的 exe / 可执行文件。
+r"""PyInstaller 打包配置：把整个应用压成一个可双击的 exe / 可执行文件。
 
 用法（在项目目录）：
     pip install -r requirements.txt "pyinstaller>=6.10"
