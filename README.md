@@ -1,129 +1,82 @@
-# 治疗作业（WCL 日志分析）
+# 治疗作业
 
-> **不想装 Python？** 直接下 [Windows 单文件版](https://github.com/LiQunXia/wcl-analyzer/releases/latest/download/WCL-Analyzer.exe)，或到 [Releases](https://github.com/LiQunXia/wcl-analyzer/releases/latest) 下载对应芯片的 macOS 版，解压后在终端运行。
-> 给朋友的说明见 [docs/使用说明-Windows.md](docs/使用说明-Windows.md) 和 [docs/使用说明-macOS.md](docs/使用说明-macOS.md)。
+把 Warcraft Logs 的战斗记录整理成一张治疗大招时间轴，也可以把一场大秘境拆成每一波来复盘。
 
-这是一个本地运行的 Warcraft Logs 治疗技能时间轴分析工具。输入公开报告链接，选择首领战斗后，页面会展示团队承伤、首领技能、治疗大招、死亡和阶段，并生成可复制的 MRT 备忘。界面和错误提示以中文为主。
+不用安装 Python，不用注册账号，日志只在本机分析。
 
-## 大秘境复盘（`/mplus`）
+## 下载
 
-打开 <http://127.0.0.1:8000/mplus>，粘贴一份大秘境日志（例如 `https://cn.warcraftlogs.com/reports/XGdhCgWHtPpa9w6J?fight=5`）。页面提供：
+| 系统 | 下载 | 怎么打开 |
+| --- | --- | --- |
+| Windows 10/11 | [WCL-Analyzer.exe](https://github.com/LiQunXia/wcl-analyzer/releases/latest/download/WCL-Analyzer.exe) | 双击运行 |
+| macOS（Apple 芯片） | [Releases 里的 `WCL-Analyzer-macos-arm64.zip`](https://github.com/LiQunXia/wcl-analyzer/releases/latest) | 解压后，在终端运行 `./WCL-Analyzer` |
+| macOS（Intel） | [Releases 里的 `WCL-Analyzer-macos-x86_64.zip`](https://github.com/LiQunXia/wcl-analyzer/releases/latest) | 同上 |
 
-- **路线地图**：按楼层绘制每一波的位置（编号）、波次顺序、怪物被接触时的位置及每波范围、坦克的真实移动轨迹和死亡位置；支持滚轮缩放、拖动，以及按时间回放全队位置（空格播放，←/→ 切换波次）。
-- **全程时间轴**：每一波的起止、首领波、嗜血窗口与死亡。
-- **逐波拆解**：本波怪物（击杀数 / 接触数、小怪值占比）、进度、用时，每个队员在波内的爆发 / 减伤 / 爆发药 / 治疗药 / 打断 / 嗜血 / 战复时间线（含开怪前 12 秒），以及本波 DPS、HPS、承伤。
-- **技能矩阵与全程总览**：「人 × 波次」的爆发或减伤分布、每人整场的技能次数与爆发药波次，以及自动生成的复盘要点。
-- **导出 MDT 路线**：点击地图工具栏的「导出 MDT」，生成 `!~MDT2~` 导入字符串，可直接粘贴到 Mythic Dungeon Tools 的路线导入框；路线会按 WCL 波次与进度匹配 MDT 的怪物组。
+不知道 Mac 是哪种芯片？点左上角苹果菜单 →「关于本机」，看「芯片」一栏。Apple M 系列选 `arm64`，Intel 选 `x86_64`。
 
-数据来源：波次、怪物与楼层来自 WCL 报告元数据中的 `dungeonPulls` / `dungeonReplay`；击杀与进度来自敌方死亡事件和 `npcCountMap`；技能来自施法图表并按 `mplus_spells.json` 分类（药水按名称识别）；走位来自 WCL 战斗回放（`/reports/replaysegment`，每 4 分钟约 40MB，首次读取约 30 秒，提取后的结果缓存在 `cache/<code>/<fight>_paths.json`）。地图图片经 `/api/map/<id>.png` 代理并缓存到 `cache/maps/`。MDT 导出直接读取本机已安装的 `World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools` 地下城数据，不随项目分发插件数据；如插件在非标准路径，可设置环境变量 `WCL_MDT_PATH` 指向插件目录。
+Releases 里暂时没有 macOS 包时，可以看文末的[从源码运行](#从源码运行可选)。
 
-## 快速启动
+## 三步开始
 
-首次运行时，在项目目录创建虚拟环境并安装依赖：
+1. **打开程序**：Windows 双击 `WCL-Analyzer.exe`；macOS 解压后在终端运行 `./WCL-Analyzer`。
+2. **等浏览器自动打开**：地址是 <http://127.0.0.1:8000>。黑色窗口/终端窗口不要关，它就是程序的开关，关掉就退出。
+3. **粘贴日志链接**：把 Warcraft Logs 的报告链接粘进输入框，点「解析」，再选一场战斗。
+
+想先试试？可以用这份公开日志（就是下面截图里的一场）：<https://cn.warcraftlogs.com/reports/qA96N4W2jwkKDv8c?fight=53>
+
+Warcraft Logs 偶尔会要求人机验证。这时会弹出一个小窗口，自己点一下「I am a human and not a bot」，验证完会自动继续。
+
+## 战斗复盘
+
+![战斗复盘：承伤曲线、Boss 技能、治疗大招和 MRT 作业](docs/images/analysis.png)
+
+- 全团承伤、Boss 技能、嗜血、死亡和阶段，都放在同一条时间轴上。
+- 自动找出需要交大招的 Boss 技能，并标出交招后的团队压力。
+- 点选某个治疗，可以只看他的大招轴。
+- 右侧自动生成 MRT 作业，点「复制」就能粘进游戏。
+
+## 大秘境复盘
+
+点页面顶部的「大秘境复盘」，粘贴一份大秘境日志，就能按波次拆开看。
+
+![大秘境路线地图：波次、怪物、走位和死亡位置](docs/images/mplus-map.png)
+
+**路线地图**：每一波的位置、怪物、坦克走位和死亡点都画在地图上。可以缩放、拖动，也可以按时间回放；右侧是整场波次列表。
+
+![逐波拆解：本波怪物、技能时间线和技能矩阵](docs/images/mplus-detail.png)
+
+**逐波拆解**：这一波拉了哪些怪、进度多少、用了多久，每个人交了什么爆发、减伤、爆发药、治疗药和打断，都列在时间线里。下方还有一张「人 × 波次」的技能矩阵。
+
+**导出 MDT**：点地图工具栏的「导出 MDT」，生成 `!~MDT2~` 字符串，直接粘贴到 Mythic Dungeon Tools 的路线导入框。这个功能需要本机安装 MDT 插件。
+
+## 常见问题
+
+| 情况 | 怎么办 |
+| --- | --- |
+| Windows 提示「Windows 已保护你的电脑」 | 点「更多信息」→「仍要运行」。程序没有购买代码签名证书，这不是病毒。 |
+| macOS 提示「无法验证开发者」或「已损坏」 | 打开「系统设置 → 隐私与安全性」，点「仍要打开」；或在终端执行 `xattr -dr com.apple.quarantine WCL-Analyzer`。 |
+| 浏览器没有自动打开 | 手动打开 <http://127.0.0.1:8000>。如果 8000 被占用，按窗口里打印的地址打开。 |
+| 弹出 WCL 人机验证 | 在弹出的窗口里自己点「I am a human and not a bot」，验证完会自动继续。 |
+| 第一次分析很慢 | 第一次要从 WCL 拉数据（大秘境回放可能要几十秒），之后会走本地缓存。 |
+| 导出 MDT 提示找不到插件 | 需要安装 Mythic Dungeon Tools。插件不在默认路径时，设置环境变量 `WCL_MDT_PATH` 指向插件目录。 |
+
+所有缓存都在本机：Windows 在 `%LOCALAPPDATA%\WCLAnalyzer`，macOS 在 `~/WCLAnalyzer`。删掉不影响使用，只是下次会重新拉取。
+
+更详细的安装说明：
+
+- [Windows 使用说明](docs/使用说明-Windows.md)
+- [macOS 使用说明](docs/使用说明-macOS.md)
+
+## 从源码运行（可选）
+
+需要 Python 3.10 及以上。在项目目录执行：
 
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
-```
-
-之后在项目目录执行：
-
-```sh
 ./start
 ```
 
-也可以从任意目录执行 `~/Desktop/wcl/start`。打开 <http://127.0.0.1:8000>；按 `Ctrl+C` 停止。启动脚本会找到项目目录并使用 `.venv` 中的 Python。服务只监听本机的 `127.0.0.1:8000`，端口由 `server.py` 的 `PORT` 决定，可用环境变量 `WCL_HOST` / `WCL_PORT` 覆盖。
+然后打开 <http://127.0.0.1:8000>。Windows 可以把最后一行换成 `.venv\Scripts\python server.py`。
 
-## 分享给别人（Windows / macOS 桌面版）
-
-对方不需要装 Python、不需要编译：
-
-- **Windows**：把单个 `WCL-Analyzer.exe` 发过去，双击即用。说明见 [docs/使用说明-Windows.md](docs/使用说明-Windows.md)。
-- **macOS**：按芯片下载 `WCL-Analyzer-macos-arm64.zip`（Apple 芯片）或 `WCL-Analyzer-macos-x86_64.zip`（Intel），解压后在终端运行 `./WCL-Analyzer`。说明见 [docs/使用说明-macOS.md](docs/使用说明-macOS.md)。
-
-打包产物都是 onefile + console：终端/命令行窗口就是“退出按钮”，也方便看到报错。
-
-### 三种出包方式
-
-**A. 本地 Windows 机器打包**（最简单，五分钟）
-
-```bat
-build.bat
-```
-
-产物是 `dist\WCL-Analyzer.exe`。脚本会在 `.venv-build` 里装依赖，不污染开发用的 `.venv`。
-
-**B. 本地 macOS 机器打包**
-
-```sh
-python3 -m venv .venv-build
-.venv-build/bin/python -m pip install -r requirements.txt "pyinstaller>=6.10"
-.venv-build/bin/python -m PyInstaller --noconfirm wcl.spec
-cd dist && zip -X -9 "WCL-Analyzer-macos-$(uname -m).zip" WCL-Analyzer
-```
-
-PyInstaller 会按当前 Mac 的架构出包（Apple 芯片是 `arm64`，Intel 是 `x86_64`），并自动做 ad-hoc 签名。产物是 `dist/WCL-Analyzer`；打包用的 `wcl.spec` 和 Windows 是同一份。
-
-**C. GitHub Actions 自动打包**（不用自己有 Windows / Mac 机器）
-
-推送一个 `v*` 标签，或在 Actions 页面手动触发 `build-desktop`：
-
-```sh
-git tag v1.0.0 && git push origin v1.0.0
-```
-
-workflow 会用 Python 3.12 并行构建三份产物：
-
-| 平台 | Runner | 产物 |
-| --- | --- | --- |
-| Windows | `windows-latest` | `WCL-Analyzer.exe` |
-| macOS Apple 芯片 | `macos-26` | `WCL-Analyzer-macos-arm64.zip` |
-| macOS Intel | `macos-15-intel` | `WCL-Analyzer-macos-x86_64.zip` |
-
-构建结束后先上传到 Actions artifact；打了标签时，同一个 release job 会把三份产物一起附加到 Release。macOS job 还会启动打包后的程序，请求 `/` 和 `/mplus` 做冒烟测试，确认页面资源和原生库都打进去了。
-
-### 打包相关的约定
-
-- 入口是 `launcher.py`：挑可用端口（8000 被占用会自动换）、起服务、打开浏览器；`server.serve()` 只负责监听。
-- `wcl.spec` 用 `collect_all("curl_cffi")` 把原生 libcurl 一起打进去，并收集 pywebview 的 `js/`、`lib/` 资源；`index.html` / `mplus.html` / `cooldowns.json` / `mplus_spells.json` 作为 datas 打进包。
-- 冻结运行时 `server._resource_dir()` 从 `sys._MEIPASS` 读页面，`server._data_dir()` 把缓存写到 `%LOCALAPPDATA%\WCLAnalyzer`（macOS/Linux 是 `~/WCLAnalyzer`），避免写只读目录；也可以用 `WCL_DATA_DIR` 指定。
-- 用 onefile + console：终端窗口就是“退出按钮”，也方便看到报错。想改无窗口版把 `wcl.spec` 里 `console=True` 换成 `False`。
-- 没有代码签名：Windows SmartScreen 会拦一次，需要点“更多信息 → 仍要运行”；macOS 会提示“无法验证开发者”，macOS 15 起不能再用右键“打开”绕过，需要到“系统设置 → 隐私与安全性”点“仍要打开”，或在终端执行 `xattr -dr com.apple.quarantine WCL-Analyzer`。这和程序本身无关。
-
-## 给 agent 的代码地图
-
-| 文件 | 职责 |
-| --- | --- |
-| `server.py` | HTTP 服务、WCL 数据获取与缓存、战斗数据分析、JSON 接口。 |
-| `index.html` | 整个前端：页面结构、样式、请求、图表、筛选和 MRT 备忘生成；无需构建。 |
-| `cooldowns.json` | 按治疗专精列出技能 ID；`raid` 为团队大招，`external` 为单体保命技能。 |
-| `mplus.html` | 大秘境复盘页面（路线地图、波次、技能时间线、矩阵）；无需构建。 |
-| `mplus_spells.json` | 大秘境复盘的技能分类：各职业 `offensive`/`defensive`，以及 `_global` 中的打断、战复、嗜血、药水、种族技能。 |
-| `mdt_export.py` | 读取本机 MDT 插件数据，把 WCL 波次匹配成 MDT 怪物组，并编码为 `!~MDT2~` 导入字符串。 |
-| `wcl_verify.py` | 人机验证子进程：弹出系统 WebView，由用户点击“我是人类”，再把 cookie 交回 `server.py`。 |
-| `tests/` | `unittest` 单元测试，运行 `.venv/bin/python -m unittest discover -s tests`。 |
-| `requirements.txt` | Python 依赖：`curl_cffi`（HTTP）与 `pywebview`（人机验证窗口）。 |
-| `start` | 从任意工作目录启动项目的本地服务（开发用，不打开浏览器）。 |
-| `launcher.py` | 桌面版入口：选端口、起服务、自动开浏览器；并处理打包后 `--verify` 的验证子进程。 |
-| `wcl.spec` | PyInstaller 打包配置（onefile，含页面资源、curl_cffi 原生库与 pywebview 资源）。 |
-| `build.bat` | Windows 本地一键打包脚本。 |
-| `.github/workflows/build.yml` | 在 GitHub Actions 上构建 Windows exe 与 macOS（arm64 / x86_64）二进制，并发布到 Release。 |
-| `docs/使用说明-Windows.md` | 发给 Windows 使用者的说明（双击、SmartScreen、缓存位置、MDT 路径）。 |
-| `docs/使用说明-macOS.md` | 发给 macOS 使用者的说明（芯片选择、Gatekeeper、终端启动、缓存位置、MDT 路径）。 |
-| `cache/` | 运行时缓存的 WCL 响应与 Wowhead 技能名称、图标；已被 Git 忽略。 |
-| `AGENTS.md` | 仓库约定、代码风格及修改后的验证要求。 |
-
-大秘境接口：`GET /api/mplus/runs?link=...` 列出日志中的大秘境；`GET /api/mplus?code=...&fight=...` 返回 `run`、`maps`、`players`、`pulls`（每波怪物、进度、施法、死亡、每人数据）、`deaths`、`lust`、`heroism`；`GET /api/mplus/paths?code=...&fight=...` 返回队员轨迹 `tracks` 与怪物位置 `mobs`；`GET /api/mplus/mdt?code=...&fight=...` 返回可直接导入 MDT 的 `string`、匹配到的波次数与预计进度；`GET /api/map/<id>.png` 返回地图图片。
-
-主要数据流：浏览器调用 `GET /api/report?link=...` 解析 WCL 链接并取得首领战斗列表；选择战斗后调用 `GET /api/fight?code=...&fight=...`。服务从 WCL 获取战斗人员、承伤及双方施法数据，按 `cooldowns.json` 匹配治疗技能，计算伤害压力与首领技能关联，再用 Wowhead 补充中文技能名。前端根据返回的 `fight`、`healers`、`damage`、`casts`、`bossCasts`、`bossAbilities`、`deaths`、`phases`、`heroism` 渲染页面和 MRT 备忘。
-
-`index.html` 从 CDN 加载 ECharts 和 Wowhead tooltip 脚本；分析真实报告和显示这些内容需要网络。WCL 有时会要求人机验证：此时程序会弹出一个小窗口，由用户自己点击“我是人类”，验证完成后自动关闭并继续分析；会话 cookie 保存在 `cache/wcl_cookies.json`（打包版在 `%LOCALAPPDATA%\WCLAnalyzer\cache`，macOS 是 `~/WCLAnalyzer/cache`），一段时间内不用重复验证。已结束战斗的图表响应会缓存在 `cache/`，报告元数据在内存中缓存 5 分钟；进行中的战斗不会持久化图表响应。
-
-## 修改与验证
-
-- 改数据获取、分析或接口：看 `server.py`；改展示与交互：看 `index.html`；增减治疗技能：改 `cooldowns.json` 中的数字 ID 与 `raid`/`external` 分类。
-- Python 语法检查：`./.venv/bin/python -m py_compile server.py`。
-- 冷却目录检查：`./.venv/bin/python -m json.tool cooldowns.json >/dev/null`。
-- 行为改动：运行 `./start`，用公开 WCL 报告选择一场战斗，检查摘要、时间轴、MRT 备忘和浏览器控制台；接口改动还应检查对应的 `/api/report` 或 `/api/fight` 响应。
-
-单元测试：`.venv/bin/python -m unittest discover -s tests`（离线，不访问 WCL）。没有构建步骤。更多代码风格与提交约定见 [`AGENTS.md`](AGENTS.md)。
+代码结构、测试命令和打包方式见 [AGENTS.md](AGENTS.md)。
