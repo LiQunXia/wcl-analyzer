@@ -11,12 +11,17 @@ r"""PyInstaller 打包配置：把整个应用压成一个可双击的 exe / 可
 
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, collect_data_files
 
 ROOT = Path(SPECPATH)
 
 # curl_cffi 带原生 libcurl，必须整包收集，否则打包后 import 会失败。
 datas, binaries, hiddenimports = collect_all("curl_cffi")
+
+# pywebview 运行时要从包里读 js/（注入脚本）；Windows 的 lib/ DLL 由
+# PyInstaller 自带的 hook-webview 收集，这里只补 js/。
+datas += collect_data_files("webview", includes=["js/**"])
+hiddenimports += ["webview"]
 
 datas += [
     (str(ROOT / "index.html"), "."),
@@ -30,7 +35,7 @@ a = Analysis(
     pathex=[str(ROOT)],
     binaries=binaries,
     datas=datas,
-    hiddenimports=hiddenimports + ["mdt_export"],
+    hiddenimports=hiddenimports + ["mdt_export", "wcl_verify"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

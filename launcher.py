@@ -18,6 +18,14 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):
         pass
 
+# 打包后的 exe 会以 ``--verify`` 重新启动自己，只为弹出人机验证窗口；
+# 这个分支必须在 import server 之前处理，不能把服务再起一遍。
+if "--verify" in sys.argv:
+    import wcl_verify
+
+    _index = sys.argv.index("--verify")
+    raise SystemExit(wcl_verify.main(sys.argv[_index + 1:]))
+
 import server  # noqa: E402  (must come after the stdout fix)
 
 

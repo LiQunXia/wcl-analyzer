@@ -5,12 +5,23 @@
 ## 三步用起来
 
 1. 打开 <https://github.com/LiQunXia/wcl-analyzer/releases/latest>，下载 `WCL-Analyzer.exe`
-   （约 12 MB，单个文件，不用解压，不用注册 GitHub）。
+   （单个文件，不用解压，不用注册 GitHub）。
 2. 双击它。会弹出一个黑色窗口，**不要关它**，浏览器大约 1 秒后自动打开
    <http://127.0.0.1:8000>。
 3. 把 Warcraft Logs 的报告链接粘进输入框，选择战斗即可。
 
 用完之后，关掉那个黑色窗口就是退出。
+
+## 如果弹出「WCL 人机验证」窗口
+
+Warcraft Logs 有时会要求确认访问者不是机器人。这时程序会弹出一个小窗口，
+**由你自己点击页面上的「I am a human and not a bot」**（程序不会替你点）。
+验证通过后窗口会自动关闭，分析继续进行。这个窗口用的是 Windows 自带的
+WebView2 组件，Windows 10/11 一般已经装好；如果提示打不开窗口，安装一下
+[WebView2 运行时](https://developer.microsoft.com/microsoft-edge/webview2/) 即可。
+
+验证结果会保存在 `%LOCALAPPDATA%\WCLAnalyzer\cache\wcl_cookies.json`，
+一段时间内不需要重复验证。想重新验证时删掉这个文件即可。
 
 ## 第一次运行时可能遇到
 
@@ -20,11 +31,13 @@
 | 杀毒软件报毒 / 直接删掉 | PyInstaller 打包的程序常被误报 | 加入信任白名单，或改用 `--onedir` 版本 |
 | 浏览器没自动打开 | 默认浏览器关联异常 | 手动打开 http://127.0.0.1:8000 |
 | 提示端口被占用 | 8000 已被别的程序用了 | 程序会自动换端口，按黑色窗口里打印的地址打开 |
+| 提示「无法打开验证窗口」 | 系统缺少 WebView2 运行时 | 安装 [WebView2 运行时](https://developer.microsoft.com/microsoft-edge/webview2/) 后重试 |
 
 ## 它把数据存在哪
 
 - 缓存（WCL 响应、地图图片、技能名称）：`%LOCALAPPDATA%\WCLAnalyzer\cache`
-- 删掉这个目录不影响使用，只是下次分析会重新拉取。
+- 人机验证后的会话 cookie：`%LOCALAPPDATA%\WCLAnalyzer\cache\wcl_cookies.json`
+- 删掉这个目录不影响使用，只是下次分析会重新拉取、重新验证。
 - 没有账号、没有数据库、不上传任何东西；所有分析都在本机完成。
 
 ## 需要联网

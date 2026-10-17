@@ -1,12 +1,13 @@
-name: build-windows
+name: build-desktop
 
 on:
   workflow_dispatch:
   push:
     tags: ["v*"]
 
+# Build steps run with a read-only token. Only the release job below can write.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   windows:
@@ -36,8 +37,89 @@ jobs:
           path: dist/WCL-Analyzer.exe
           if-no-files-found: error
 
+  macos:
+    name: macOS (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macos-26 is the current arm64 (Apple Silicon) image.
+          - runner: macos-26
+            arch: arm64
+          # Intel image; available until macOS 15 support ends (Fall 2027).
+          - runner: macos-15-intel
+            arch: x86_64
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt "pyinstaller>=6.10"
+
+      - name: Build one-file executable
+        run: python -m PyInstaller --noconfirm wcl.spec
+
+      # Proves the bundled HTML/JSON assets and native libraries actually load,
+      # instead of only checking that PyInstaller produced a file.
+      - name: Smoke-test the packaged app
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./dist/WCL-Analyzer --no-browser --port 8765 >"$RUNNER_TEMP/wcl-app.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8765/ -o "$RUNNER_TEMP/wcl-index.html" 2>/dev/null; then
+              break
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo "packaged app exited before it started serving" >&2
+              cat "$RUNNER_TEMP/wcl-app.log" >&2
+              exit 1
+            fi
+            sleep 1
+          done
+          grep -q "治疗作业" "$RUNNER_TEMP/wcl-index.html"
+          curl -fsS http://127.0.0.1:8765/mplus -o "$RUNNER_TEMP/wcl-mplus.html"
+          grep -q "大秘境复盘" "$RUNNER_TEMP/wcl-mplus.html"
+          kill "$pid"
+          wait "$pid" || true
+          trap - EXIT
+
+      - name: Package zip
+        run: |
+          cd dist
+          zip -X -9 "WCL-Analyzer-macos-${{ matrix.arch }}.zip" WCL-Analyzer
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: WCL-Analyzer-macos-${{ matrix.arch }}
+          path: dist/WCL-Analyzer-macos-${{ matrix.arch }}.zip
+          if-no-files-found: error
+
+  release:
+    needs: [windows, macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: WCL-Analyzer-*
+          merge-multiple: true
+          path: dist
+
       - name: Attach to release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
-          files: dist/WCL-Analyzer.exe
+          files: |
+            dist/WCL-Analyzer.exe
+            dist/WCL-Analyzer-macos-*.zip

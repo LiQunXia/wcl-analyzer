@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import subprocess
 import sys
 import threading
 import time
@@ -12,6 +13,7 @@ from urllib.parse import parse_qs, urlparse
 from curl_cffi import requests
 
 import mdt_export
+import wcl_verify
 
 def _resource_dir():
     """Directory holding the HTML/JSON assets.
@@ -55,38 +57,138 @@ class WclError(Exception):
     pass
 
 
+def _wcl_cookie_path():
+    return CACHE / "wcl_cookies.json"
+
+
+def _verify_command(url):
+    """启动验证窗口的命令。
+
+    打包后重新运行 exe 自身（launcher 会在 ``--verify`` 分支里直接转交）；
+    从源码运行时则是当前解释器 + ``wcl_verify.py``。
+    """
+    if getattr(sys, "frozen", False):
+        return [sys.executable, wcl_verify.VERIFY_FLAG, url]
+    return [sys.executable, str(ROOT / "wcl_verify.py"), url]
+
+
+def _run_verify_window(url):
+    """在子进程里弹出内嵌浏览器，等用户点完“我是人类”，取回 cookie。"""
+    env = dict(os.environ)
+    env["WCL_WEBVIEW_DIR"] = str(CACHE / "webview")
+    kwargs = {}
+    if os.name == "nt":
+        # 子进程只需要 WebView 的窗口，不需要额外的控制台窗口。
+        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+    try:
+        proc = subprocess.run(
+            _verify_command(url),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=wcl_verify.TIMEOUT_SEC + 60,
+            env=env,
+            **kwargs,
+        )
+    except subprocess.TimeoutExpired:
+        return {"error": "等待人工验证超时，请重试"}
+    except OSError as exc:
+        return {"error": f"无法启动验证窗口：{exc}"}
+
+    result = wcl_verify.parse_result(proc.stdout)
+    if result is None:
+        detail = (proc.stderr or "").strip().splitlines()
+        hint = detail[-1] if detail else f"退出码 {proc.returncode}"
+        return {"error": f"验证窗口异常退出：{hint}"}
+    return result
+
+
 class WclClient:
     def __init__(self):
         self.session = requests.Session(impersonate="chrome")
+        self.session.headers["User-Agent"] = wcl_verify.USER_AGENT
         self.lock = threading.Lock()
+        self.verify_lock = threading.Lock()
+        self.verified_at = 0.0
+        self._load_cookies()
 
-    def _pass_human_check(self, report_url):
-        r = self.session.get(report_url, timeout=30)
-        m = re.search(r'name="_token" value="([^"]+)"', r.text)
-        if not m:
+    def _load_cookies(self):
+        try:
+            cookies = json.loads(_wcl_cookie_path().read_text("utf-8"))
+        except (OSError, ValueError):
             return
-        self.session.post(
-            f"{WCL}/human-challenge",
-            data={"_token": m.group(1)},
-            headers={"Referer": report_url, "Origin": WCL},
-            timeout=30,
-        )
+        self._set_cookies(cookies)
+
+    def _set_cookies(self, cookies):
+        for c in cookies or []:
+            try:
+                self.session.cookies.set(
+                    c["name"],
+                    c["value"],
+                    domain=c.get("domain") or "",
+                    path=c.get("path") or "/",
+                    secure=bool(c.get("secure")),
+                )
+            except (KeyError, TypeError, ValueError):
+                continue
+
+    def _save_cookies(self, cookies):
+        try:
+            path = _wcl_cookie_path()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(cookies, ensure_ascii=False), "utf-8")
+            os.chmod(path, 0o600)
+        except OSError:
+            pass
+
+    def _request_json(self, path, report_url):
+        r = self.session.get(f"{WCL}{path}", headers={"Referer": report_url}, timeout=60)
+        if "application/json" in r.headers.get("content-type", ""):
+            text = r.text
+            if text.startswith("Use the API"):
+                raise WclError("WCL 拒绝了请求（反爬提示），请稍后再试")
+            return json.loads(text)
+        if r.status_code == 404:
+            raise WclError("找不到这份日志，可能是私有日志或链接有误")
+        if r.status_code == 429:
+            raise WclError("请求过于频繁，被 WCL 限流了，请稍后再试")
+        if r.status_code >= 500:
+            raise WclError(f"WCL 服务暂时不可用（HTTP {r.status_code}），请稍后再试")
+        if r.text.lstrip().startswith("Use the API"):
+            raise WclError("WCL 拒绝了请求（反爬提示），请稍后再试")
+        # 其余情况基本都是人机验证页，需要用户亲自点一下。
+        return None
+
+    def _verify(self, path, report_url):
+        with self.verify_lock:
+            # 别的线程可能刚验证完，先重试一次，避免重复弹窗。
+            with self.lock:
+                if self._request_json(path, report_url) is not None:
+                    return
+            if time.time() - self.verified_at < 60:
+                raise WclError("刚刚完成验证仍被 WCL 拦截，请稍后再试")
+            result = _run_verify_window(report_url)
+            if "cookies" not in result:
+                raise WclError(result.get("error") or "人机验证未完成")
+            self._save_cookies(result["cookies"])
+            self._set_cookies(result["cookies"])
+            self.verified_at = time.time()
 
     def get_json(self, code, path):
         report_url = f"{WCL}/reports/{code}"
         with self.lock:
-            for attempt in range(2):
-                r = self.session.get(f"{WCL}{path}", headers={"Referer": report_url}, timeout=60)
-                if "application/json" in r.headers.get("content-type", ""):
-                    text = r.text
-                    if text.startswith("Use the API"):
-                        raise WclError("WCL 拒绝了请求（反爬提示），请稍后再试")
-                    return json.loads(text)
-                if r.status_code == 404:
-                    raise WclError("找不到这份日志，可能是私有日志或链接有误")
-                if attempt == 0:
-                    self._pass_human_check(report_url)
-            raise WclError(f"WCL 返回了非 JSON 内容（HTTP {r.status_code}），人机验证可能失败")
+            data = self._request_json(path, report_url)
+        if data is not None:
+            return data
+
+        self._verify(path, report_url)
+
+        with self.lock:
+            data = self._request_json(path, report_url)
+        if data is not None:
+            return data
+        raise WclError("完成人机验证后 WCL 仍未返回数据，请稍后重试")
 
 
 wcl = WclClient()
