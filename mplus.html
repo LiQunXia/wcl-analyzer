@@ -151,6 +151,22 @@
   .map-loading { position: absolute; right: 10px; top: 10px; font-size: 11px; color: #fff; background: rgba(0,0,0,.6); padding: 4px 9px; border-radius: 6px; display: flex; gap: 6px; align-items: center; }
   .pull-badge { cursor: pointer; }
   .pull-badge text { font: 700 15px var(--mono); fill: #111; pointer-events: none; }
+  .mob-marker { cursor: pointer; }
+  .mob-marker text { font: 700 9px var(--mono); fill: #fff; pointer-events: none; }
+  .legend i.mobleg { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--accent); background: #3a3a42; }
+  .mdt-modal { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.65); }
+  .mdt-modal[hidden] { display: none; }
+  .mdt-dialog { width: min(760px, 100%); max-height: min(86vh, 720px); overflow: auto; background: var(--surface); border: 1px solid var(--line-2); border-radius: 12px; padding: 18px; box-shadow: 0 24px 80px rgba(0,0,0,.55); }
+  .mdt-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .mdt-head h3 { margin: 0; font-size: 16px; }
+  .mdt-close { border: 0; background: none; color: var(--text-3); font-size: 24px; line-height: 1; cursor: pointer; padding: 0 4px; }
+  .mdt-close:hover { color: var(--text); }
+  .mdt-info { font-size: 12px; color: var(--text-2); line-height: 1.7; margin: 10px 0; }
+  .mdt-info b { color: var(--accent); }
+  .mdt-string { width: 100%; min-height: 150px; resize: vertical; box-sizing: border-box; background: #0d0f13; color: #e8e0d2; border: 1px solid var(--line-2); border-radius: 8px; padding: 10px; font: 12px/1.6 var(--mono); word-break: break-all; }
+  .mdt-actions { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .mdt-copied { font-size: 12px; color: var(--kill); }
+  .mdt-note { font-size: 11px; color: var(--text-3); line-height: 1.7; margin: 10px 0 0; }
   .replay { display: flex; align-items: center; gap: 12px; padding: 0 16px 14px; }
   .replay input[type=range] { flex: 1; accent-color: var(--accent); }
   .replay .clock { font-family: var(--mono); font-size: 13px; min-width: 96px; color: var(--text-2); }
@@ -322,13 +338,14 @@
           <div class="map-tools">
             <div class="floor-tabs" id="floors"></div>
             <button class="ghost on" id="tglTracks" title="显示队伍真实移动轨迹">走位轨迹</button>
-            <button class="ghost on" id="tglMobs" title="显示每只怪被首次接触时的位置">怪物位置</button>
+            <button class="ghost on" id="tglMobs" title="显示怪物图标：同位置的怪会合并，数字为只数，悬停看名称和进度">怪物位置</button>
             <button class="ghost" id="fitBtn" title="缩放到当前楼层路线">适应路线</button>
+            <button class="ghost" id="mdtExport" title="生成可直接粘贴进 MDT 的路线字符串">导出 MDT</button>
           </div>
         </div>
         <div class="mapbox" id="mapbox">
           <svg id="map" xmlns="http://www.w3.org/2000/svg"></svg>
-          <div class="map-hint">滚轮缩放 · 拖动平移 · 点击编号查看该波</div>
+          <div class="map-hint">滚轮缩放 · 拖动平移 · 点击编号查看该波 · 悬停怪物图标看名字</div>
           <div class="map-loading" id="pathsLoading" hidden><div class="spinner"></div><span>正在读取战斗回放以绘制走位（首次约 30 秒）…</span></div>
         </div>
         <div class="replay">
@@ -340,6 +357,7 @@
         <div class="legend">
           <span><i style="background:#fff;border-radius:50%"></i>队员实时位置（回放）</span>
           <span><i style="background:rgba(255,255,255,.5);height:2px"></i>队伍移动轨迹（坦克）</span>
+          <span><i class="mobleg"></i>怪物图标（数字 = 同位置只数）</span>
           <span><i style="border:2px dashed #fff;background:none;height:2px"></i>波次顺序</span>
           <span>✕ 死亡位置</span>
         </div>
@@ -378,6 +396,19 @@
   </div>
 </main>
 <div id="tip" hidden></div>
+
+<div class="mdt-modal" id="mdtModal" hidden>
+  <div class="mdt-dialog">
+    <div class="mdt-head"><h3>导出 MDT 路线</h3><button class="mdt-close" id="mdtClose" title="关闭">×</button></div>
+    <div class="mdt-info" id="mdtInfo"></div>
+    <textarea class="mdt-string" id="mdtString" readonly spellcheck="false" placeholder="正在生成…"></textarea>
+    <div class="mdt-actions">
+      <button class="btn" id="mdtCopy">复制导入字符串</button>
+      <span class="mdt-copied" id="mdtCopied"></span>
+    </div>
+    <p class="mdt-note">需要本机已安装 Mythic Dungeon Tools（程序会读取插件里的地下城数据）。在 MDT 里选择对应地下城，打开路线菜单并“导入”，粘贴上面的字符串即可。波次按 WCL 的战斗数据自动匹配到 MDT 怪物组，个别召唤物/可选怪可能略有出入，导入后可直接在 MDT 里调整。</p>
+  </div>
+</div>
 
 <script>
 const CLASS_COLOR = {
@@ -420,6 +451,12 @@ const signed = (s) => (s < 0 ? "-" : "+") + mmss(Math.abs(s));
 const wan = (v) => v >= 1e8 ? `${(v / 1e8).toFixed(2)}亿` : v >= 1e4 ? `${Math.round(v / 1e4).toLocaleString()}万` : String(Math.round(v));
 const iconUrl = (icon, size = "medium") => `https://wow.zamimg.com/images/wow/icons/${size}/${icon || "inv_misc_questionmark"}.jpg`;
 const classIcon = (cls) => iconUrl(`classicon_${(cls || "").toLowerCase()}`);
+/** Enemy icons come from WCL ("custom-icon-inv_xxx.jpg"), served by the rpglogs asset host. */
+const mobIconUrl = (icon) => {
+  const name = (icon || "").replace(/^custom-icon-/, "");
+  const file = /^[a-z0-9_-]+\.(jpe?g|png|tga)$/i.test(name) ? name : "inv_misc_questionmark.jpg";
+  return `https://assets.rpglogs.com/img/warcraft/abilities/${file}`;
+};
 const spellHref = (id) => `href="https://www.wowhead.com/cn/spell=${id}" data-wowhead="spell=${id}&domain=cn" target="_blank"`;
 const pullColor = (i) => PULL_COLORS[i % PULL_COLORS.length];
 
@@ -566,9 +603,13 @@ function preparePaths(raw) {
     tracks[pid] = pts.map(([t, x, y]) => ({ t, x, y, floor: floorAt(t, x, y) }));
   }
   const ps = D().pulls;
+  const info = raw.enemies || {};
   const mobs = raw.mobs.map((m) => {
     const idx = ps.findIndex((p) => m.t >= p.start - 3 && m.t <= p.end + 1);
-    return { ...m, pull: idx, floor: idx >= 0 ? floorAt(m.t, m.x, m.y) : null };
+    const meta = info[m.guid] || (idx >= 0 ? (ps[idx].enemies || []).find((e) => e.guid === m.guid) : null) || {};
+    return { ...m, pull: idx, floor: idx >= 0 ? floorAt(m.t, m.x, m.y) : null,
+             name: meta.name || "", icon: meta.icon || "", boss: meta.boss || meta.type === "Boss",
+             count: meta.count || 0 };
   }).filter((m) => m.pull >= 0);
   return { tracks, mobs, step: raw.step };
 }
@@ -982,12 +1023,40 @@ async function drawMap(refit) {
     out += hi.map((s) => `<polyline points="${s.map((q) => q.join(",")).join(" ")}" fill="none" stroke="${color}" stroke-width="${4 * scale}" stroke-linejoin="round" stroke-linecap="round" filter="drop-shadow(0 0 3px #000)"/>`).join("");
   }
 
-  // mob dots
+  // mob icons: cluster nearby monsters of the same pull so big packs stay readable
   if (state.paths && state.showMobs) {
-    out += mobs.filter((mb) => mb.floor === m.id).map((mb) => {
+    const radius = 23 * scale;
+    const groups = [];
+    for (const mb of mobs) {
+      if (mb.floor !== m.id) continue;
       const [x, y] = pr(mb.x, mb.y);
-      const sel = mb.pull === state.pullIdx;
-      return `<circle cx="${x}" cy="${y}" r="${(sel ? 5 : 3.5) * scale}" fill="${pullColor(mb.pull)}" stroke="#000" stroke-width="${scale}" opacity="${sel ? 1 : .7}"/>`;
+      let g = groups.find((c) => c.pull === mb.pull && (c.x - x) ** 2 + (c.y - y) ** 2 < radius ** 2);
+      if (!g) {
+        g = { pull: mb.pull, x, y, n: 0, parts: new Map() };
+        groups.push(g);
+      }
+      g.n++;
+      g.x = (g.x * (g.n - 1) + x) / g.n;
+      g.y = (g.y * (g.n - 1) + y) / g.n;
+      const part = g.parts.get(mb.guid) || { name: mb.name, icon: mb.icon, boss: mb.boss, count: mb.count || 0, n: 0 };
+      part.n++;
+      g.parts.set(mb.guid, part);
+    }
+    groups.sort((a, b) => (a.pull === state.pullIdx) - (b.pull === state.pullIdx) || a.pull - b.pull);
+    out += groups.map((g, k) => {
+      const sel = g.pull === state.pullIdx;
+      const r = (sel ? 11 : 9) * scale;
+      const parts = [...g.parts.values()].sort((a, b) => b.n - a.n);
+      const main = parts[0];
+      const forces = parts.reduce((s, p) => s + p.count * p.n, 0);
+      const names = parts.slice(0, 4).map((p) => `${esc(p.name || "未知怪物")}${p.n > 1 ? ` ×${p.n}` : ""}`).join("、");
+      const tip = `<b>${esc(main.name || "未知怪物")}</b>${main.n > 1 ? ` ×${main.n}` : ""}<br><span class=t>第 ${g.pull + 1} 波 · 同位置 ${g.n} 只${forces ? ` · 进度 +${Math.round(forces * 100) / 100}%` : ""}</span>${parts.length > 1 ? `<br><span class=t>${names}${parts.length > 4 ? "…" : ""}</span>` : ""}`;
+      return `<g class="mob-marker" data-pull="${g.pull}" data-tip="${esc(tip)}">
+        <circle cx="${g.x}" cy="${g.y}" r="${r + 1.8 * scale}" fill="rgba(0,0,0,.72)" stroke="${sel ? "#fff" : pullColor(g.pull)}" stroke-width="${(sel ? 2.4 : 1.6) * scale}"${main.boss ? ` stroke-dasharray="${3.5 * scale} ${2 * scale}"` : ""}/>
+        <clipPath id="mobclip${k}"><circle cx="${g.x}" cy="${g.y}" r="${r}"/></clipPath>
+        <image href="${mobIconUrl(main.icon)}" x="${g.x - r}" y="${g.y - r}" width="${2 * r}" height="${2 * r}" clip-path="url(#mobclip${k})" preserveAspectRatio="xMidYMid slice" opacity="${sel ? 1 : .88}"/>
+        ${g.n > 1 ? `<g><circle cx="${g.x + r * .78}" cy="${g.y - r * .78}" r="${5.2 * scale}" fill="#111" stroke="${pullColor(g.pull)}" stroke-width="${scale}"/><text x="${g.x + r * .78}" y="${g.y - r * .78}" text-anchor="middle" dominant-baseline="central" style="font-size:${8 * scale}px">${g.n}</text></g>` : ""}
+      </g>`;
     }).join("");
   }
 
@@ -1025,6 +1094,7 @@ async function drawMap(refit) {
   svg.innerHTML = `<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#fff"/></marker></defs>${out}`;
   svg.dataset.w = W; svg.dataset.h = H;
   svg.querySelectorAll(".pull-badge").forEach((g) => g.addEventListener("click", (e) => { if (!panMoved) selectPull(+g.dataset.i, true); }));
+  svg.querySelectorAll(".mob-marker").forEach((g) => g.addEventListener("click", () => { if (!panMoved) selectPull(+g.dataset.pull, false); }));
   svg.querySelectorAll("[data-tip]").forEach((g) => {
     g.addEventListener("mousemove", (e) => showTip(e, g.dataset.tip));
     g.addEventListener("mouseleave", hideTip);
@@ -1115,6 +1185,43 @@ window.addEventListener("pointerup", () => {
 $("fitBtn").onclick = () => { state.view = null; drawMap(true); };
 $("tglTracks").onclick = () => { state.showTracks = !state.showTracks; $("tglTracks").classList.toggle("on", state.showTracks); drawMap(); };
 $("tglMobs").onclick = () => { state.showMobs = !state.showMobs; $("tglMobs").classList.toggle("on", state.showMobs); drawMap(); };
+
+/* ---------- MDT export ---------- */
+
+const mdtModal = $("mdtModal");
+function closeMdt() { mdtModal.hidden = true; }
+$("mdtClose").onclick = closeMdt;
+mdtModal.addEventListener("click", (e) => { if (e.target === mdtModal) closeMdt(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !mdtModal.hidden) closeMdt(); });
+$("mdtExport").onclick = async () => {
+  if (!state.code || !state.runId) { showMsg("notice", "请先加载一份大秘境日志"); return; }
+  $("mdtInfo").textContent = "正在根据当前战斗生成 MDT 路线…";
+  $("mdtString").value = "";
+  $("mdtCopied").textContent = "";
+  mdtModal.hidden = false;
+  try {
+    const r = await api(`/api/mplus/mdt?code=${state.code}&fight=${state.runId}`);
+    const pct = r.required ? Math.round(r.force / r.required * 100) : 0;
+    $("mdtInfo").innerHTML = `<b>${esc(r.title)}</b><br>MDT 地下城 #${r.dungeon_index} · ${r.pulls} 波 · ${r.groups} 组怪 · 预计进度 ${pct}%（${r.force}/${r.required}）`;
+    $("mdtString").value = r.string;
+    $("mdtString").focus();
+    $("mdtString").select();
+  } catch (e) {
+    $("mdtInfo").innerHTML = `<span style="color:var(--hot)">${esc(e.message)}</span>`;
+  }
+};
+$("mdtCopy").onclick = async () => {
+  const text = $("mdtString").value;
+  if (!text) return;
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    $("mdtString").focus();
+    $("mdtString").select();
+    document.execCommand("copy");
+  }
+  $("mdtCopied").textContent = "已复制，去 MDT 粘贴";
+  setTimeout(() => { $("mdtCopied").textContent = ""; }, 2200);
+};
 
 $("matrixMode").querySelectorAll("button").forEach((b) => b.onclick = () => {
   state.matrixMode = b.dataset.v;

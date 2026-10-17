@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import sys
 import threading
@@ -10,10 +11,35 @@ from urllib.parse import parse_qs, urlparse
 
 from curl_cffi import requests
 
-ROOT = Path(__file__).parent
-CACHE = ROOT / "cache"
+import mdt_export
+
+def _resource_dir():
+    """Directory holding the HTML/JSON assets.
+
+    A PyInstaller one-file build unpacks them next to ``sys._MEIPASS``, so
+    ``__file__`` points into a temporary directory that is deleted on exit.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    return Path(__file__).parent
+
+
+def _data_dir():
+    """Writable directory for the runtime cache (stays next to the sources in dev)."""
+    env = os.environ.get("WCL_DATA_DIR")
+    if env:
+        return Path(env).expanduser()
+    if getattr(sys, "frozen", False):
+        base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+        return (Path(base) if base else Path.home()) / "WCLAnalyzer"
+    return Path(__file__).parent
+
+
+ROOT = _resource_dir()
+CACHE = _data_dir() / "cache"
 WCL = "https://www.warcraftlogs.com"
-HOST, PORT = "127.0.0.1", 8000
+HOST = os.environ.get("WCL_HOST", "127.0.0.1")
+PORT = int(os.environ.get("WCL_PORT", "8000"))
 
 BUCKET_SEC = 3
 WINDOW_SEC = 15
@@ -610,7 +636,32 @@ def api_mplus_paths(code, fight_id):
     if not fight or not fight.get("dungeonPulls"):
         raise WclError(f"第 {fight_id} 场不是大秘境战斗（没有拉怪数据）")
     persist = not fight.get("inProgress")
-    return cached(f"{code}/{fight_id}_paths.json", lambda: _extract_paths(code, fight, meta), persist)
+    data = cached(f"{code}/{fight_id}_paths.json", lambda: _extract_paths(code, fight, meta), persist)
+    # Enemy names/icons come from the (cached) report metadata, so old path caches stay valid.
+    guids = {m.get("guid") for m in data.get("mobs") or []}
+    counts = {int(k): v for k, v in (fight.get("npcCountMap") or {}).items()}
+    data["enemies"] = {
+        e["guid"]: {"name": e.get("name") or "", "icon": e.get("icon") or "",
+                    "type": e.get("type") or "", "count": counts.get(e["guid"], 0)}
+        for e in meta["enemies"] if e.get("guid") in guids
+    }
+    return data
+
+
+def api_mplus_mdt(code, fight_id):
+    """Build an importable MDT route string for this run using the locally installed MDT data."""
+    data = api_mplus(code, fight_id)
+    mdt_dir = mdt_export.find_mdt_dir()
+    if not mdt_dir:
+        raise WclError("没有找到已安装的 MDT 插件。请确认 World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools 存在，"
+                       "或设置环境变量 WCL_MDT_PATH 指向该目录。")
+    try:
+        result = mdt_export.build_route(mdt_dir, data["run"], data["pulls"], code, fight_id)
+    except mdt_export.MdtError as e:
+        raise WclError(str(e))
+    result.pop("preset", None)
+    result["mdt_path"] = str(mdt_dir)
+    return result
 
 
 def _extract_paths(code, fight, meta):
@@ -681,6 +732,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(api_mplus_list(q.get("link", "")))
             if url.path == "/api/mplus/paths":
                 return self._json(api_mplus_paths(q["code"], int(q["fight"])))
+            if url.path == "/api/mplus/mdt":
+                return self._json(api_mplus_mdt(q["code"], int(q["fight"])))
             if url.path == "/api/mplus":
                 return self._json(api_mplus(q["code"], int(q["fight"])))
             m = re.fullmatch(r"/api/map/(\d+)\.png", url.path)
@@ -708,6 +761,10 @@ class Handler(BaseHTTPRequestHandler):
         sys.stderr.write("%s\n" % (fmt % args))
 
 
+def serve(host=HOST, port=PORT):
+    return ThreadingHTTPServer((host, port), Handler)
+
+
 if __name__ == "__main__":
     print(f"WCL 大招分析已启动：http://{HOST}:{PORT}")
-    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+    serve().serve_forever()

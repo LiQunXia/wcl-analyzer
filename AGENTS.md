@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This is a small Warcraft Logs analysis app with no build step. `server.py` runs the HTTP server, fetches and analyzes report data, and serves the UI. `index.html` contains the page, styles, and browser-side JavaScript. `cooldowns.json` lists healer spell IDs by specialization and category (`raid` or `external`). `mplus.html` is the Mythic+ review page (served at `/mplus`), and `mplus_spells.json` classifies spells for it by class (`offensive`/`defensive`) plus `_global` lists (interrupt, rez, lust, potion, healPotion, racials). `requirements.txt` contains the Python dependency. Runtime responses and spell metadata go under `cache/`, which is ignored by Git. Offline unit tests live in `tests/`; there is no separate asset pipeline.
+This is a small Warcraft Logs analysis app with no build step. `server.py` runs the HTTP server, fetches and analyzes report data, and serves the UI. `index.html` contains the page, styles, and browser-side JavaScript. `cooldowns.json` lists healer spell IDs by specialization and category (`raid` or `external`). `mdt_export.py` reads the locally installed Mythic Dungeon Tools addon and converts a Mythic+ run into an MDT `!~MDT2~` import string. `mplus.html` is the Mythic+ review page (served at `/mplus`), and `mplus_spells.json` classifies spells for it by class (`offensive`/`defensive`) plus `_global` lists (interrupt, rez, lust, potion, healPotion, racials). `requirements.txt` contains the Python dependency. `launcher.py` is the desktop entry point (picks a free port, starts the server, opens the browser) and `wcl.spec` is the PyInstaller one-file packaging config; `build.bat` and `.github/workflows/build.yml` build the Windows exe. Runtime responses and spell metadata go under `cache/`, which is ignored by Git; packaged builds write them to `%LOCALAPPDATA%\WCLAnalyzer` instead and read HTML/JSON assets from `sys._MEIPASS`. Offline unit tests live in `tests/`; there is no separate asset pipeline.
 
 ## Build, Test, and Development Commands
 
@@ -14,7 +14,15 @@ python3 -m venv .venv
 ./start
 ```
 
-Open `http://127.0.0.1:8000` to use the app. The server binds to localhost on port 8000. Run `python -m py_compile server.py` for a quick Python syntax check and `python -m json.tool cooldowns.json >/dev/null` after editing the cooldown catalog. No build, lint, or automated test command is configured.
+Open `http://127.0.0.1:8000` to use the app. The server binds to localhost on port 8000 (override with `WCL_HOST` / `WCL_PORT`); `launcher.py` opens the browser and falls back to a free port. Run `python -m py_compile server.py` for a quick Python syntax check and `python -m json.tool cooldowns.json >/dev/null` after editing the cooldown catalog.
+
+To produce the shareable Windows executable (single file, no Python required on the target machine):
+
+```bat
+build.bat
+```
+
+or on any platform with PyInstaller installed: `python -m PyInstaller --noconfirm wcl.spec`. Output is `dist/WCL-Analyzer.exe`. CI does the same on `windows-latest` for `v*` tags. There is no lint command.
 
 ## Coding Style & Naming Conventions
 
