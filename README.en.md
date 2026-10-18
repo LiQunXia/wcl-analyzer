@@ -43,7 +43,7 @@ Click “大秘境复盘” (Mythic+ Review) at the top of the page, paste a Myt
 
 ![Mythic+ route map: pulls, enemies, movement, and deaths](docs/images/mplus-map.png)
 
-**Route map:** Each pull's location, enemies, tank path, and deaths are drawn on the map. Zoom, pan, or replay the run; the full pull list is on the right.
+**Route map:** Each pull's location, enemies, tank path, and deaths are drawn on the map. Zoom, pan, or replay the run; the full pull list is on the right. “只看本波” (current pull only) is on by default, keeping the selected pull's enemies and tank marks while other pulls become small clickable dots; turn it off for the whole-floor view.
 
 ![Pull breakdown: enemies, cooldown timeline, and cooldown matrix](docs/images/mplus-detail.png)
 

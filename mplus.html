@@ -148,12 +148,17 @@
   .mapbox { position: relative; margin: 12px; border-radius: 10px; overflow: hidden; background: #1a1712; aspect-ratio: 3 / 2; cursor: grab; touch-action: pan-y pinch-zoom; }
   .mapbox.dragging { cursor: grabbing; }
   .mapbox svg { width: 100%; height: 100%; display: block; user-select: none; }
-  .map-hint { position: absolute; left: 10px; bottom: 8px; font-size: 11px; color: rgba(255,255,255,.7); background: rgba(0,0,0,.45); padding: 3px 8px; border-radius: 6px; pointer-events: none; }
+  .map-now { position: absolute; left: 10px; top: 10px; display: flex; align-items: center; gap: 7px; max-width: calc(100% - 128px);
+    font-size: 11px; color: var(--text-2); background: rgba(10,11,14,.7); border: 1px solid rgba(255,255,255,.09);
+    padding: 4px 9px; border-radius: 999px; pointer-events: none; backdrop-filter: blur(6px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .map-now i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .map-now span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .map-now b { color: var(--text); font-weight: 600; }
   .map-zoom { position: absolute; right: 10px; bottom: 40px; display: flex; flex-direction: column; gap: 4px; }
   .map-zoom button { width: 32px; height: 32px; justify-content: center; padding: 0; background: var(--surface); font-size: 20px; }
   .map-loading { position: absolute; right: 10px; top: 10px; font-size: 11px; color: #fff; background: rgba(0,0,0,.6); padding: 4px 9px; border-radius: 6px; display: flex; gap: 6px; align-items: center; }
   .pull-badge { cursor: pointer; }
-  .pull-badge text { font: 700 15px var(--mono); fill: #111; pointer-events: none; }
+  .pull-badge text { font: 700 15px var(--mono); pointer-events: none; }
   .mob-marker { cursor: pointer; }
   .mob-marker text { font: 700 9px var(--mono); fill: #fff; pointer-events: none; }
   .tank-plan { padding: 0 16px 16px; }
@@ -163,16 +168,18 @@
   .tank-steps { display: grid; gap: 5px; max-height: 260px; overflow-y: auto; }
   .tank-step { display: flex; align-items: start; gap: 10px; text-align: left; width: 100%; padding: 9px 10px;
     color: var(--text); border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); cursor: pointer; }
-  .tank-step:hover, .tank-step.on { border-color: var(--accent); background: var(--accent-soft); }
+  .tank-step:hover { border-color: var(--line-2); background: rgba(255,255,255,.03); }
+  .tank-step.on { border-color: var(--accent); background: var(--accent-soft); }
   .tank-step .mark { display: grid; place-items: center; min-width: 24px; height: 24px; border-radius: 50%;
     background: #f6c85f; color: #17130b; font: 700 12px var(--mono); }
   .tank-step.stop .mark { background: #56ccf2; }
   .tank-step.chain .mark { background: #f2994a; }
   .tank-step .copy { flex: 1; font-size: 12px; line-height: 1.65; }
-  .tank-step small { display: block; color: var(--text-3); font-size: 11px; }
+  .tank-step small { display: none; color: var(--text-3); font-size: 11px; }
+  .tank-step.on small { display: block; }
   .tank-step time { color: var(--text-2); font: 11px var(--mono); white-space: nowrap; padding-top: 4px; }
   .tank-mark { cursor: pointer; }
-  .tank-mark text { font: 700 13px var(--mono); pointer-events: none; }
+  .tank-mark text { font-weight: 700; font-family: var(--mono); pointer-events: none; }
   .legend i.mobleg { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--accent); background: #3a3a42; }
   .mdt-modal { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.65); }
   .mdt-modal[hidden] { display: none; }
@@ -195,6 +202,10 @@
   .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-3); flex-wrap: wrap; padding: 0 16px 14px; }
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
   .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  @media (max-width: 720px) {
+    .legend { gap: 7px 12px; font-size: 11px; padding-bottom: 12px; }
+    .tank-plan-head .sub { display: none; }
+  }
 
   /* pull list */
   .pull-list { max-height: calc(100vh - 110px); overflow: auto; position: sticky; top: 84px; scrollbar-width: thin; scrollbar-color: #2a2d35 transparent; }
@@ -277,7 +288,6 @@
   .matrix td.cur { background: var(--accent-soft); }
   .section-title { display: flex; align-items: baseline; gap: 12px; margin: 28px 0 10px; }
   .section-title h3 { margin: 0; font-size: 18px; font-weight: 650; }
-  .section-title p { margin: 0; font-size: 12px; color: var(--text-3); }
 
   .insights { margin: 0; padding: 4px 18px 18px 36px; font-size: 13px; color: var(--text-2); line-height: 1.9; }
   .insights b { color: var(--text); }
@@ -296,6 +306,13 @@
   .mechanic-tab:focus-visible, .mechanic-round:focus-visible, .mechanic-body summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   .mechanic-round small { display: block; color: var(--text-2); font-size: 11px; margin-top: 3px; }
   .mechanic-note { color: var(--text-2); font-size: 12px; line-height: 1.8; margin: 10px 0; }
+  .response-phase { color: var(--text-2); font-size: 13px; font-weight: 500; margin: 16px 0 0; }
+  .response-phase.empty { color: var(--text-3); font-weight: 400; }
+  .info { display: inline-grid; place-items: center; width: 16px; height: 16px; padding: 0; margin-left: 5px;
+    border-radius: 50%; border: 1px solid var(--line-2); background: none; color: var(--text-3);
+    font: 600 10px/1 var(--mono); cursor: help; vertical-align: 2px; }
+  .info:hover { color: var(--text); border-color: rgba(255,255,255,.24); }
+  .info:focus-visible { color: var(--text); border-color: rgba(255,255,255,.24); outline: 2px solid var(--accent); outline-offset: 2px; }
   .mechanic-title { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 20px 0 10px; }
   .mechanic-title h4 { font-size: 16px; margin: 0 0 6px; }
   .mechanic-metrics { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
@@ -335,6 +352,9 @@
     padding: 9px 12px; font-size: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.5); max-width: 320px; line-height: 1.5; }
   #tip .t { color: var(--text-3); font-family: var(--mono); }
   .footnote { color: var(--text-3); font-size: 12px; margin: 22px 0 60px; line-height: 1.8; }
+  .footnote summary { color: var(--text-2); cursor: pointer; width: fit-content; }
+  .footnote summary:hover { color: var(--text); }
+  .footnote p { margin: 8px 0 0; max-width: 1040px; }
 
   @media (max-width: 1100px) {
     .main { grid-template-columns: 1fr; }
@@ -401,7 +421,7 @@
     <section class="card">
       <div class="card-head">
         <h3>全程时间轴</h3>
-        <span class="sub">色块 = 每一波（斜纹为首领），红区 = 嗜血，💀 = 死亡。点击色块查看该波。</span>
+        <span class="sub">点击色块查看该波 · 红色 = 嗜血</span>
       </div>
       <div class="strip" id="strip"></div>
     </section>
@@ -416,17 +436,18 @@
             <div class="floor-tabs" id="floors"></div>
             <button class="ghost on" id="tglTracks" title="显示队伍真实移动轨迹">走位轨迹</button>
             <button class="ghost on" id="tglMobs" title="显示怪物图标：同位置的怪会合并，数字为只数，悬停看名称和进度">怪物位置</button>
+            <button class="ghost on" id="tglFocus" aria-pressed="true" title="只显示当前波次的怪物与接怪标记；关闭后显示整层所有波次">只看本波</button>
             <button class="ghost" id="fitBtn" title="缩放到当前波次的坦克路线">适应本波</button>
             <button class="ghost" id="mdtExport" title="生成可直接粘贴进 MDT 的路线字符串">导出 MDT</button>
           </div>
         </div>
         <div class="mapbox" id="mapbox">
           <svg id="map" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="map-now" id="mapNow"></div>
           <div class="map-zoom" role="group" aria-label="地图缩放">
-            <button type="button" class="ghost" id="zoomIn" title="放大地图" aria-label="放大地图">+</button>
-            <button type="button" class="ghost" id="zoomOut" title="缩小地图" aria-label="缩小地图">−</button>
+            <button type="button" class="ghost" id="zoomIn" title="放大（Ctrl / ⌘ + 滚轮）" aria-label="放大地图">+</button>
+            <button type="button" class="ghost" id="zoomOut" title="缩小（Ctrl / ⌘ + 滚轮）" aria-label="缩小地图">−</button>
           </div>
-          <div class="map-hint">滚轮浏览页面 · Ctrl / ⌘ + 滚轮缩放 · 鼠标拖动平移 · 点击编号查看该波</div>
           <div class="map-loading" id="pathsLoading" hidden><div class="spinner"></div><span>正在读取战斗回放以绘制走位（首次约 30 秒）…</span></div>
         </div>
         <div class="replay">
@@ -436,13 +457,13 @@
           <select id="speed"><option value="10">10×</option><option value="20" selected>20×</option><option value="40">40×</option><option value="80">80×</option></select>
         </div>
         <div class="legend">
-          <span style="color:#f6c85f">A → B 接怪顺序 / 箭头为坦克实测路径</span>
-          <span style="color:#56ccf2">◎ 坦克停留</span>
-          <span><i style="background:#fff;border-radius:50%"></i>队员实时位置（回放）</span>
-          <span><i style="background:rgba(255,255,255,.5);height:2px"></i>队伍移动轨迹（坦克）</span>
-          <span><i class="mobleg"></i>怪物图标（数字 = 同位置只数）</span>
-          <span><i style="border:2px dashed #fff;background:none;height:2px"></i>波次顺序</span>
-          <span>✕ 死亡位置</span>
+          <span style="color:#f6c85f">A/B 接怪 · 黄线坦克路径</span>
+          <span style="color:#56ccf2">◌ 停留</span>
+          <span><i style="background:#fff;border-radius:50%"></i>队员</span>
+          <span><i class="mobleg"></i>怪物</span>
+          <span id="legOrder"><i style="border:2px dashed #fff;background:none;height:2px"></i>波次顺序</span>
+          <span id="legContext" hidden><i style="background:#111;border:1.5px solid #f6c85f;border-radius:50%"></i>其他波次</span>
+          <span>✕ 死亡</span>
         </div>
         <div class="tank-plan" id="tankPlan"></div>
       </section>
@@ -454,7 +475,6 @@
 
     <div class="section-title">
       <h3>技能矩阵</h3>
-      <p>每一格 = 某人在某一波交的技能。点击列头跳到该波。</p>
       <div class="floor-tabs" id="matrixMode" style="margin-left:auto">
         <button data-v="burst" class="on">爆发 + 爆发药</button><button data-v="def">减伤 / 保命</button><button data-v="all">全部</button>
       </div>
@@ -465,18 +485,18 @@
 
     <div class="section-title">
       <h3>全程总览</h3>
-      <p>每个人整场的技能使用与表现；下方要点由数据自动生成，适合快速找复盘切入点。</p>
     </div>
     <section class="card">
       <div class="matrix-wrap" id="summary"></div>
       <ul class="insights" id="insights"></ul>
     </section>
 
-    <p class="footnote">
-      数据来自 Warcraft Logs：波次、怪物和位置来自 WCL 的大秘境拉怪划分与战斗回放；技能按 <code>mplus_spells.json</code> 中的法术 ID 分类，药水按名称识别。
-      一波的技能时间线包含开怪前 12 秒（灰底，便于看预铺/提前开爆发）。“进度”按该波内被击杀怪物的小怪值计算；若某一波怪物被并入下一波一起击杀，进度会记在下一波。
-      走位轨迹由回放事件中队员的坐标每 2 秒采样一次，脱战跑图时如无事件则会有空隙。
-    </p>
+    <details class="footnote">
+      <summary>数据口径与采样说明</summary>
+      <p>数据来自 Warcraft Logs：波次、怪物和位置来自 WCL 的大秘境拉怪划分与战斗回放；技能按 <code>mplus_spells.json</code> 中的法术 ID 分类，药水按名称识别。
+        一波的技能时间线包含开怪前 12 秒（灰底，便于看预铺/提前开爆发）。“进度”按该波内被击杀怪物的小怪值计算；若某一波怪物被并入下一波一起击杀，进度会记在下一波。
+        走位轨迹由回放事件中队员的坐标每 2 秒采样一次，脱战跑图时如无事件则会有空隙。</p>
+    </details>
   </div>
 </main>
 <div id="tip" hidden></div>
@@ -530,6 +550,7 @@ const MATRIX_CATS = {
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const info = (text) => `<button type="button" class="info" data-tip="${esc(text)}" aria-label="说明">i</button>`;
 const mmss = (s) => { const v = Math.max(0, Math.round(s)); return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, "0")}`; };
 const signed = (s) => (s < 0 ? "-" : "+") + mmss(Math.abs(s));
 const wan = (v) => v >= 1e8 ? `${(v / 1e8).toFixed(2)}亿` : v >= 1e4 ? `${Math.round(v / 1e4).toLocaleString()}万` : String(Math.round(v));
@@ -547,7 +568,8 @@ const state = {
   response: null, responseError: "", responseLoading: false, responseCache: new Map(), runVersion: 0,
   pullIdx: 0, floor: null, selected: new Set(),
   cats: new Set(["offensive", "defensive", "potion", "healPotion", "lust", "rez"]),
-  showTracks: true, showMobs: true, t: 0, playing: false, view: null, matrixMode: "burst",
+  showTracks: true, showMobs: true, focus: true, tankStep: null,
+  t: 0, playing: false, view: null, matrixMode: "burst",
 };
 
 async function api(path) {
@@ -581,6 +603,13 @@ document.addEventListener("mousemove", (e) => {
   const el = e.target.closest?.("[data-tip]");
   if (el) showTip(e, el.dataset.tip); else if (!e.target.closest?.("#map")) hideTip();
 });
+document.addEventListener("focusin", (e) => {
+  const el = e.target.closest?.("button.info[data-tip]");
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  showTip({ clientX: r.left + r.width / 2, clientY: r.bottom }, el.dataset.tip);
+});
+document.addEventListener("focusout", (e) => { if (e.target.closest?.("button.info[data-tip]")) hideTip(); });
 
 /* ---------- loading ---------- */
 
@@ -633,6 +662,7 @@ async function loadRun(id) {
     state.paths = null;
     state.selected.clear();
     state.pullIdx = 0;
+    state.tankStep = null;
     state.t = data.pulls[0]?.start ?? 0;
     state.floor = data.pulls[0]?.map ?? data.maps[0]?.id;
     state.view = null;
@@ -765,7 +795,7 @@ function responseHealth(r, detail, by) {
 
 function renderMechanics() {
   const el = $("mechanics");
-  const head = `<div class="card-head"><h3>危险机制 · 团队怎么应对</h3><span class="sub">选一次释放，逐跳查看五个人的处理</span></div>`;
+  const head = `<div class="card-head"><h3>危险机制 · 团队怎么应对 ${info("增益来自每次命中时的实际记录，时间相对于首跳；“未记录防护增益”不等于没有其他保护。只分析已验证的危险机制，展示本次日志的实际应对，供结合自己的阵容与层数参考。")}</h3></div>`;
   if (state.mechanicsError) {
     el.innerHTML = `${head}<div class="mechanic-body"><div class="response-warning">${esc(state.mechanicsError)}</div><button class="ghost" id="retryMechanics">重试机制分析</button></div>`;
     $("retryMechanics").onclick = () => loadMechanics();
@@ -797,8 +827,7 @@ function renderMechanics() {
       <div class="mechanic-metrics"><span class="tag">${r.pulses.length} 跳 / ${r.targets} 人</span>
         <span class="tag">记录承伤 <b>${wan(r.damage)}</b></span><span class="tag">吸收 <b>${wan(r.absorbed)}</b></span>
         <span class="tag">伤害跨度 <b>${(r.end - first).toFixed(1)} 秒</b></span></div>`;
-    if (r.hits) html += `<p class="mechanic-note">下表增益来自每次命中时的实际记录。时间相对于首跳；“未记录防护增益”不等于没有其他保护。</p>
-      <div class="mechanic-table" tabindex="0" role="region" aria-label="逐跳承伤与防护，可横向滚动查看全队"><table><thead><tr><th>伤害发生</th>${D().players.map((p) =>
+    if (r.hits) html += `<div class="mechanic-table" tabindex="0" role="region" aria-label="逐跳承伤与防护，可横向滚动查看全队"><table><thead><tr><th>伤害发生</th>${D().players.map((p) =>
         `<th><span style="color:${CLASS_COLOR[p.cls]}">${esc(p.name)}</span><br>${ROLE_ZH[p.role]}</th>`).join("")}</tr></thead>
       <tbody>${r.pulses.map((pulse, i) => `<tr><td>第 ${i + 1} 跳<time>${responseOffset(pulse.t - first)}</time></td>${D().players.map((p) => {
         const hits = pulse.players.filter((h) => h.who === p.id);
@@ -816,7 +845,7 @@ function renderMechanics() {
     else if (state.responseError) html += `<div class="response-warning">治疗与血量读取失败：${esc(state.responseError)}</div><button class="ghost" id="retryResponse">重试这次应对</button>`;
     else if (state.response) html += renderMechanicResponse(r, state.response, by);
   }
-  el.innerHTML = `${html}<p class="mechanic-note">目前分析已验证的 ${state.mechanics.supported.length} 个机制；展示本次日志的实际应对，供结合自己的阵容与层数参考。</p></div>`;
+  el.innerHTML = `${html}</div>`;
   el.querySelectorAll("[data-mechanic]").forEach((b) => b.onclick = () => {
     state.mechanicSpell = +b.dataset.mechanic;
     selectMechanicRound(currentMechanic().rounds[0].id, true);
@@ -836,21 +865,22 @@ function renderMechanicResponse(r, detail, by) {
   let html = detail.replayMatched ? "" : `<p class="response-warning">回放中的命中条数与伤害记录不一致，下列治疗和血量可能不完整。</p>`;
   if (detail.deaths.length) html += `<div class="response-warning">${detail.deaths.map((d) =>
     `${esc(by[d.who]?.name || "未知队员")} 在 ${responseOffset(d.t - first)} 死亡（${esc(d.name)}）`).join("；")}</div>`;
-  if (detail.replayMatched && detail.allDamage > 0) html += `<p class="mechanic-note">本技能占首跳至末跳窗口内全队敌方承伤的 <b>${(r.damage / detail.allDamage * 100).toFixed(1)}%</b>；其余伤害也可能影响治疗压力。</p>`;
-  html += `<div class="response-section"><h4>治疗怎么处理</h4><p class="mechanic-note">以下是首跳前 12 秒至末跳后 5 秒的技能记录；施放时间不等于完整覆盖。</p>`;
+  if (detail.replayMatched && detail.allDamage > 0) html += `<div class="mechanic-metrics"><span class="tag">占本窗口承伤 <b>${(r.damage / detail.allDamage * 100).toFixed(1)}%</b></span></div>`;
+  html += `<div class="response-section"><h4>治疗怎么处理 ${info("取首跳前 12 秒至末跳后 5 秒内的关键技能记录；施放时间不等于完整覆盖。")}</h4>`;
   const healerCasts = detail.responses.filter((c) => by[c.who]?.role === "healer");
   for (const [phase, label] of [["before", "伤害前 · 提前准备"], ["during", "伤害中 · 处理与恢复"], ["after", "伤害后 · 恢复"]]) {
     const casts = healerCasts.filter((c) => c.phase === phase && c.key);
-    html += `<p class="mechanic-note">${label}</p><div class="response-casts">${casts.map((c) => responseCast(c, first, by)).join("") || `<span class="response-empty">这个阶段未识别到关键技能，常规治疗见下方</span>`}</div>`;
+    if (!casts.length) { html += `<p class="response-phase empty">${label} · 暂无关键技能</p>`; continue; }
+    html += `<p class="response-phase">${label}</p><div class="response-casts">${casts.map((c) => responseCast(c, first, by)).join("")}</div>`;
   }
   const routine = healerCasts.filter((c) => !c.key);
   if (routine.length) html += `<details class="response-section"><summary>展开常规治疗施法（${routine.length} 次）</summary><div class="response-casts">${routine.map((c) => responseCast(c, first, by)).join("")}</div></details>`;
   html += `</div><div class="response-section"><h4>直接吸收 / 抵消本次伤害的效果</h4><div class="response-casts">${detail.absorbs.map((a) =>
     `<div class="response-cast"><img src="${iconUrl(a.icon)}" alt=""><span class="copy">${esc(a.name)} · ${wan(a.amount)}<small>${esc(by[a.who]?.name || "未知来源")} → ${a.targets.map((id) => esc(by[id]?.name || "未知队员")).join("、")}</small></span></div>`).join("") || `<span class="response-empty">没有记录到可直接归因的护盾吸收事件</span>`}</div></div>`;
   const others = detail.responses.filter((c) => by[c.who]?.role !== "healer");
-  html += `<details class="response-section"><summary>展开坦克与输出的防护、治疗药和战复记录（${others.length} 次）</summary><div class="response-casts">${others.map((c) => responseCast(c, first, by)).join("")}</div></details>
-    <div class="response-section"><h4>全队血量变化 · 事件采样</h4><p class="mechanic-note">红底为本次伤害时段，每半秒保留最低观测值；空隙表示没有连续记录。死亡用红点标出。</p>${responseHealth(r, detail, by)}</div>
-    <details class="response-section"><summary>展开同期治疗效果（包含应对其他伤害的治疗）</summary><div class="response-casts">${detail.healing.slice(0, 12).map((h) =>
+  html += `<details class="response-section"><summary>坦克 / 输出防护与药水（${others.length} 次）</summary><div class="response-casts">${others.map((c) => responseCast(c, first, by)).join("")}</div></details>
+    <div class="response-section"><h4>全队血量变化 · 事件采样 ${info("红底为本次伤害时段；每半秒保留最低观测值，空隙表示没有连续记录，死亡用红点标出。")}</h4>${responseHealth(r, detail, by)}</div>
+    <details class="response-section"><summary>同期其他治疗（${detail.healing.slice(0, 12).length} 次）</summary><div class="response-casts">${detail.healing.slice(0, 12).map((h) =>
       `<div class="response-cast"><img src="${iconUrl(h.icon)}" alt=""><span class="copy">${esc(h.name)} · ${h.kind === "balance" ? "血量均衡" : wan(h.amount)}<small>${esc(by[h.who]?.name || "未知治疗")} · ${responseOffset(h.first - first)} 至 ${responseOffset(h.last - first)} · ${h.targets.length} 人</small></span></div>`).join("")}</div></details>`;
   return html;
 }
@@ -928,28 +958,36 @@ function focusTankStep(i) {
   stopPlay();
   setTime(Math.max(curPull().start, s.t));
   if (s.map && s.map !== state.floor) setFloor(s.map);
+  state.tankStep = i;
+  const active = $("tankPlan").querySelector(`.tank-step[data-step="${i}"]`);
   $("tankPlan").querySelectorAll(".tank-step").forEach((el) => el.classList.toggle("on", +el.dataset.step === i));
-  drawMap(true);
+  // Scroll only the step list, never the page: clicking a map marker must not move the map.
+  const list = $("tankPlan").querySelector(".tank-steps");
+  if (active && list) {
+    const lr = list.getBoundingClientRect(), ar = active.getBoundingClientRect();
+    if (ar.top < lr.top || ar.bottom > lr.bottom) list.scrollTop += ar.top - lr.top - 8;
+  }
+  drawMap(false);
 }
 
 function renderTankPlan() {
   const p = tankPull();
-  const head = `<div class="tank-plan-head"><b>第 ${state.pullIdx + 1} 波 · 坦克接怪过程</b><span class="sub">点击步骤，定位回放</span></div>`;
+  const head = `<div class="tank-plan-head"><b>第 ${state.pullIdx + 1} 波 · 坦克接怪过程</b><span class="sub">点击步骤定位 · 展开依据</span>${info("A/B 按怪物首次伤害或敌对施法记录分批，并非已确认的原始怪群；标记是当时的坦克位置。青色虚线圈仅表示坦克停留，不代表怪物已聚齐。")}</div>`;
   if (!state.paths) { $("tankPlan").innerHTML = `${head}<p>正在读取接怪与走位记录…</p>`; return; }
   if (!p?.steps.length) {
     $("tankPlan").innerHTML = `${head}<p>${p?.boss ? "首领战暂不分析接怪过程。" : "本波没有足够的交互或坐标记录，暂不推断接怪动作。"}</p>`;
     return;
   }
   let stop = 0;
-  $("tankPlan").innerHTML = `${head}<p>A / B 按怪物首次伤害或敌对施法记录分批，并非已确认的原始怪群；标记是当时的坦克位置。蓝圈仅表示坦克停留，不代表怪物已聚齐。</p>
-    <div class="tank-steps">${p.steps.map((s, i) => {
+  $("tankPlan").innerHTML = `${head}<div class="tank-steps">${p.steps.map((s, i) => {
       const label = s.kind === "stop" ? `S${++stop}` : s.label;
       const evidence = s.kind === "stop" ? "查看停留位置与前后的移动路径"
         : [s.tankAction ? `坦克命中：${s.tankAction.spell}` : "首次交互不一定由坦克发起",
           s.alive ? `此时至少 ${s.alive} 只先前接入的怪仍存活` : "",
           s.recentDeaths?.length ? `此前 8 秒死亡：${[...new Set(s.recentDeaths.map((d) => d.name))].join("、")}` : ""].filter(Boolean).join("；");
-      return `<button type="button" class="tank-step ${s.kind} ${s.chain ? "chain" : ""}" data-step="${i}">
-        <span class="mark">${label}</span><span class="copy">${esc(tankStepText(s))}<small>${esc(evidence)}${s.x == null ? "；此刻缺少坦克坐标，未绘制位置" : ""}</small></span>
+      const evidenceAll = `${evidence}${s.x == null ? "；此刻缺少坦克坐标，未绘制位置" : ""}`;
+      return `<button type="button" class="tank-step ${s.kind} ${s.chain ? "chain" : ""} ${state.tankStep === i ? "on" : ""}" data-step="${i}" title="${esc(evidenceAll)}">
+        <span class="mark">${label}</span><span class="copy">${esc(tankStepText(s))}<small>${esc(evidenceAll)}</small></span>
         <time>${signed(s.t - curPull().start)}</time></button>`;
     }).join("")}</div>`;
   $("tankPlan").querySelectorAll(".tank-step").forEach((el) => el.onclick = () => focusTankStep(+el.dataset.step));
@@ -958,6 +996,7 @@ function renderTankPlan() {
 /* ---------- render ---------- */
 
 function renderAll() {
+  syncFocusUI();
   renderMechanics();
   renderHeader();
   renderStrip();
@@ -969,6 +1008,23 @@ function renderAll() {
   renderTankPlan();
   setupScrub();
   drawMap(true);
+}
+
+function syncFocusUI() {
+  const b = $("tglFocus");
+  b.classList.toggle("on", state.focus);
+  b.setAttribute("aria-pressed", String(state.focus));
+  $("legOrder").hidden = state.focus;
+  $("legContext").hidden = !state.focus;
+}
+
+function renderMapNow() {
+  const m = mapById(state.floor), p = curPull();
+  if (!p || p.map !== state.floor) {
+    $("mapNow").innerHTML = m ? `<span>${esc(m.name)}${state.focus ? "" : " · 整层总览"}</span>` : "";
+    return;
+  }
+  $("mapNow").innerHTML = `<i style="background:${pullColor(state.pullIdx)}"></i><span>第 ${state.pullIdx + 1} 波 · <b>${esc(p.name)}</b></span>`;
 }
 
 function renderHeader() {
@@ -1026,7 +1082,21 @@ function renderFloors() {
     return `<button data-id="${m.id}" class="${m.id === state.floor ? "on" : ""}">${esc(m.name)}${n ? ` · ${n}波` : ""}</button>`;
   }).join("");
   $("floors").hidden = floors.length < 2;
-  $("floors").querySelectorAll("button").forEach((b) => b.onclick = () => { setFloor(+b.dataset.id); drawMap(true); });
+  $("floors").querySelectorAll("button").forEach((b) => b.onclick = () => {
+    const id = +b.dataset.id;
+    if (state.focus) {
+      if (curPull()?.map !== id) {
+        const first = D().pulls.findIndex((p) => p.map === id);
+        if (first >= 0) { selectPull(first, true, false); return; }
+      } else {
+        state.view = null;
+        drawMap(true);
+        return;
+      }
+    }
+    setFloor(id);
+    drawMap(true);
+  });
 }
 
 function setFloor(id) {
@@ -1068,6 +1138,7 @@ function renderPullList() {
 function selectPull(i, moveTime, reveal = true) {
   const ps = D().pulls;
   state.pullIdx = Math.max(0, Math.min(ps.length - 1, i));
+  state.tankStep = null;
   const p = curPull();
   if (moveTime) { stopPlay(); state.t = p.start; $("scrub").value = state.t; }
   if (p.map !== state.floor) setFloor(p.map);
@@ -1078,7 +1149,7 @@ function selectPull(i, moveTime, reveal = true) {
   renderMatrix();
   updateClock();
   renderTankPlan();
-  drawMap(moveTime);
+  drawMap(moveTime || state.focus, moveTime || state.focus);
 }
 
 function pullTimelineItems(p, playerId) {
@@ -1376,41 +1447,112 @@ function tankMapAnnotations(m, W, H) {
   if (state.showTracks) for (const segment of p.segments) {
     const points = segment.filter((q) => q.map === m.id).map((q) => pr(q.x, q.y));
     if (points.length < 2) continue;
-    out += `<polyline points="${points.map((q) => q.join(",")).join(" ")}" fill="none" stroke="#111" stroke-width="${8 * scale}" stroke-linecap="round" stroke-linejoin="round"/>`;
-    // Follow recorded bends, with a direction arrow roughly every twelve seconds.
-    for (let i = 0; i < points.length - 1; i += 6) {
-      const part = points.slice(i, i + 7);
+    out += `<polyline points="${points.map((q) => q.join(",")).join(" ")}" fill="none" stroke="#111" stroke-width="${6.5 * scale}" stroke-linecap="round" stroke-linejoin="round"/>`;
+    // Follow recorded bends, with a direction arrow roughly every sixteen seconds.
+    for (let i = 0; i < points.length - 1; i += 8) {
+      const part = points.slice(i, i + 9);
       const distance = part.slice(1).reduce((n, q, k) => n + Math.hypot(q[0] - part[k][0], q[1] - part[k][1]), 0);
-      if (distance < 8 * scale) continue;
-      out += `<polyline points="${part.map((q) => q.join(",")).join(" ")}" fill="none" stroke="#f6c85f" stroke-width="${3 * scale}" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#tankArrow)"/>`;
+      if (distance < 12 * scale) continue;
+      out += `<polyline points="${part.map((q) => q.join(",")).join(" ")}" fill="none" stroke="#f6c85f" stroke-width="${2.4 * scale}" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#tankArrow)"/>`;
     }
   }
-  let stops = 0;
-  const labels = [];
-  p.steps.forEach((s, i) => {
-    const label = s.kind === "stop" ? `S${++stops}` : s.label;
-    if (s.map !== m.id || s.x == null) return;
-    const [x, y] = pr(s.x, s.y), stop = s.kind === "stop";
-    const color = stop ? "#56ccf2" : s.chain ? "#f2994a" : "#f6c85f";
-    const offsets = stop ? [[-23, 23], [-23, -23], [23, 23], [23, -23]] : [[23, -23], [-23, -23], [23, 23], [-23, 23]];
-    offsets.push([43, -43], [-43, 43], [43, 43], [-43, -43]);
-    const offset = offsets.find(([dx, dy]) => labels.every(([lx, ly]) => Math.hypot(x + dx * scale - lx, y + dy * scale - ly) >= 34 * scale)) || offsets[0];
-    const [dx, dy] = offset.map((v) => v * scale);
-    labels.push([x + dx, y + dy]);
-    const tip = `<b>${esc(tankStepText(s))}</b><br><span class=t>波内 ${signed(s.t - curPull().start)} · 全程 ${mmss(s.t)}<br>${stop ? "坦克停留区域；不代表怪物已聚齐" : "首次交互批次；标记为坦克位置"}</span>`;
-    out += `<g class="tank-mark" data-step="${i}" data-tip="${esc(tip)}">
-      ${stop ? `<circle cx="${x}" cy="${y}" r="${22 * scale}" fill="${color}" fill-opacity=".12" stroke="${color}" stroke-width="${2 * scale}" stroke-dasharray="${4 * scale} ${3 * scale}"/>` : ""}
-      <circle cx="${x}" cy="${y}" r="${4 * scale}" fill="${color}" stroke="#111" stroke-width="${2 * scale}"/>
-      <line x1="${x}" y1="${y}" x2="${x + dx}" y2="${y + dy}" stroke="${color}" stroke-width="${1.5 * scale}"/>
-      <circle cx="${x + dx}" cy="${y + dy}" r="${15 * scale}" fill="#111318" stroke="${color}" stroke-width="${2 * scale}"/>
-      <text x="${x + dx}" y="${y + dy}" text-anchor="middle" dominant-baseline="central" fill="${color}" style="font-size:${13 * scale}px">${label}</text></g>`;
+
+  // Number stops in plan order, then fold a stop into a join when both were recorded at the same spot.
+  let stopNo = 0;
+  const stopLabel = new Map();
+  p.steps.forEach((s, i) => { if (s.kind === "stop") stopLabel.set(i, `S${++stopNo}`); });
+  const steps = p.steps.map((s, i) => ({ s, i })).filter(({ s }) => s.map === m.id && s.x != null);
+  const pos = new Map(steps.map(({ s, i }) => [i, pr(s.x, s.y)]));
+  const joins = steps.filter(({ s }) => s.kind === "join");
+  const stops = steps.filter(({ s }) => s.kind === "stop");
+  const pauses = new Map();
+  const folded = new Set();
+  for (const st of stops) {
+    const q = pos.get(st.i);
+    let best = null, bestD = 16 * scale;
+    for (const j of joins) {
+      const d = Math.hypot(q[0] - pos.get(j.i)[0], q[1] - pos.get(j.i)[1]);
+      if (d < bestD) { bestD = d; best = j; }
+    }
+    if (!best) continue;
+    if (!pauses.has(best.i)) pauses.set(best.i, []);
+    pauses.get(best.i).push(st);
+    folded.add(st.i);
+  }
+
+  // Keep labels off visible badges, mob icons and the other step dots.
+  const occupied = [];
+  D().pulls.forEach((pp, i) => {
+    if (pp.map !== m.id || pp.x == null || (i === state.pullIdx && (state.focus || p.steps.length))) return;
+    const [x, y] = pr(pp.x, pp.y);
+    const r = i === state.pullIdx ? (state.focus ? 11 : 16) : (state.focus ? 8 : 11);
+    occupied.push({ x, y, r: (r + 2) * scale });
   });
+  if (state.paths && state.showMobs) {
+    for (const mb of state.paths.mobs) {
+      if (mb.floor !== m.id || (state.focus && mb.pull !== state.pullIdx)) continue;
+      const [x, y] = pr(mb.x, mb.y);
+      occupied.push({ x, y, r: 9 * scale });
+    }
+  }
+  for (const { i } of steps) occupied.push({ x: pos.get(i)[0], y: pos.get(i)[1], r: 5 * scale });
+
+  // Stops are small rings without a text label; hovering reveals S1, S2…
+  for (const st of stops) {
+    if (folded.has(st.i)) continue;
+    const s = st.s, [x, y] = pos.get(st.i), active = state.tankStep === st.i;
+    const tip = `<b>${esc(tankStepText(s))}</b><br><span class=t>${stopLabel.get(st.i)} · 波内 ${signed(s.t - curPull().start)} · 全程 ${mmss(s.t)}<br>坦克停留区域；不代表怪物已聚齐</span>`;
+    out += `<g class="tank-mark stop" data-step="${st.i}" data-tip="${esc(tip)}">
+      ${active ? `<circle cx="${x}" cy="${y}" r="${14 * scale}" fill="#56ccf2" fill-opacity=".16" stroke="#56ccf2" stroke-width="${1.4 * scale}"/>` : ""}
+      <circle cx="${x}" cy="${y}" r="${9 * scale}" fill="#56ccf2" fill-opacity=".07" stroke="#56ccf2" stroke-width="${1.6 * scale}" stroke-dasharray="${3 * scale} ${2.5 * scale}"/>
+      <circle cx="${x}" cy="${y}" r="${2.3 * scale}" fill="#56ccf2"/>
+      <circle cx="${x}" cy="${y}" r="${13 * scale}" fill="transparent"/>
+    </g>`;
+  }
+
+  // Join marks: a precise tank-position dot plus a compact letter tag with a short leader line.
+  const labelR = 8.5 * scale, stepLen = 18 * scale;
+  const candidates = [[1, -1], [1, 1], [-1, -1], [-1, 1], [1, 0], [-1, 0], [0, -1], [0, 1],
+    [1.8, -0.6], [1.8, 0.6], [-1.8, -0.6], [-1.8, 0.6], [0.6, -1.8], [-0.6, -1.8], [0.6, 1.8], [-0.6, 1.8],
+    [2.3, 0], [-2.3, 0], [0, -2.3], [0, 2.3], [2, -2], [-2, -2], [2, 2], [-2, 2]];
+  const placed = [];
+  for (const j of joins) {
+    const s = j.s, [x, y] = pos.get(j.i);
+    const color = s.chain ? "#f2994a" : "#f6c85f";
+    const pausesHere = pauses.get(j.i) || [];
+    const active = state.tankStep === j.i || pausesHere.some((st) => st.i === state.tankStep);
+    let pick = null, fallback = null, fallbackScore = Infinity;
+    for (const [ox, oy] of candidates) {
+      const lx = x + ox * stepLen, ly = y + oy * stepLen;
+      if (lx < labelR + 2 * scale || ly < labelR + 2 * scale || lx > W - labelR - 2 * scale || ly > H - labelR - 2 * scale) continue;
+      let score = 0;
+      for (const o of occupied) score += Math.max(0, labelR + o.r + 2 * scale - Math.hypot(lx - o.x, ly - o.y));
+      for (const o of placed) score += 3 * Math.max(0, labelR * 2 + 3 * scale - Math.hypot(lx - o.x, ly - o.y));
+      if (score < fallbackScore) { fallbackScore = score; fallback = [lx, ly]; }
+      if (score === 0) { pick = [lx, ly]; break; }
+    }
+    const [lx, ly] = pick || fallback || [x + stepLen, y - stepLen];
+    placed.push({ x: lx, y: ly });
+    const stopHint = pausesHere.map((st) => `${stopLabel.get(st.i)} · 停留 ${Math.round(st.s.until - st.s.t)} 秒`).join("、");
+    const tip = `<b>${esc(tankStepText(s))}</b><br><span class=t>波内 ${signed(s.t - curPull().start)} · 全程 ${mmss(s.t)}<br>${s.chain ? "续接批次" : "首次交互批次"}；标记为坦克位置${stopHint ? `<br>${esc(stopHint)}（同一位置）` : ""}</span>`;
+    out += `<g class="tank-mark ${s.chain ? "chain" : ""}" data-step="${j.i}" data-tip="${esc(tip)}">
+      ${active ? `<circle cx="${x}" cy="${y}" r="${14 * scale}" fill="${color}" fill-opacity=".16" stroke="${color}" stroke-width="${1.4 * scale}"/>` : ""}
+      ${pausesHere.length ? `<circle cx="${x}" cy="${y}" r="${11 * scale}" fill="none" stroke="#56ccf2" stroke-width="${1.4 * scale}" stroke-dasharray="${2.4 * scale} ${2.4 * scale}" opacity=".9"/>` : ""}
+      <line x1="${x}" y1="${y}" x2="${lx}" y2="${ly}" stroke="${color}" stroke-width="${1.1 * scale}" stroke-opacity=".7"/>
+      <circle cx="${x}" cy="${y}" r="${3.4 * scale}" fill="${color}" stroke="#111" stroke-width="${1.3 * scale}"/>
+      <circle cx="${lx}" cy="${ly}" r="${labelR}" fill="#0e1015" fill-opacity=".94" stroke="${color}" stroke-width="${(active ? 2.2 : 1.6) * scale}"/>
+      <text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" fill="${color}" style="font-size:${10.5 * scale}px">${s.label}</text>
+      <circle cx="${x}" cy="${y}" r="${15 * scale}" fill="transparent"/>
+      <circle cx="${lx}" cy="${ly}" r="${labelR + 3 * scale}" fill="transparent"/>
+    </g>`;
+  }
   return out;
 }
 
 let drawToken = 0;
-async function drawMap(refit) {
+async function drawMap(refit, fitCurrent = false) {
   if (!D()) return;
+  renderMapNow();
   const token = ++drawToken;
   const m = mapById(state.floor);
   if (!m) return;
@@ -1421,6 +1563,7 @@ async function drawMap(refit) {
   const scale = W / 1500;
   const ps = D().pulls;
   const by = playerById();
+  const focus = state.focus;
   let out = `<image href="/api/map/${m.id}.png" x="0" y="0" width="${W}" height="${H}"/>`;
   out += `<rect x="0" y="0" width="${W}" height="${H}" fill="rgba(0,0,0,.18)"/>`;
 
@@ -1428,7 +1571,7 @@ async function drawMap(refit) {
   const mobs = state.paths?.mobs || [];
   ps.forEach((p, i) => {
     // A convex hull can cut across walls and look like an invented movement path.
-    if (tankPull()?.segments.length) return;
+    if (focus || tankPull()?.segments.length) return;
     if (p.map !== m.id) return;
     const pts = mobs.filter((mb) => mb.pull === i && mb.floor === m.id).map((mb) => pr(mb.x, mb.y));
     const sel = i === state.pullIdx;
@@ -1442,8 +1585,8 @@ async function drawMap(refit) {
     }
   });
 
-  // tank movement track
-  if (state.paths && state.showTracks && !tankPull()?.segments.length) {
+  // tank movement track (boss fights have no pull route; their replay scribbles add noise)
+  if (state.paths && state.showTracks && !tankPull()?.segments.length && !curPull()?.boss) {
     const tid = state.selected.size === 1 ? [...state.selected][0] : tankId();
     const tr = state.paths.tracks[tid] || [];
     const cur = ps[state.pullIdx];
@@ -1461,16 +1604,16 @@ async function drawMap(refit) {
     if (cur_seg.length > 1) segs.push(cur_seg);
     if (hiSeg.length > 1) hi.push(hiSeg);
     const color = CLASS_COLOR[by[tid]?.cls] || "#fff";
-    out += segs.map((s) => `<polyline points="${s.map((q) => q.join(",")).join(" ")}" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="${2.2 * scale}" stroke-linejoin="round" stroke-linecap="round"/>`).join("");
+    if (!focus) out += segs.map((s) => `<polyline points="${s.map((q) => q.join(",")).join(" ")}" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="${2.2 * scale}" stroke-linejoin="round" stroke-linecap="round"/>`).join("");
     out += hi.map((s) => `<polyline points="${s.map((q) => q.join(",")).join(" ")}" fill="none" stroke="${color}" stroke-width="${4 * scale}" stroke-linejoin="round" stroke-linecap="round" filter="drop-shadow(0 0 3px #000)"/>`).join("");
   }
 
   // mob icons: cluster nearby monsters of the same pull so big packs stay readable
   if (state.paths && state.showMobs) {
-    const radius = 23 * scale;
+    const radius = (focus ? 30 : 23) * scale;
     const groups = [];
     for (const mb of mobs) {
-      if (mb.floor !== m.id) continue;
+      if (mb.floor !== m.id || (focus && mb.pull !== state.pullIdx)) continue;
       const [x, y] = pr(mb.x, mb.y);
       let g = groups.find((c) => c.pull === mb.pull && (c.x - x) ** 2 + (c.y - y) ** 2 < radius ** 2);
       if (!g) {
@@ -1487,55 +1630,63 @@ async function drawMap(refit) {
     groups.sort((a, b) => (a.pull === state.pullIdx) - (b.pull === state.pullIdx) || a.pull - b.pull);
     out += groups.map((g, k) => {
       const sel = g.pull === state.pullIdx;
-      const r = (sel ? 11 : 9) * scale;
+      const r = (sel ? 9 : 7) * scale;
       const parts = [...g.parts.values()].sort((a, b) => b.n - a.n);
       const main = parts[0];
       const forces = parts.reduce((s, p) => s + p.count * p.n, 0);
       const names = parts.slice(0, 4).map((p) => `${esc(p.name || "未知怪物")}${p.n > 1 ? ` ×${p.n}` : ""}`).join("、");
       const tip = `<b>${esc(main.name || "未知怪物")}</b>${main.n > 1 ? ` ×${main.n}` : ""}<br><span class=t>第 ${g.pull + 1} 波 · 同位置 ${g.n} 只${forces ? ` · 进度 +${Math.round(forces * 100) / 100}%` : ""}</span>${parts.length > 1 ? `<br><span class=t>${names}${parts.length > 4 ? "…" : ""}</span>` : ""}`;
-      return `<g class="mob-marker" data-pull="${g.pull}" data-tip="${esc(tip)}">
-        <circle cx="${g.x}" cy="${g.y}" r="${r + 1.8 * scale}" fill="rgba(0,0,0,.72)" stroke="${sel ? "#fff" : pullColor(g.pull)}" stroke-width="${(sel ? 2.4 : 1.6) * scale}"${main.boss ? ` stroke-dasharray="${3.5 * scale} ${2 * scale}"` : ""}/>
+      return `<g class="mob-marker" data-pull="${g.pull}"${sel ? "" : ' opacity=".72"'} data-tip="${esc(tip)}">
+        <circle cx="${g.x}" cy="${g.y}" r="${r + 1.4 * scale}" fill="rgba(0,0,0,.7)" stroke="${sel ? "#fff" : pullColor(g.pull)}" stroke-width="${(sel ? 2 : 1.3) * scale}"${main.boss ? ` stroke-dasharray="${3 * scale} ${2 * scale}"` : ""}/>
         <clipPath id="mobclip${k}"><circle cx="${g.x}" cy="${g.y}" r="${r}"/></clipPath>
-        <image href="${mobIconUrl(main.icon)}" x="${g.x - r}" y="${g.y - r}" width="${2 * r}" height="${2 * r}" clip-path="url(#mobclip${k})" preserveAspectRatio="xMidYMid slice" opacity="${sel ? 1 : .88}"/>
-        ${g.n > 1 ? `<g><circle cx="${g.x + r * .78}" cy="${g.y - r * .78}" r="${5.2 * scale}" fill="#111" stroke="${pullColor(g.pull)}" stroke-width="${scale}"/><text x="${g.x + r * .78}" y="${g.y - r * .78}" text-anchor="middle" dominant-baseline="central" style="font-size:${8 * scale}px">${g.n}</text></g>` : ""}
+        <image href="${mobIconUrl(main.icon)}" x="${g.x - r}" y="${g.y - r}" width="${2 * r}" height="${2 * r}" clip-path="url(#mobclip${k})" preserveAspectRatio="xMidYMid slice" opacity="${sel ? .94 : .9}"/>
+        ${g.n > 1 ? `<g><circle cx="${g.x + r * .82}" cy="${g.y - r * .82}" r="${4 * scale}" fill="#111" stroke="${pullColor(g.pull)}" stroke-width="${.8 * scale}"/><text x="${g.x + r * .82}" y="${g.y - r * .82}" text-anchor="middle" dominant-baseline="central" style="font-size:${6.8 * scale}px">${g.n}</text></g>` : ""}
       </g>`;
     }).join("");
   }
 
   // pull order (dashed) + badges
   const onFloor = ps.map((p, i) => ({ p, i })).filter(({ p }) => p.map === m.id && p.x != null);
-  for (let k = 1; k < onFloor.length; k++) {
+  const selectedBadgeHidden = !!tankPull()?.steps.length || (focus && !!state.paths);
+  if (!focus) for (let k = 1; k < onFloor.length; k++) {
     const a = onFloor[k - 1], b = onFloor[k];
     if (b.i !== a.i + 1) continue;
+    if (selectedBadgeHidden && (a.i === state.pullIdx || b.i === state.pullIdx)) continue;
     const [x1, y1] = pr(a.p.x, a.p.y), [x2, y2] = pr(b.p.x, b.p.y);
-    out += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#fff" stroke-opacity=".85" stroke-width="${2.4 * scale}" stroke-dasharray="${8 * scale} ${6 * scale}" marker-end="url(#arrow)"/>`;
+    out += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#fff" stroke-opacity=".45" stroke-width="${1.6 * scale}" stroke-dasharray="${6 * scale} ${5 * scale}" marker-end="url(#arrow)"/>`;
   }
   // deaths
   if (state.paths) {
+    const cur = curPull();
     for (const d of D().deaths) {
       if (state.selected.size && !state.selected.has(d.who)) continue;
+      if (focus && cur && (d.t < cur.start - 4 || d.t > cur.end + 8)) continue;
       const pos = posAt(state.paths.tracks[d.who], d.t);
       if (!pos || pos.floor !== m.id) continue;
       const [x, y] = pr(pos.x, pos.y);
-      const s = 9 * scale;
+      const s = 7.5 * scale;
       out += `<g data-tip="${esc(`<b style='color:${CLASS_COLOR[by[d.who]?.cls]}'>${esc(by[d.who]?.name)}</b> 死亡 · ${mmss(d.t)}<br>${esc(d.name || "")}`)}">
         <circle cx="${x}" cy="${y}" r="${s * 1.2}" fill="rgba(0,0,0,.6)"/>
-        <path d="M${x - s / 1.4} ${y - s / 1.4}L${x + s / 1.4} ${y + s / 1.4}M${x + s / 1.4} ${y - s / 1.4}L${x - s / 1.4} ${y + s / 1.4}" stroke="#ef6a4c" stroke-width="${3 * scale}" stroke-linecap="round"/></g>`;
+        <path d="M${x - s / 1.4} ${y - s / 1.4}L${x + s / 1.4} ${y + s / 1.4}M${x + s / 1.4} ${y - s / 1.4}L${x - s / 1.4} ${y + s / 1.4}" stroke="#ef6a4c" stroke-width="${2.4 * scale}" stroke-linecap="round"/></g>`;
     }
   }
   for (const { p, i } of onFloor) {
+    if (i === state.pullIdx && (tankPull()?.steps.length || (focus && state.paths))) continue;
     const [x, y] = pr(p.x, p.y);
-    const sel = i === state.pullIdx;
-    const r = (sel ? 19 : 15) * scale;
-    out += `<g class="pull-badge" data-i="${i}" data-tip="${esc(`<b>第 ${i + 1} 波 · ${esc(p.name)}</b><br><span class=t>${mmss(p.start)} 开怪 · 用时 ${mmss(p.end - p.start)}</span><br>进度 +${p.forcesPct}% → ${p.cumPct}%`)}">
-      ${p.boss ? `<circle cx="${x}" cy="${y}" r="${r + 6 * scale}" fill="none" stroke="${pullColor(i)}" stroke-width="${2.5 * scale}" stroke-dasharray="${4 * scale} ${3 * scale}"/>` : ""}
-      <circle cx="${x}" cy="${y}" r="${r}" fill="${pullColor(i)}" stroke="${sel ? "#fff" : "#111"}" stroke-width="${(sel ? 3.5 : 2) * scale}"/>
-      <text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" style="font-size:${(sel ? 17 : 14) * scale}px">${i + 1}</text></g>`;
+    const sel = i === state.pullIdx, context = focus && !sel;
+    const r = (sel ? (focus ? 11 : 16) : context ? 8 : 11) * scale;
+    const fill = context ? "rgba(17,19,24,.82)" : pullColor(i);
+    const stroke = sel ? "#fff" : context ? pullColor(i) : "#111";
+    const font = (sel ? (focus ? 10.5 : 14) : context ? 9 : 10) * scale;
+    out += `<g class="pull-badge" data-i="${i}"${context ? ' opacity=".72"' : ""} data-tip="${esc(`<b>第 ${i + 1} 波 · ${esc(p.name)}</b><br><span class=t>${mmss(p.start)} 开怪 · 用时 ${mmss(p.end - p.start)}</span><br>进度 +${p.forcesPct}% → ${p.cumPct}%`)}">
+      ${p.boss ? `<circle cx="${x}" cy="${y}" r="${r + 4 * scale}" fill="none" stroke="${pullColor(i)}" stroke-width="${(context ? 1.2 : 2) * scale}" stroke-dasharray="${3.5 * scale} ${2.5 * scale}"/>` : ""}
+      <circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${(sel ? 2.6 : context ? 1.4 : 1.8) * scale}"/>
+      <text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" fill="${context ? pullColor(i) : "#111"}" style="font-size:${font}px">${i + 1}</text></g>`;
   }
-  out += tankMapAnnotations(m, W, H);
   out += `<g id="liveDots"></g>`;
+  out += tankMapAnnotations(m, W, H);
   svg.innerHTML = `<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#fff"/></marker>
-    <marker id="tankArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#f6c85f"/></marker></defs>${out}`;
+    <marker id="tankArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3.6" markerHeight="3.6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#f6c85f"/></marker></defs>${out}`;
   svg.dataset.w = W; svg.dataset.h = H;
   svg.querySelectorAll(".pull-badge").forEach((g) => g.addEventListener("click", (e) => { if (!panMoved) selectPull(+g.dataset.i, true); }));
   svg.querySelectorAll(".mob-marker").forEach((g) => g.addEventListener("click", () => { if (!panMoved) selectPull(+g.dataset.pull, false); }));
@@ -1544,18 +1695,32 @@ async function drawMap(refit) {
     g.addEventListener("mousemove", (e) => showTip(e, g.dataset.tip));
     g.addEventListener("mouseleave", hideTip);
   });
-  if (refit || !state.view) fitView(m, W, H);
+  if (refit || !state.view) fitView(m, W, H, fitCurrent);
   applyView();
   drawLive();
 }
 
-function fitView(m, W, H) {
-  const pts = [];
+function fitView(m, W, H, fitCurrent = false) {
   const pr = (x, y) => project(m, x, y, W, H);
-  D().pulls.forEach((p) => { if (p.map === m.id && p.x != null) pts.push(pr(p.x, p.y)); });
-  (state.paths?.mobs || []).forEach((mb) => { if (mb.floor === m.id) pts.push(pr(mb.x, mb.y)); });
-  const focus = (tankPull()?.segments || []).flat().filter((q) => q.map === m.id).map((q) => pr(q.x, q.y));
-  if (focus.length >= 2) pts.splice(0, pts.length, ...focus);
+  const floorPulls = D().pulls.map((p, i) => ({ p, i })).filter(({ p }) => p.map === m.id && p.x != null);
+  const floorMobs = (state.paths?.mobs || []).filter((mb) => mb.floor === m.id);
+  const currentPts = [];
+  const cur = curPull();
+  if (cur?.map === m.id && cur.x != null) currentPts.push(pr(cur.x, cur.y));
+  floorMobs.forEach((mb) => { if (mb.pull === state.pullIdx) currentPts.push(pr(mb.x, mb.y)); });
+  const tank = tankPull();
+  if (tank) {
+    for (const segment of tank.segments) segment.forEach((q) => { if (q.map === m.id) currentPts.push(pr(q.x, q.y)); });
+    tank.steps.forEach((s) => { if (s.map === m.id && s.x != null) currentPts.push(pr(s.x, s.y)); });
+  }
+  const pts = [];
+  if (state.focus || fitCurrent) pts.push(...currentPts);
+  else {
+    floorPulls.forEach(({ p }) => pts.push(pr(p.x, p.y)));
+    floorMobs.forEach((mb) => pts.push(pr(mb.x, mb.y)));
+    pts.push(...currentPts);
+  }
+  if (pts.length < 2) floorPulls.forEach(({ p }) => pts.push(pr(p.x, p.y)));
   const inImg = pts.filter(([x, y]) => x >= 0 && x <= W && y >= 0 && y <= H);
   const box = $("mapbox"), ar = box.clientWidth / box.clientHeight || 1.5;
   if (inImg.length < 2) { state.view = W / H > ar ? [0, (H - W / ar) / 2, W, W / ar] : [(W - H * ar) / 2, 0, H * ar, H]; return; }
@@ -1567,6 +1732,9 @@ function fitView(m, W, H) {
   let w = x2 - x1, h = y2 - y1;
   const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
   if (w / h > ar) h = w / ar; else w = h * ar;
+  // Keep tiny waves (bosses, short corridors) from filling the whole frame with three icons.
+  const minW = 750 * (W / 1500);
+  if (w < minW) { w = minW; h = w / ar; }
   if (w > W * 1.05) { w = W * 1.05; h = w / ar; }
   state.view = [cx - w / 2, cy - h / 2, w, h];
 }
@@ -1639,9 +1807,21 @@ window.addEventListener("pointercancel", () => {
   panMoved = false;
   $("mapbox").classList.remove("dragging");
 });
-$("fitBtn").onclick = () => { state.view = null; drawMap(true); };
+$("fitBtn").onclick = () => { state.view = null; drawMap(true, true); };
 $("tglTracks").onclick = () => { state.showTracks = !state.showTracks; $("tglTracks").classList.toggle("on", state.showTracks); drawMap(); };
 $("tglMobs").onclick = () => { state.showMobs = !state.showMobs; $("tglMobs").classList.toggle("on", state.showMobs); drawMap(); };
+$("tglFocus").onclick = () => {
+  state.focus = !state.focus;
+  state.tankStep = null;
+  syncFocusUI();
+  const p = curPull();
+  if (state.focus && p && p.map !== state.floor) {
+    const first = D().pulls.findIndex((q) => q.map === state.floor);
+    if (first >= 0) { selectPull(first, true, false); return; }
+  }
+  state.view = null;
+  drawMap(true);
+};
 
 /* ---------- MDT export ---------- */
 
@@ -1716,12 +1896,13 @@ function setTime(t) {
   }
   if (i !== state.pullIdx) {
     state.pullIdx = i;
+    state.tankStep = null;
     $("strip").querySelectorAll(".seg").forEach((s) => s.classList.toggle("on", +s.dataset.i === i));
     $("pullList").querySelectorAll(".pitem").forEach((el) => el.classList.toggle("on", +el.dataset.i === i));
     renderDetail();
     renderMatrix();
     renderTankPlan();
-    drawMap(floorChanged);
+    drawMap(floorChanged || state.focus);
   } else if (floorChanged) drawMap(true);
   else drawLive();
   updateClock();
