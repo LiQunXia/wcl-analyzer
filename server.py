@@ -1,11 +1,13 @@
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
 import sys
 import threading
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -856,6 +858,277 @@ def api_mplus(code, fight_id):
     }
 
 
+# ---------- mythic+ mechanic responses ----------
+
+def load_mplus_mechanics():
+    return json.loads((ROOT / "mplus_mechanics.json").read_text("utf-8"))
+
+
+def complete_casts(data):
+    """Cast graphs pair begin/completion events; inspect both, without counting begins."""
+    events = []
+    for series in data.get("series", []):
+        for pair in series.get("events") or []:
+            for ev in pair if isinstance(pair, list) else [pair]:
+                if ev and ev.get("type") == "cast":
+                    events.append(ev)
+    return sorted(events, key=lambda ev: ev["timestamp"])
+
+
+def mplus_event_data(code, fight_id, start, end, ability, persist=True):
+    """Complete damage pages for one verified mechanic, including target aura snapshots."""
+    def fetch():
+        events, auras, cursor = [], {}, start
+        while cursor <= end:
+            path = (f"/reports/events/damage-taken/{code}/{fight_id}/{cursor}/{end}"
+                    f"/source/0/0/0/0/0/{ability}/-1.0.-1.-1/0/Any/Any/0")
+            page = wcl.get_json(code, path)
+            if not isinstance(page, dict) or not isinstance(page.get("events"), list):
+                raise WclError("WCL 未返回完整的机制伤害事件，请重试")
+            events.extend(page["events"])
+            for aura in page.get("auraAbilities") or []:
+                auras[aura["guid"]] = aura
+            next_cursor = page.get("nextPageTimestamp")
+            if next_cursor is None:
+                return {"events": events, "auras": list(auras.values())}
+            if not isinstance(next_cursor, int) or isinstance(next_cursor, bool) or next_cursor <= cursor:
+                raise WclError("WCL 机制事件分页未能继续，请重试")
+            cursor = next_cursor
+        return {"events": events, "auras": list(auras.values())}
+
+    return cached(f"{code}/{fight_id}_mechanic_damage_v1_{start}_{end}_{ability}.json", fetch, persist)
+
+
+def _mplus_context(code, fight_id):
+    meta = report_meta(code)
+    fight = next((f for f in meta["fights"] if f["id"] == fight_id), None)
+    if not fight or not fight.get("dungeonPulls"):
+        raise WclError("这场战斗没有大秘境波次记录")
+    players = {p["id"]: p for p in meta["friendlies"]
+               if f".{fight_id}." in (p.get("fights") or "") and p.get("type") in CLASS_TYPES}
+    return meta, fight, players
+
+
+def mplus_mechanic_rounds(fight, players, enemies, casts, rule, damage, config):
+    """Associate damage by completed cast, actor AND instance; group near-simultaneous hits."""
+    base = fight["start_time"]
+    rel = lambda ts: round((ts - base) / 1000, 3)
+    aliases = {int(k): v for k, v in config["aliases"].items()}
+    kinds = {sid: kind for kind, ids in config["responses"].items() for sid in ids}
+    by_class, common = load_mplus_spells()
+    defensive = {sid for spells in by_class.values() for sid, cat in spells.items() if cat == "defensive"}
+    defensive.update(sid for sid, cat in common.items() if cat == "defensive")
+    defensive.update(kinds)
+    defensive.update(aliases)
+    auras = {a["guid"]: a for a in damage.get("auras", [])}
+    pulls = [p for p in fight["dungeonPulls"] if real_pull(p)]
+    rounds, pull_counts = [], {}
+    for ev in casts:
+        if ev.get("ability", {}).get("guid") != rule["cast"] or ev.get("sourceID") not in enemies:
+            continue
+        ts = ev["timestamp"]
+        pull = next((p for p in pulls if p["start_time"] <= ts <= p["end_time"]), None)
+        pull_id = pull["id"] if pull else None
+        pull_counts[pull_id] = pull_counts.get(pull_id, 0) + 1
+        rounds.append({"id": f"{rule['cast']}-{ts}-{ev['sourceID']}-{ev.get('sourceInstance', 1)}",
+                       "t": rel(ts), "end": rel(ts), "source": ev["sourceID"],
+                       "instance": ev.get("sourceInstance", 1),
+                       "monster": enemies[ev["sourceID"]].get("name", "未知怪物"),
+                       "pull": pull_id, "number": pull_counts[pull_id], "pulses": [], "_ts": ts})
+    unmatched = 0
+    for ev in sorted(damage.get("events", []), key=lambda e: e["timestamp"]):
+        if (ev.get("targetID") not in players or ev.get("type") not in ("damage", "miss")
+                or ev.get("ability", {}).get("guid") not in rule["damage"]):
+            continue
+        matches = [r for r in rounds if r["source"] == ev.get("sourceID")
+                   and r["instance"] == ev.get("sourceInstance", 1)
+                   and 0 <= ev["timestamp"] - r["_ts"] <= rule["window"] * 1000]
+        if not matches:
+            unmatched += 1
+            continue
+        r = max(matches, key=lambda item: item["_ts"])
+        t = rel(ev["timestamp"])
+        if not r["pulses"] or t - r["pulses"][-1]["t"] > .15:
+            r["pulses"].append({"t": t, "players": []})
+        buffs, seen = [], set()
+        for token in ev.get("buffs", "").split("."):
+            if not token.isdigit() or int(token) not in defensive:
+                continue
+            sid = int(token)
+            if kinds.get(sid) == "heal":
+                continue
+            canonical = aliases.get(sid, sid)
+            if canonical in seen:
+                continue
+            seen.add(canonical)
+            a = auras.get(sid, {})
+            buffs.append({"spell": sid, "canonical": canonical, "name": a.get("name") or str(sid),
+                          "icon": a.get("abilityIcon", "").removesuffix(".jpg"),
+                          "kind": kinds.get(sid, "defensive")})
+        r["pulses"][-1]["players"].append({"who": ev["targetID"], "t": t,
+            "amount": ev.get("amount", 0), "absorbed": ev.get("absorbed", 0),
+            "overkill": max(0, ev.get("overkill", 0)), "buffs": buffs})
+        r["end"] = t
+    for r in rounds:
+        hits = [hit for pulse in r["pulses"] for hit in pulse["players"]]
+        r.update(damage=sum(h["amount"] for h in hits), absorbed=sum(h["absorbed"] for h in hits),
+                 targets=len({h["who"] for h in hits}), hits=len(hits))
+        del r["_ts"]
+    return rounds, unmatched
+
+
+def api_mplus_mechanics(code, fight_id):
+    meta, fight, players = _mplus_context(code, fight_id)
+    start, end = fight["start_time"], fight["end_time"]
+    persist = not fight.get("inProgress")
+    casts = complete_casts(graph(code, fight_id, f"{code}/{fight_id}/{start}/{end}", "casts", True, persist))
+    enemies = {e["id"]: e for e in meta["enemies"]}
+    config = load_mplus_mechanics()
+    groups = []
+    for rule in config["mechanics"]:
+        matching = [c for c in casts if c.get("ability", {}).get("guid") == rule["cast"]
+                    and c.get("sourceID") in enemies]
+        if not matching:
+            continue
+        damage = {"events": [], "auras": []}
+        for ability in rule["damage"]:
+            data = mplus_event_data(code, fight_id, start, end, ability, persist)
+            damage["events"].extend(data["events"])
+            damage["auras"].extend(data["auras"])
+        rounds, unmatched = mplus_mechanic_rounds(fight, players, enemies, matching, rule, damage, config)
+        ab = matching[0]["ability"]
+        groups.append({"spell": rule["cast"], "name": ab.get("name") or rule["name"],
+                       "icon": ab.get("abilityIcon", "").removesuffix(".jpg"),
+                       "rounds": rounds, "unmatched": unmatched})
+    return {"mechanics": groups, "supported": [r["name"] for r in config["mechanics"]]}
+
+
+def mplus_response_detail(meta, fight, players, occurrence, rule, events, casts, damage_deaths):
+    """Observed responses; healing nearby is NOT attributed causally to one mechanic."""
+    base = fight["start_time"]
+    rel = lambda ts: round((ts - base) / 1000, 3)
+    lo, hi = occurrence["pulses"][0]["t"], occurrence["end"]
+    owners = {p["id"]: p.get("petOwner") for p in meta.get("friendlyPets", [])}
+    config = load_mplus_mechanics()
+    kinds = {sid: kind for kind, ids in config["responses"].items() for sid in ids}
+    by_class, common = load_mplus_spells()
+    cooldowns = load_cooldowns()
+    healing, health, exact_absorbs, heals_used = {}, {}, {}, set()
+    all_damage, mechanic_hits = 0, []
+    for ev in events:
+        t = rel(ev["timestamp"])
+        a = ev.get("ability") or {}
+        sid = a.get("guid")
+        who = owners.get(ev.get("sourceID"), ev.get("sourceID"))
+        target = ev.get("targetID")
+        if (ev.get("type") in ("damage", "miss") and target in players and lo <= t <= hi):
+            # Blood redistribution and redirected friendly damage are not new enemy pressure.
+            if ev["type"] == "damage" and who not in players and ev.get("sourceIsFriendly") is not True:
+                all_damage += ev.get("amount", 0)
+            if (sid in rule["damage"] and ev.get("sourceID") == occurrence["source"]
+                    and ev.get("sourceInstance", 1) == occurrence["instance"]):
+                mechanic_hits.append((t, target, ev.get("amount", 0), ev.get("absorbed", 0)))
+        if who in players and target in players and ev.get("type") in ("heal", "absorbed", "damage"):
+            is_balance = sid == 98021
+            is_healer = player_role(players[who].get("icon")) == "healer"
+            exact = (ev.get("type") == "absorbed" and ev.get("extraAbility", {}).get("guid") in rule["damage"]
+                     and ev.get("attackerID") == occurrence["source"]
+                     and ev.get("attackerInstance", 1) == occurrence["instance"] and lo <= t <= hi)
+            if exact:
+                key = (who, sid)
+                item = exact_absorbs.setdefault(key, {"who": who, "spell": sid, "name": a.get("name"),
+                    "icon": a.get("abilityIcon", "").removesuffix(".jpg"), "amount": 0, "targets": set()})
+                item["amount"] += ev.get("amount", 0)
+                item["targets"].add(target)
+            if is_healer and (ev.get("type") == "heal" or is_balance):
+                heals_used.add(sid)
+                key = (who, sid)
+                item = healing.setdefault(key, {"who": who, "spell": sid, "name": a.get("name"),
+                    "icon": a.get("abilityIcon", "").removesuffix(".jpg"), "kind": "balance" if is_balance else "heal",
+                    "amount": 0, "overheal": 0, "first": t, "last": t, "targets": set(), "events": 0})
+                if not is_balance:
+                    item["amount"] += ev.get("amount", 0)
+                    item["overheal"] += ev.get("overheal", 0)
+                item["first"], item["last"] = min(item["first"], t), max(item["last"], t)
+                item["events"] += 1
+                item["targets"].add(target)
+        # Keep each bucket's LOWEST observed sample; it is still a sampled value.
+        samples = []
+        if ev.get("resourceActor") in (1, 2) and ev.get("maxHitPoints"):
+            side = "source" if ev["resourceActor"] == 1 else "target"
+            samples.append((ev.get(f"{side}ID", (ev.get(side) or {}).get("id")), ev))
+        for side in ("source", "target"):
+            if (ev.get(f"{side}Resources") or {}).get("maxHitPoints"):
+                samples.append((ev.get(f"{side}ID"), ev[f"{side}Resources"]))
+        for pid, sample in samples:
+            if pid not in players:
+                continue
+            pct = round(max(0, min(100, sample["hitPoints"] / sample["maxHitPoints"] * 100)), 1)
+            bucket = int(t * 2)
+            track = health.setdefault(pid, {})
+            if bucket not in track or pct < track[bucket][1]:
+                track[bucket] = [t, pct]
+    responses = []
+    for ev in casts:
+        t = rel(ev["timestamp"])
+        who = ev.get("sourceID")
+        if who not in players or not lo - 12 <= t <= hi + 5:
+            continue
+        a = ev.get("ability") or {}
+        sid = a.get("guid")
+        cat = classify_cast(sid, a.get("name"), players[who].get("type"), by_class, common)
+        healer = player_role(players[who].get("icon")) == "healer"
+        if not (cat in ("defensive", "healPotion", "rez") or sid in kinds
+                or (healer and (sid in heals_used or sid in cooldowns))):
+            continue
+        responses.append({"who": who, "target": ev.get("targetID"), "t": t, "spell": sid,
+            "name": a.get("name") or str(sid), "icon": a.get("abilityIcon", "").removesuffix(".jpg"),
+            "kind": kinds.get(sid, "heal" if healer and cat != "defensive" else cat or "defensive"),
+            "key": sid in kinds or sid in cooldowns or cat in ("defensive", "healPotion", "rez"),
+            "phase": "before" if t < lo else "after" if t > hi else "during"})
+    for items in (healing, exact_absorbs):
+        for item in items.values():
+            item["targets"] = sorted(item["targets"])
+    deaths = [{"who": e["targetID"], "t": rel(e["timestamp"]),
+               "name": (e.get("killingAbility") or {}).get("name", "未知")}
+              for e in damage_deaths if e.get("targetID") in players and not e.get("feign")
+              and lo <= rel(e["timestamp"]) <= hi + 5]
+    recorded_hits = [(h["t"], h["who"], h["amount"], h["absorbed"])
+                     for pulse in occurrence["pulses"] for h in pulse["players"]]
+    return {"responses": responses, "healing": sorted(healing.values(), key=lambda h: -h["amount"]),
+            "absorbs": sorted(exact_absorbs.values(), key=lambda h: -h["amount"]),
+            "health": {pid: sorted(track.values()) for pid, track in health.items()}, "deaths": deaths,
+            "replayMatched": Counter(mechanic_hits) == Counter(recorded_hits), "allDamage": all_damage,
+            "window": [max(0, occurrence["t"] - 12), min((fight["end_time"] - base) / 1000, hi + 5)]}
+
+
+def api_mplus_mechanic(code, fight_id, occurrence_id):
+    index = api_mplus_mechanics(code, fight_id)
+    found = next(((g, r) for g in index["mechanics"] for r in g["rounds"] if r["id"] == occurrence_id), None)
+    if not found:
+        raise WclError("没有找到这次机制，请重新选择")
+    group, occurrence = found
+    if not occurrence["hits"]:
+        return {"responses": [], "healing": [], "absorbs": [], "health": {}, "deaths": [],
+                "replayMatched": False, "allDamage": 0, "window": [occurrence["t"], occurrence["end"]]}
+    meta, fight, players = _mplus_context(code, fight_id)
+    base = fight["start_time"]
+    start = max(base, base + round((occurrence["t"] - 12) * 1000))
+    end = min(fight["end_time"], base + round((occurrence["end"] + 5) * 1000))
+    persist = not fight.get("inProgress")
+    def fetch():
+        data = wcl.get_json(code, f"/reports/replaysegment/{code}/{fight['boss']}/{start}/{end}/")
+        if not isinstance(data, dict) or not isinstance(data.get("events"), list):
+            raise WclError("WCL 未返回机制回放事件，请重试")
+        return data
+    replay = cached(f"{code}/{fight_id}_response_replay_v1_{start}_{end}.json", fetch, persist)
+    rng = f"{code}/{fight_id}/{base}/{fight['end_time']}"
+    casts = complete_casts(graph(code, fight_id, rng, "casts", False, persist))
+    damage = graph(code, fight_id, rng, "damage-taken", False, persist)
+    rule = next(r for r in load_mplus_mechanics()["mechanics"] if r["cast"] == group["spell"])
+    return mplus_response_detail(meta, fight, players, occurrence, rule, replay["events"], casts, damage.get("deaths", []))
+
+
 REPLAY_SEGMENT_MS = 240000
 PATH_STEP_SEC = 2
 
@@ -867,7 +1140,7 @@ def api_mplus_paths(code, fight_id):
     if not fight or not fight.get("dungeonPulls"):
         raise WclError(f"第 {fight_id} 场不是大秘境战斗（没有拉怪数据）")
     persist = not fight.get("inProgress")
-    data = cached(f"{code}/{fight_id}_paths.json", lambda: _extract_paths(code, fight, meta), persist)
+    data = cached(f"{code}/{fight_id}_paths_v2.json", lambda: _extract_paths(code, fight, meta), persist)
     # Enemy names/icons come from the (cached) report metadata, so old path caches stay valid.
     guids = {m.get("guid") for m in data.get("mobs") or []}
     counts = {int(k): v for k, v in (fight.get("npcCountMap") or {}).items()}
@@ -876,7 +1149,117 @@ def api_mplus_paths(code, fight_id):
                     "type": e.get("type") or "", "count": counts.get(e["guid"], 0)}
         for e in meta["enemies"] if e.get("guid") in guids
     }
+    data["tankRoute"] = mplus_tank_route(fight, meta, data)
     return data
+
+
+def mplus_tank_route(fight, meta, paths):
+    """Conservative action sketch using replay interactions, deaths and tank samples.
+
+    A batch is a time window of first *recorded interactions*, not an MDT spawn pack.
+    Never infer aggro, range, a kill, or enemy convergence from a missing event.
+    Coordinates on joins/stops are the tank's observed position, not enemy spawns.
+    """
+    players = {p["id"]: p for p in meta["friendlies"]
+               if f".{fight['id']}." in (p.get("fights") or "") and p.get("type") in CLASS_TYPES}
+    tank = next((pid for pid, p in players.items() if player_role(p.get("icon")) == "tank"), None)
+    pulls = [p for p in fight.get("dungeonPulls", []) if real_pull(p)]
+    result = {"tank": tank, "pulls": []}
+    if tank is None:
+        return result
+    start = fight["start_time"]
+    relative = lambda ts: round((ts - start) / 1000, 1)
+    track = sorted(paths.get("tracks", {}).get(str(tank), paths.get("tracks", {}).get(tank, [])))
+    maps = (fight.get("dungeonReplay") or {}).get("maps", [])
+
+    def locate(t, pull):
+        # Use an actual nearby sample; do not bridge missing movement or floors.
+        near = min(track, key=lambda q: abs(q[0] - t), default=None)
+        if near is None or abs(near[0] - t) > 3:
+            return {}
+        if len(near) > 3 and near[3] in (pull.get("maps") or []):
+            return {"x": near[1], "y": near[2], "map": near[3]}
+        floors = [m for m in maps if m["mapID"] in (pull.get("maps") or [])
+                  and m["mapMinX"] <= near[1] <= m["mapMaxX"]
+                  and m["mapMinY"] <= near[2] <= m["mapMaxY"]]
+        if len(floors) != 1:
+            return {}
+        return {"x": near[1], "y": near[2], "map": floors[0]["mapID"]}
+
+    died = {(d["actor"], d["instance"]): d["t"] for d in paths.get("enemyDeaths", [])}
+    contacts = sorted(paths.get("contacts", []), key=lambda c: c["t"])
+    assigned = set()
+    prior = []
+    for pull in pulls:
+        lo, hi = relative(pull["start_time"]), relative(pull["end_time"])
+        if pull.get("boss"):
+            result["pulls"].append({"id": pull["id"], "start": lo, "end": hi, "steps": [],
+                                    "segments": [], "observed": 0, "boss": True})
+            continue
+        members = {(actor, instance) for _, actor, lower, upper, *_ in pull.get("enemies", [])
+                   for instance in range(lower, upper + 1)}
+        own = [c for c in contacts if (c["actor"], c["instance"]) in members
+               and (fight.get("npcCountMap") or {}).get(str(c["guid"]), 0) > 0
+               and (c["actor"], c["instance"]) not in assigned and lo - 2 <= c["t"] <= hi]
+        batches = []
+        for c in own:
+            key = (c["actor"], c["instance"])
+            assigned.add(key)
+            pos = locate(c["t"], pull)
+            batch = batches[-1] if batches else None
+            if (batch is None or c["t"] - batch["t"] > 5
+                    or (pos and "x" in batch and math.hypot(pos["x"] - batch["x"], pos["y"] - batch["y"]) > 2500)):
+                batch = {"kind": "join", "t": c["t"], "until": c["t"], "label": "",
+                         "members": [], **pos}
+                batches.append(batch)
+            batch["members"].append(c)
+            batch["until"] = c["t"]
+
+        for i, batch in enumerate(batches):
+            batch["label"] = chr(65 + i) if i < 26 else str(i + 1)
+            older = [c for c in prior + own if c["t"] < batch["t"] - 5]
+            # A future recorded death proves survival; last coordinate does not.
+            alive = [c for c in older if died.get((c["actor"], c["instance"]), -1) > batch["t"]
+                     and (c["actor"], c["instance"]) in members]
+            batch["alive"] = len(alive)
+            batch["chain"] = bool(alive and batch["t"] - min(c["t"] for c in alive) >= 15 and not pull.get("boss"))
+            recent = [c for c in older if batch["t"] - 8 <= died.get((c["actor"], c["instance"]), -100) < batch["t"]]
+            batch["recentDeaths"] = [{"name": c["name"], "t": died[(c["actor"], c["instance"])]} for c in recent]
+            tank_hits = [c for c in batch["members"] if c["who"] == tank and c.get("outgoing")]
+            batch["tankAction"] = tank_hits[0] if tank_hits else None
+
+        # Find sustained small-radius tank stays. These do not prove enemies gathered.
+        samples = [q for q in track if lo <= q[0] <= hi]
+        stops, window = [], []
+        for q in samples + [[hi + 10, 0, 0]]:
+            changed_floor = (window and len(q) > 3 and len(window[-1]) > 3 and q[3] != window[-1][3])
+            if window and (changed_floor or q[0] - window[-1][0] > 5 or math.hypot(q[1] - window[0][1], q[2] - window[0][2]) > 800):
+                if len(window) >= 4 and window[-1][0] - window[0][0] >= 8:
+                    pos = locate(window[0][0], pull)
+                    if pos:
+                        # Ignore repeated jitter stops in the same area.
+                        if not stops or math.hypot(pos["x"] - stops[-1]["x"], pos["y"] - stops[-1]["y"]) > 1200:
+                            stops.append({"kind": "stop", "t": window[0][0], "until": window[-1][0], **pos})
+                window = []
+            window.append(q)
+
+        steps = sorted(batches + stops, key=lambda s: (s["t"], s["kind"] == "stop"))
+        # Keep sampled polylines as separate segments, including discontinuities.
+        segments, segment = [], []
+        for q in samples:
+            pos = locate(q[0], pull)
+            if not pos or (segment and (q[0] - segment[-1]["t"] > 5 or pos["map"] != segment[-1]["map"])):
+                if len(segment) > 1:
+                    segments.append(segment)
+                segment = []
+            if pos:
+                segment.append({"t": q[0], **pos})
+        if len(segment) > 1:
+            segments.append(segment)
+        result["pulls"].append({"id": pull["id"], "start": lo, "end": hi, "steps": steps,
+                                "segments": segments, "observed": len(own)})
+        prior.extend(own)
+    return result
 
 
 def api_mplus_mdt(code, fight_id):
@@ -886,11 +1269,19 @@ def api_mplus_mdt(code, fight_id):
     if not mdt_dir:
         raise WclError("没有找到已安装的 MDT 插件。请确认 World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools 存在，"
                        "或设置环境变量 WCL_MDT_PATH 指向该目录。")
+    annotation_error = None
     try:
-        result = mdt_export.build_route(mdt_dir, data["run"], data["pulls"], code, fight_id)
+        route = api_mplus_paths(code, fight_id).get("tankRoute")
+    except WclError as exc:
+        route = None
+        annotation_error = str(exc)
+    try:
+        result = mdt_export.build_route(mdt_dir, data["run"], data["pulls"], code, fight_id, tank_route=route)
     except mdt_export.MdtError as e:
         raise WclError(str(e))
     result.pop("preset", None)
+    if annotation_error:
+        result["annotation_notice"] = f"路线已生成，接怪标记暂未导出：{annotation_error}"
     result["mdt_path"] = str(mdt_dir)
     return result
 
@@ -902,31 +1293,58 @@ def _extract_paths(code, fight, meta):
     enemies = {e["id"]: e for e in meta["enemies"]}
     tracks = {pid: {} for pid in players}
     mobs = {}
+    contacts, deaths = {}, {}
+    owners = {p["id"]: p.get("petOwner") for p in meta.get("friendlyPets", [])}
     seg = start
     while seg <= end:
         seg_end = min(seg + REPLAY_SEGMENT_MS - 1, end)
         data = wcl.get_json(code, f"/reports/replaysegment/{code}/{fight['boss']}/{seg}/{seg_end}/")
         for ev in data.get("events", []):
+            t = round((ev["timestamp"] - start) / 1000, 1)
+            source, target = ev.get("sourceID"), ev.get("targetID")
+            source_player = owners.get(source, source)
+            target_player = owners.get(target, target)
+            side, who = None, None
+            if ev.get("type") in ("damage", "miss", "absorbed"):
+                if source_player in players and target in enemies and not ev.get("targetIsFriendly"):
+                    side, who = "target", source_player
+                elif target_player in players and source in enemies and not ev.get("sourceIsFriendly"):
+                    side, who = "source", target_player
+            elif ev.get("type") in ("cast", "begincast") and source in enemies and target_player in players:
+                side, who = "source", target_player
+            if side:
+                actor = ev[f"{side}ID"]
+                key = (actor, ev.get(f"{side}Instance", 1))
+                if key not in contacts or t < contacts[key]["t"]:
+                    ab = ev.get("ability") or {}
+                    contacts[key] = {"actor": actor, "instance": key[1], "guid": enemies[actor].get("guid"),
+                                     "name": enemies[actor].get("name", "未知怪物"), "t": t,
+                                     "who": who, "spell": ab.get("name", ""), "outgoing": side == "target"}
+            if ev.get("type") == "death" and target in enemies and not ev.get("targetIsFriendly") and not ev.get("feign"):
+                key = (target, ev.get("targetInstance", 1))
+                deaths[key] = {"actor": target, "instance": key[1], "t": t}
             if "x" not in ev or ev.get("resourceActor") not in (1, 2):
                 continue
             side = "source" if ev["resourceActor"] == 1 else "target"
             actor = ev.get(f"{side}ID")
-            t = (ev["timestamp"] - start) / 1000
             if actor in players:
-                tracks[actor].setdefault(int(t // PATH_STEP_SEC), (round(t, 1), ev["x"], ev["y"]))
+                tracks[actor].setdefault(int(t // PATH_STEP_SEC), (t, ev["x"], ev["y"], ev.get("mapID")))
             elif actor in enemies and not ev.get(f"{side}IsFriendly"):
                 key = (actor, ev.get(f"{side}Instance", 1))
                 m = mobs.get(key)
                 if m is None:
-                    mobs[key] = {"actor": actor, "guid": enemies[actor].get("guid"), "t": round(t, 1),
-                                 "x": ev["x"], "y": ev["y"], "lastT": round(t, 1), "lx": ev["x"], "ly": ev["y"]}
+                    mobs[key] = {"actor": actor, "instance": key[1], "guid": enemies[actor].get("guid"), "t": t,
+                                 "x": ev["x"], "y": ev["y"], "map": ev.get("mapID"),
+                                 "lastT": t, "lx": ev["x"], "ly": ev["y"]}
                 else:
-                    m.update(lastT=round(t, 1), lx=ev["x"], ly=ev["y"])
+                    m.update(lastT=t, lx=ev["x"], ly=ev["y"])
         seg = seg_end + 1
     return {
         "step": PATH_STEP_SEC,
         "tracks": {pid: [list(v) for _, v in sorted(pts.items())] for pid, pts in tracks.items()},
         "mobs": sorted(mobs.values(), key=lambda m: m["t"]),
+        "contacts": sorted(contacts.values(), key=lambda c: c["t"]),
+        "enemyDeaths": sorted(deaths.values(), key=lambda d: d["t"]),
     }
 
 
@@ -1059,6 +1477,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(api_mplus_paths(q["code"], int(q["fight"])))
             if url.path == "/api/mplus/mdt":
                 return self._json(api_mplus_mdt(q["code"], int(q["fight"])))
+            if url.path == "/api/mplus/mechanics":
+                return self._json(api_mplus_mechanics(q["code"], int(q["fight"])))
+            if url.path == "/api/mplus/mechanic":
+                return self._json(api_mplus_mechanic(q["code"], int(q["fight"]), q.get("occurrence", "")))
             if url.path == "/api/mplus":
                 return self._json(api_mplus(q["code"], int(q["fight"])))
             m = re.fullmatch(r"/api/map/(\d+)\.png", url.path)

@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import collections
 import hashlib
+import math
 import os
 import re
 import sys
@@ -383,7 +384,77 @@ def _assign(groups: list[dict], pulls: list[dict], required: int) -> list[list[i
     return assignments
 
 
-def build_route(mdt_dir: Path, run: dict, pulls: list[dict], code: str = "", fight_id: int = 0) -> dict:
+def _route_objects(tank_route, pulls, assignments, groups, enemies):
+    """MDT-native notes and schematic join arrows, never uncalibrated WCL coordinates.
+
+    Notes are anchored to the approximate exported pull. Arrows are only possible
+    when a batch's NPC species points to one of that pull's assigned MDT groups.
+    The actual tank polyline/stay coordinates remain in the web map.
+    """
+    if not tank_route:
+        return []
+    objects = []
+    by_id = {p["id"]: p for p in tank_route.get("pulls", [])}
+
+    def position(group):
+        clones = [enemies[ei]["clones"][ci] for ei, ci, *_ in group["clones"]]
+        floors = {c.get("sublevel", 1) for c in clones}
+        if len(floors) != 1 or any(c.get("x") is None or c.get("y") is None for c in clones):
+            return None
+        return (sum(c["x"] for c in clones) / len(clones), sum(c["y"] for c in clones) / len(clones), floors.pop())
+
+    for number, (pull, indices) in enumerate(zip(pulls, assignments), 1):
+        analysis = by_id.get(pull.get("id"))
+        if not analysis or not analysis.get("steps") or not indices:
+            continue
+        positions = {idx: position(groups[idx]) for idx in indices}
+        anchor = next((p for p in positions.values() if p), None)
+        if anchor is None:
+            continue
+        lines = [f"WCL 第 {number} 波 · 接怪过程（示意位置）", "按日志首次交互分批；实际路径和停留位置见网页。"]
+        previous = None
+        for step in analysis["steps"]:
+            offset = step["t"] - analysis["start"]
+            time_label = f"{offset:+.0f}s"
+            if step["kind"] == "stop":
+                lines.append(f"{time_label} 坦克停留约 {step['until'] - step['t']:.0f}s（位置见网页）")
+                continue
+            counts = collections.Counter(c["name"] for c in step["members"])
+            names = "、".join(f"{name}×{n}" for name, n in counts.items())
+            action = "续接" if step.get("chain") else "接入"
+            text = f"{time_label} {action} {step['label']}：{names}"
+            if step.get("alive"):
+                text += f"；至少 {step['alive']} 只旧怪仍存活"
+            if step.get("recentDeaths"):
+                text += "；此前8秒死亡：" + "、".join(dict.fromkeys(d["name"] for d in step["recentDeaths"]))
+            lines.append(text)
+
+            # A distinctive NPC must select a single group; don't guess among identical packs.
+            candidates = set()
+            for npc in {c.get("guid") for c in step["members"]}:
+                matches = [idx for idx in indices if npc in groups[idx]["npcs"]]
+                if len(matches) == 1:
+                    candidates.add(matches[0])
+            target = positions[next(iter(candidates))] if len(candidates) == 1 else None
+            if target is None:
+                previous = None
+                continue
+            x, y, floor = target
+            objects.append({"n": True, "d": [round(x, 1), round(y, 1), floor, True,
+                            f"WCL 第{number}波 {time_label} {action} {step['label']}（怪群位置示意）\n{names}"]})
+            if previous and previous[2] == floor and math.hypot(x - previous[0], y - previous[1]) > 3:
+                px, py, _ = previous
+                objects.append({"d": [9, 1, floor, True, "f2994a" if step.get("chain") else "f6c85f", 0],
+                                "l": [round(px, 1), round(py, 1), round(x, 1), round(y, 1)],
+                                "t": [math.atan2(py - y, px - x)]})
+            previous = target
+        x, y, floor = anchor
+        objects.append({"n": True, "d": [round(x + 10, 1), round(y + 10, 1), floor, True, "\n".join(lines)]})
+    return objects
+
+
+def build_route(mdt_dir: Path, run: dict, pulls: list[dict], code: str = "", fight_id: int = 0,
+                tank_route: dict | None = None) -> dict:
     dungeon = _match_dungeon(mdt_dir, run.get("name") or "")
     enemies = _load_enemies(dungeon["path"])
     groups = _build_groups(enemies)
@@ -412,7 +483,7 @@ def build_route(mdt_dir: Path, run: dict, pulls: list[dict], code: str = "", fig
     title = f"WCL {run.get('name') or dungeon['key']} +{run.get('level') or '?'}"
     uid = "WCL" + hashlib.sha1(f"{code}:{fight_id}".encode()).hexdigest()[:8]
     preset = {
-        "objects": [],
+        "objects": _route_objects(tank_route, pulls, assignments, groups, enemies),
         "difficulty": int(run.get("level") or 0),
         "week": 1,
         "value": {
@@ -439,6 +510,9 @@ def build_route(mdt_dir: Path, run: dict, pulls: list[dict], code: str = "", fig
         "force": force,
         "required": required,
         "title": title,
+        "notes": sum(bool(obj.get("n")) for obj in preset["objects"]),
+        "arrows": sum(bool(obj.get("t")) for obj in preset["objects"]),
+        "annotation_notice": "MDT 注释与箭头按近似匹配的怪群绘制，仅示意接怪顺序；实际走位和停留位置请查看网页。",
     }
 
 

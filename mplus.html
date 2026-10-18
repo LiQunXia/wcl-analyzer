@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>大秘境复盘 · 路线、波次与爆发轴</title>
+<title>大秘境复盘 · 危险机制与团队应对</title>
 <script>const whTooltips = { colorLinks: false, iconizeLinks: false, renameLinks: false };</script>
 <script src="https://wow.zamimg.com/js/tooltips.js"></script>
 <style>
@@ -69,6 +69,7 @@
   .ghost { height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--line-2); background: none; color: var(--text-2);
     cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
   .ghost:hover { color: var(--text); border-color: rgba(255,255,255,.2); }
+  .ghost:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .ghost.on { color: var(--text); background: var(--accent-soft); border-color: rgba(233,179,90,.45); }
 
   /* ---------- empty / status ---------- */
@@ -144,15 +145,34 @@
   .floor-tabs { display: inline-flex; padding: 2px; border-radius: 8px; background: rgba(255,255,255,.05); }
   .floor-tabs button { border: 0; background: none; height: 26px; padding: 0 11px; font-size: 12px; color: var(--text-2); border-radius: 6px; cursor: pointer; }
   .floor-tabs button.on { background: var(--surface-2); color: var(--text); box-shadow: 0 0 0 1px var(--line-2); }
-  .mapbox { position: relative; margin: 12px; border-radius: 10px; overflow: hidden; background: #1a1712; aspect-ratio: 3 / 2; cursor: grab; touch-action: none; }
+  .mapbox { position: relative; margin: 12px; border-radius: 10px; overflow: hidden; background: #1a1712; aspect-ratio: 3 / 2; cursor: grab; touch-action: pan-y pinch-zoom; }
   .mapbox.dragging { cursor: grabbing; }
   .mapbox svg { width: 100%; height: 100%; display: block; user-select: none; }
   .map-hint { position: absolute; left: 10px; bottom: 8px; font-size: 11px; color: rgba(255,255,255,.7); background: rgba(0,0,0,.45); padding: 3px 8px; border-radius: 6px; pointer-events: none; }
+  .map-zoom { position: absolute; right: 10px; bottom: 40px; display: flex; flex-direction: column; gap: 4px; }
+  .map-zoom button { width: 32px; height: 32px; justify-content: center; padding: 0; background: var(--surface); font-size: 20px; }
   .map-loading { position: absolute; right: 10px; top: 10px; font-size: 11px; color: #fff; background: rgba(0,0,0,.6); padding: 4px 9px; border-radius: 6px; display: flex; gap: 6px; align-items: center; }
   .pull-badge { cursor: pointer; }
   .pull-badge text { font: 700 15px var(--mono); fill: #111; pointer-events: none; }
   .mob-marker { cursor: pointer; }
   .mob-marker text { font: 700 9px var(--mono); fill: #fff; pointer-events: none; }
+  .tank-plan { padding: 0 16px 16px; }
+  .tank-plan-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+  .tank-plan-head b { font-size: 14px; color: var(--accent); }
+  .tank-plan p { font-size: 11px; color: var(--text-3); line-height: 1.7; margin: 6px 0 10px; }
+  .tank-steps { display: grid; gap: 5px; max-height: 260px; overflow-y: auto; }
+  .tank-step { display: flex; align-items: start; gap: 10px; text-align: left; width: 100%; padding: 9px 10px;
+    color: var(--text); border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); cursor: pointer; }
+  .tank-step:hover, .tank-step.on { border-color: var(--accent); background: var(--accent-soft); }
+  .tank-step .mark { display: grid; place-items: center; min-width: 24px; height: 24px; border-radius: 50%;
+    background: #f6c85f; color: #17130b; font: 700 12px var(--mono); }
+  .tank-step.stop .mark { background: #56ccf2; }
+  .tank-step.chain .mark { background: #f2994a; }
+  .tank-step .copy { flex: 1; font-size: 12px; line-height: 1.65; }
+  .tank-step small { display: block; color: var(--text-3); font-size: 11px; }
+  .tank-step time { color: var(--text-2); font: 11px var(--mono); white-space: nowrap; padding-top: 4px; }
+  .tank-mark { cursor: pointer; }
+  .tank-mark text { font: 700 13px var(--mono); pointer-events: none; }
   .legend i.mobleg { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--accent); background: #3a3a42; }
   .mdt-modal { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.65); }
   .mdt-modal[hidden] { display: none; }
@@ -263,6 +283,53 @@
   .insights b { color: var(--text); }
   .insights a { color: #8fb6ff; cursor: pointer; }
 
+  /* mechanic learning */
+  .mechanics { margin-top: 18px; overflow: hidden; }
+  .mechanics .card-head { padding: 20px 22px 0; }
+  .mechanics .card-head h3 { font-size: 18px; }
+  .mechanic-body { padding: 16px 22px 22px; }
+  .mechanic-tabs, .mechanic-rounds { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .mechanic-tab, .mechanic-round { border: 1px solid var(--line-2); background: var(--surface-2); border-radius: 9px; padding: 10px 14px; cursor: pointer; text-align: left; }
+  .mechanic-tab { display: flex; align-items: center; gap: 9px; }
+  .mechanic-tab img { width: 26px; height: 26px; border-radius: 5px; }
+  .mechanic-tab.on, .mechanic-round.on { border-color: var(--accent); background: var(--accent-soft); }
+  .mechanic-tab:focus-visible, .mechanic-round:focus-visible, .mechanic-body summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .mechanic-round small { display: block; color: var(--text-2); font-size: 11px; margin-top: 3px; }
+  .mechanic-note { color: var(--text-2); font-size: 12px; line-height: 1.8; margin: 10px 0; }
+  .mechanic-title { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 20px 0 10px; }
+  .mechanic-title h4 { font-size: 16px; margin: 0 0 6px; }
+  .mechanic-metrics { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .mechanic-table { overflow-x: auto; margin: 14px 0; border: 1px solid var(--line-2); border-radius: 9px; scrollbar-color: #444954 var(--surface-2); scrollbar-width: thin; }
+  .mechanic-table table { width: 100%; border-collapse: collapse; min-width: 780px; table-layout: fixed; font-size: 12px; }
+  .mechanic-table th, .mechanic-table td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  .mechanic-table th { background: var(--surface-2); font-weight: 500; color: var(--text-2); }
+  .mechanic-table th:first-child { width: 102px; }
+  .mechanic-table th:first-child, .mechanic-table td:first-child { position: sticky; left: 0; background: var(--surface); z-index: 1; }
+  .mechanic-table tr:last-child td { border-bottom: 0; }
+  .mechanic-table time { display: block; font: 11px var(--mono); color: var(--text-2); margin-top: 5px; }
+  .response-buff { display: block; color: #8fc9ff; margin-top: 6px; line-height: 1.5; overflow-wrap: anywhere; }
+  .response-buff small { display: block; color: var(--text-2); font-size: 10px; }
+  .response-empty { display: block; color: var(--text-3); margin-top: 6px; font-size: 11px; }
+  .response-section { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 16px; }
+  .response-section h4 { margin: 0 0 8px; font-size: 13px; }
+  .response-casts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 9px; margin-top: 12px; }
+  .response-cast { display: flex; align-items: flex-start; gap: 10px; padding: 11px; border-radius: 9px; background: var(--surface-2); }
+  .response-cast img { width: 28px; height: 28px; border-radius: 5px; }
+  .response-cast .copy { min-width: 0; flex: 1; }
+  .response-cast small { display: block; color: var(--text-2); font-size: 11px; margin-top: 3px; }
+  .response-cast time { font: 11px var(--mono); color: var(--accent); white-space: nowrap; }
+  .response-health { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .response-health > div { padding: 10px; border: 1px solid var(--line); border-radius: 9px; }
+  .response-health svg { display: block; width: 100%; height: 62px; margin: 7px 0; }
+  .response-health small { color: var(--text-2); font-size: 11px; }
+  .response-warning { padding: 10px 12px; border-radius: 8px; background: rgba(239,106,76,.08); color: #f3a491; font-size: 12px; margin: 12px 0; }
+  .response-section summary { cursor: pointer; color: var(--text-2); font-size: 12px; }
+  @media (max-width: 720px) {
+    .mechanic-body { padding: 14px; }
+    .mechanics .card-head { padding: 16px 14px 0; }
+    .response-casts { grid-template-columns: 1fr; }
+  }
+
   /* tooltip */
   #tip { position: fixed; z-index: 100; pointer-events: none; background: rgba(20,22,28,.97); border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
     padding: 9px 12px; font-size: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.5); max-width: 320px; line-height: 1.5; }
@@ -310,10 +377,10 @@
 
   <section id="empty" class="hero">
     <h1>把一整场大秘境<br><em>拆成每一波</em>来复盘</h1>
-    <p>在地图上画出整条路线与真实走位，逐波列出拉了哪些怪、每个人交了什么爆发、减伤和爆发药。</p>
+    <p>找到造成团队压力的怪物技能，逐次查看治疗的处理与每个人的防护，再结合路线和波次学习。</p>
     <div class="steps">
       <div class="step"><i>01</i><h3>路线地图</h3><p>按楼层绘制每一波的位置、怪物分布和队伍的真实移动轨迹，可拖动时间轴回放。</p></div>
-      <div class="step"><i>02</i><h3>逐波拆解</h3><p>每波的怪物、进度百分比、用时、死亡，以及每个人在波内的技能时间线。</p></div>
+      <div class="step"><i>02</i><h3>机制与应对</h3><p>从已支持的危险机制切入，看每一跳伤害时的防护增益、治疗动作和血量变化。</p></div>
       <div class="step"><i>03</i><h3>技能矩阵</h3><p>全程「人 × 波次」的爆发 / 减伤 / 药水矩阵，一眼看出大招都交在了哪几波。</p></div>
     </div>
     <div class="example">试试示例：<a id="exampleLink">cn.warcraftlogs.com/reports/XGdhCgWHtPpa9w6J?fight=5</a></div>
@@ -339,6 +406,8 @@
       <div class="strip" id="strip"></div>
     </section>
 
+    <section class="card mechanics" id="mechanics" aria-label="危险机制与团队应对"></section>
+
     <div class="main">
       <section class="card mapcard">
         <div class="card-head">
@@ -347,13 +416,17 @@
             <div class="floor-tabs" id="floors"></div>
             <button class="ghost on" id="tglTracks" title="显示队伍真实移动轨迹">走位轨迹</button>
             <button class="ghost on" id="tglMobs" title="显示怪物图标：同位置的怪会合并，数字为只数，悬停看名称和进度">怪物位置</button>
-            <button class="ghost" id="fitBtn" title="缩放到当前楼层路线">适应路线</button>
+            <button class="ghost" id="fitBtn" title="缩放到当前波次的坦克路线">适应本波</button>
             <button class="ghost" id="mdtExport" title="生成可直接粘贴进 MDT 的路线字符串">导出 MDT</button>
           </div>
         </div>
         <div class="mapbox" id="mapbox">
           <svg id="map" xmlns="http://www.w3.org/2000/svg"></svg>
-          <div class="map-hint">滚轮缩放 · 拖动平移 · 点击编号查看该波 · 悬停怪物图标看名字</div>
+          <div class="map-zoom" role="group" aria-label="地图缩放">
+            <button type="button" class="ghost" id="zoomIn" title="放大地图" aria-label="放大地图">+</button>
+            <button type="button" class="ghost" id="zoomOut" title="缩小地图" aria-label="缩小地图">−</button>
+          </div>
+          <div class="map-hint">滚轮浏览页面 · Ctrl / ⌘ + 滚轮缩放 · 鼠标拖动平移 · 点击编号查看该波</div>
           <div class="map-loading" id="pathsLoading" hidden><div class="spinner"></div><span>正在读取战斗回放以绘制走位（首次约 30 秒）…</span></div>
         </div>
         <div class="replay">
@@ -363,12 +436,15 @@
           <select id="speed"><option value="10">10×</option><option value="20" selected>20×</option><option value="40">40×</option><option value="80">80×</option></select>
         </div>
         <div class="legend">
+          <span style="color:#f6c85f">A → B 接怪顺序 / 箭头为坦克实测路径</span>
+          <span style="color:#56ccf2">◎ 坦克停留</span>
           <span><i style="background:#fff;border-radius:50%"></i>队员实时位置（回放）</span>
           <span><i style="background:rgba(255,255,255,.5);height:2px"></i>队伍移动轨迹（坦克）</span>
           <span><i class="mobleg"></i>怪物图标（数字 = 同位置只数）</span>
           <span><i style="border:2px dashed #fff;background:none;height:2px"></i>波次顺序</span>
           <span>✕ 死亡位置</span>
         </div>
+        <div class="tank-plan" id="tankPlan"></div>
       </section>
 
       <aside class="card pull-list" id="pullList"></aside>
@@ -467,6 +543,8 @@ const pullColor = (i) => PULL_COLORS[i % PULL_COLORS.length];
 
 const state = {
   code: null, runs: [], runId: null, data: null, paths: null,
+  mechanics: null, mechanicsError: "", mechanicSpell: null, occurrenceId: null,
+  response: null, responseError: "", responseLoading: false, responseCache: new Map(), runVersion: 0,
   pullIdx: 0, floor: null, selected: new Set(),
   cats: new Set(["offensive", "defensive", "potion", "healPotion", "lust", "rez"]),
   showTracks: true, showMobs: true, t: 0, playing: false, view: null, matrixMode: "burst",
@@ -536,14 +614,22 @@ function renderRuns() {
 }
 
 async function loadRun(id) {
+  const version = ++state.runVersion, code = state.code;
   state.runId = id;
   stopPlay();
   $("runs").querySelectorAll(".run-btn").forEach((b) => b.classList.toggle("on", +b.dataset.id === id));
   showMsg("loading", "分析大秘境中，首次读取需要十几秒…");
   try {
-    const data = await api(`/api/mplus?code=${state.code}&fight=${id}`);
-    if (state.runId !== id) return;
+    const data = await api(`/api/mplus?code=${code}&fight=${id}`);
+    if (state.runVersion !== version) return;
     state.data = data;
+    state.mechanics = null;
+    state.mechanicsError = "";
+    state.mechanicSpell = null;
+    state.occurrenceId = null;
+    state.response = null;
+    state.responseLoading = false;
+    state.responseCache = new Map();
     state.paths = null;
     state.selected.clear();
     state.pullIdx = 0;
@@ -555,6 +641,7 @@ async function loadRun(id) {
     $("result").hidden = false;
     renderAll();
     loadPaths(id);
+    loadMechanics(version, code, id);
   } catch (e) { showMsg("error", e.message); }
 }
 
@@ -564,15 +651,209 @@ async function loadPaths(id) {
     const paths = await api(`/api/mplus/paths?code=${state.code}&fight=${id}`);
     if (state.runId !== id) return;
     state.paths = preparePaths(paths);
+    renderTankPlan();
     drawMap(true);
   } catch (e) {
     $("pathsLoading").querySelector("span").textContent = `走位读取失败：${e.message}`;
+    $("tankPlan").innerHTML = `<p>接怪过程读取失败：${esc(e.message)}</p>`;
     return;
   }
   $("pathsLoading").hidden = true;
 }
 
 /* ---------- derived ---------- */
+
+const RESPONSE_KIND = { team: "团队防护", external: "外部防护", immune: "免疫 / 保命", health: "生命上限",
+  balance: "血量均衡", heal: "治疗", shield: "吸收护盾", defensive: "防护增益", healPotion: "治疗药 / 糖", rez: "战复" };
+const responseOffset = (t) => `${t < 0 ? "−" : "+"}${Math.abs(t).toFixed(2)} 秒`;
+const currentMechanic = () => state.mechanics?.mechanics.find((m) => m.spell === state.mechanicSpell);
+const currentOccurrence = () => currentMechanic()?.rounds.find((r) => r.id === state.occurrenceId);
+
+async function loadMechanics(version = state.runVersion, code = state.code, id = state.runId) {
+  state.mechanicsError = "";
+  renderMechanics();
+  try {
+    const data = await api(`/api/mplus/mechanics?code=${code}&fight=${id}`);
+    if (state.runVersion !== version) return;
+    state.mechanics = data;
+    state.mechanicSpell = data.mechanics[0]?.spell ?? null;
+    renderMechanics();
+    const first = currentMechanic()?.rounds.find((r) => r.hits) || currentMechanic()?.rounds[0];
+    if (first) selectMechanicRound(first.id);
+  } catch (e) {
+    if (state.runVersion !== version) return;
+    state.mechanicsError = e.message;
+    renderMechanics();
+  }
+}
+
+async function selectMechanicRound(id, locate = false) {
+  state.occurrenceId = id;
+  state.response = state.responseCache.get(id) || null;
+  state.responseError = "";
+  const r = currentOccurrence();
+  if (!r) return;
+  if (locate) {
+    const idx = D().pulls.findIndex((p) => p.id === r.pull);
+    if (idx >= 0) selectPull(idx, false, false);
+    stopPlay();
+    setTime(r.pulses[0]?.t ?? r.t);
+  }
+  state.responseLoading = !state.response && r.hits > 0;
+  renderMechanics();
+  if (!state.responseLoading) return;
+  const version = state.runVersion;
+  try {
+    const data = await api(`/api/mplus/mechanic?code=${state.code}&fight=${state.runId}&occurrence=${encodeURIComponent(id)}`);
+    if (state.runVersion !== version) return;
+    state.responseCache.set(id, data);
+    if (state.occurrenceId !== id) return;
+    state.response = data;
+  } catch (e) {
+    if (state.runVersion !== version || state.occurrenceId !== id) return;
+    state.responseError = e.message;
+  }
+  if (state.runVersion === version && state.occurrenceId === id) {
+    state.responseLoading = false;
+    renderMechanics();
+  }
+}
+
+function responseBuff(b, hit) {
+  const by = playerById();
+  const candidates = (D().buffs || []).filter((a) => a.who === hit.who && a.t <= hit.t && a.end >= hit.t
+    && (a.spell === b.spell || a.spell === b.canonical || a.name === b.name));
+  const sources = [...new Set(candidates.map((a) => a.source).filter((s) => by[s]))];
+  const source = sources.length === 1 ? by[sources[0]] : null;
+  const label = source ? (source.id !== hit.who ? `来自 ${source.name}` : "") : b.kind === "external" ? "施放者未确认" : "";
+  return `<a class="response-buff" ${spellHref(b.spell)}>${esc(b.name)}${label ? `<small>${esc(label)}</small>` : ""}</a>`;
+}
+
+function responseCast(c, first, by) {
+  const player = by[c.who];
+  const target = by[c.target];
+  return `<div class="response-cast"><a ${spellHref(c.spell)}><img src="${iconUrl(c.icon)}" alt=""></a>
+    <span class="copy"><span style="color:${CLASS_COLOR[player?.cls] || "inherit"}">${esc(player?.name || "未知队员")}</span> · ${esc(c.name)}
+    <small>${RESPONSE_KIND[c.kind] || "技能使用"}${target && target.id !== c.who ? ` → ${esc(target.name)}` : ""}</small></span>
+    <time>${responseOffset(c.t - first)}</time></div>`;
+}
+
+function responseHealth(r, detail, by) {
+  const [start, end] = detail.window, span = Math.max(end - start, 1);
+  const x = (t) => Math.max(0, Math.min(240, (t - start) / span * 240));
+  const first = r.pulses[0].t;
+  return `<div class="response-health">${D().players.map((p) => {
+    const samples = detail.health[p.id] || [];
+    const low = samples.length ? Math.min(...samples.map((s) => s[1])) : null;
+    // Gaps over two seconds stay open; sample order is not a continuous health recording.
+    let previous = null;
+    const path = samples.map(([t, hp]) => {
+      const cmd = previous !== null && t - previous <= 2 ? "L" : "M";
+      previous = t;
+      return `${cmd}${x(t).toFixed(1)},${(52 - hp * .48).toFixed(1)}`;
+    }).join(" ");
+    const deaths = detail.deaths.filter((d) => d.who === p.id);
+    return `<div><span style="color:${CLASS_COLOR[p.cls]}">${esc(p.name)}</span>
+      <svg viewBox="0 0 240 58" role="img" aria-label="${esc(p.name)}的血量采样">
+        <rect x="${x(first)}" y="2" width="${Math.max(1, x(r.end) - x(first))}" height="52" fill="rgba(239,106,76,.1)"/>
+        <path d="M0 52H240" stroke="rgba(255,255,255,.1)"/>
+        <path d="${path}" fill="none" stroke="${CLASS_COLOR[p.cls]}" stroke-width="1.8"/>
+        ${deaths.map((d) => `<circle cx="${x(d.t)}" cy="52" r="3" fill="#ef6a4c"/>`).join("")}
+      </svg><small>${low === null ? "未记录血量采样" : `观察到最低 ${low}%`}${deaths.length ? " · 有死亡记录" : ""}</small></div>`;
+  }).join("")}</div>`;
+}
+
+function renderMechanics() {
+  const el = $("mechanics");
+  const head = `<div class="card-head"><h3>危险机制 · 团队怎么应对</h3><span class="sub">选一次释放，逐跳查看五个人的处理</span></div>`;
+  if (state.mechanicsError) {
+    el.innerHTML = `${head}<div class="mechanic-body"><div class="response-warning">${esc(state.mechanicsError)}</div><button class="ghost" id="retryMechanics">重试机制分析</button></div>`;
+    $("retryMechanics").onclick = () => loadMechanics();
+    return;
+  }
+  if (!state.mechanics) {
+    el.innerHTML = `${head}<div class="mechanic-body"><div class="loading"><div class="spinner"></div>正在识别怪物机制与逐次伤害…</div></div>`;
+    return;
+  }
+  const groups = state.mechanics.mechanics;
+  if (!groups.length) {
+    el.innerHTML = `${head}<div class="mechanic-body"><p class="mechanic-note">这场日志尚未匹配到已支持的机制，不代表没有危险伤害。当前支持：${state.mechanics.supported.map(esc).join("、")}。</p></div>`;
+    return;
+  }
+  const m = currentMechanic(), r = currentOccurrence(), by = playerById();
+  let html = `${head}<div class="mechanic-body"><div class="mechanic-tabs" role="group" aria-label="选择怪物机制">${groups.map((g) =>
+    `<button type="button" class="mechanic-tab ${g.spell === state.mechanicSpell ? "on" : ""}" data-mechanic="${g.spell}" aria-pressed="${g.spell === state.mechanicSpell}">
+      <img src="${iconUrl(g.icon)}" alt="">${esc(g.name)} <span class="sub">${g.rounds.length} 次</span></button>`).join("")}</div>`;
+  if (m) html += `<div class="mechanic-rounds" role="group" aria-label="选择一次机制释放">${m.rounds.map((o, i) => {
+    const pull = D().pulls.findIndex((p) => p.id === o.pull);
+    return `<button type="button" class="mechanic-round ${o.id === state.occurrenceId ? "on" : ""}" data-round="${esc(o.id)}" aria-pressed="${o.id === state.occurrenceId}">
+      ${mmss(o.t)} · 第 ${i + 1} 次<small>${pull >= 0 ? `第 ${pull + 1} 波 · 波内第 ${o.number} 次` : "波次未匹配"} · ${o.pulses.length} 跳</small></button>`;
+  }).join("")}</div>${m.unmatched ? `<p class="response-warning">有 ${m.unmatched} 条伤害未能确认对应施法，未合并进下表。</p>` : ""}`;
+  if (r) {
+    const first = r.pulses[0]?.t ?? r.t;
+    html += `<div class="mechanic-title"><div><h4>${esc(r.monster)} · ${esc(m.name)}</h4>
+      <span class="mechanic-note">怪物个体 #${r.instance} · ${mmss(r.t)} 施法完成${r.hits ? ` · ${mmss(first)} 首次伤害` : " · 未记录玩家命中"}</span></div>
+      <button type="button" class="ghost" id="locateMechanic">定位地图与回放 ↗</button></div>
+      <div class="mechanic-metrics"><span class="tag">${r.pulses.length} 跳 / ${r.targets} 人</span>
+        <span class="tag">记录承伤 <b>${wan(r.damage)}</b></span><span class="tag">吸收 <b>${wan(r.absorbed)}</b></span>
+        <span class="tag">伤害跨度 <b>${(r.end - first).toFixed(1)} 秒</b></span></div>`;
+    if (r.hits) html += `<p class="mechanic-note">下表增益来自每次命中时的实际记录。时间相对于首跳；“未记录防护增益”不等于没有其他保护。</p>
+      <div class="mechanic-table" tabindex="0" role="region" aria-label="逐跳承伤与防护，可横向滚动查看全队"><table><thead><tr><th>伤害发生</th>${D().players.map((p) =>
+        `<th><span style="color:${CLASS_COLOR[p.cls]}">${esc(p.name)}</span><br>${ROLE_ZH[p.role]}</th>`).join("")}</tr></thead>
+      <tbody>${r.pulses.map((pulse, i) => `<tr><td>第 ${i + 1} 跳<time>${responseOffset(pulse.t - first)}</time></td>${D().players.map((p) => {
+        const hits = pulse.players.filter((h) => h.who === p.id);
+        if (!hits.length) return `<td><span class="response-empty">未记录命中</span></td>`;
+        const amount = hits.reduce((n, h) => n + h.amount, 0), absorbed = hits.reduce((n, h) => n + h.absorbed, 0);
+        const seen = new Set();
+        const buffs = hits.flatMap((h) => h.buffs.filter((b) => {
+          if (seen.has(b.canonical)) return false;
+          seen.add(b.canonical); return true;
+        }).map((b) => responseBuff(b, h)));
+        return `<td><b>${wan(amount)}</b>${absorbed ? `<span class="response-empty">吸收 ${wan(absorbed)}</span>` : ""}
+          ${buffs.join("") || `<span class="response-empty">未记录防护增益</span>`}</td>`;
+      }).join("")}</tr>`).join("")}</tbody></table></div>`;
+    if (state.responseLoading) html += `<div class="loading"><div class="spinner"></div>正在读取这次机制前后的治疗、护盾与血量（首次稍需等待）…</div>`;
+    else if (state.responseError) html += `<div class="response-warning">治疗与血量读取失败：${esc(state.responseError)}</div><button class="ghost" id="retryResponse">重试这次应对</button>`;
+    else if (state.response) html += renderMechanicResponse(r, state.response, by);
+  }
+  el.innerHTML = `${html}<p class="mechanic-note">目前分析已验证的 ${state.mechanics.supported.length} 个机制；展示本次日志的实际应对，供结合自己的阵容与层数参考。</p></div>`;
+  el.querySelectorAll("[data-mechanic]").forEach((b) => b.onclick = () => {
+    state.mechanicSpell = +b.dataset.mechanic;
+    selectMechanicRound(currentMechanic().rounds[0].id, true);
+  });
+  el.querySelectorAll("[data-round]").forEach((b) => b.onclick = () => selectMechanicRound(b.dataset.round, true));
+  if ($("retryResponse")) $("retryResponse").onclick = () => selectMechanicRound(state.occurrenceId);
+  if ($("locateMechanic")) $("locateMechanic").onclick = () => {
+    const idx = D().pulls.findIndex((p) => p.id === r.pull);
+    if (idx >= 0) selectPull(idx, false, false);
+    stopPlay(); setTime(r.pulses[0]?.t ?? r.t);
+    $("mapbox").scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+}
+
+function renderMechanicResponse(r, detail, by) {
+  const first = r.pulses[0]?.t ?? r.t;
+  let html = detail.replayMatched ? "" : `<p class="response-warning">回放中的命中条数与伤害记录不一致，下列治疗和血量可能不完整。</p>`;
+  if (detail.deaths.length) html += `<div class="response-warning">${detail.deaths.map((d) =>
+    `${esc(by[d.who]?.name || "未知队员")} 在 ${responseOffset(d.t - first)} 死亡（${esc(d.name)}）`).join("；")}</div>`;
+  if (detail.replayMatched && detail.allDamage > 0) html += `<p class="mechanic-note">本技能占首跳至末跳窗口内全队敌方承伤的 <b>${(r.damage / detail.allDamage * 100).toFixed(1)}%</b>；其余伤害也可能影响治疗压力。</p>`;
+  html += `<div class="response-section"><h4>治疗怎么处理</h4><p class="mechanic-note">以下是首跳前 12 秒至末跳后 5 秒的技能记录；施放时间不等于完整覆盖。</p>`;
+  const healerCasts = detail.responses.filter((c) => by[c.who]?.role === "healer");
+  for (const [phase, label] of [["before", "伤害前 · 提前准备"], ["during", "伤害中 · 处理与恢复"], ["after", "伤害后 · 恢复"]]) {
+    const casts = healerCasts.filter((c) => c.phase === phase && c.key);
+    html += `<p class="mechanic-note">${label}</p><div class="response-casts">${casts.map((c) => responseCast(c, first, by)).join("") || `<span class="response-empty">这个阶段未识别到关键技能，常规治疗见下方</span>`}</div>`;
+  }
+  const routine = healerCasts.filter((c) => !c.key);
+  if (routine.length) html += `<details class="response-section"><summary>展开常规治疗施法（${routine.length} 次）</summary><div class="response-casts">${routine.map((c) => responseCast(c, first, by)).join("")}</div></details>`;
+  html += `</div><div class="response-section"><h4>直接吸收 / 抵消本次伤害的效果</h4><div class="response-casts">${detail.absorbs.map((a) =>
+    `<div class="response-cast"><img src="${iconUrl(a.icon)}" alt=""><span class="copy">${esc(a.name)} · ${wan(a.amount)}<small>${esc(by[a.who]?.name || "未知来源")} → ${a.targets.map((id) => esc(by[id]?.name || "未知队员")).join("、")}</small></span></div>`).join("") || `<span class="response-empty">没有记录到可直接归因的护盾吸收事件</span>`}</div></div>`;
+  const others = detail.responses.filter((c) => by[c.who]?.role !== "healer");
+  html += `<details class="response-section"><summary>展开坦克与输出的防护、治疗药和战复记录（${others.length} 次）</summary><div class="response-casts">${others.map((c) => responseCast(c, first, by)).join("")}</div></details>
+    <div class="response-section"><h4>全队血量变化 · 事件采样</h4><p class="mechanic-note">红底为本次伤害时段，每半秒保留最低观测值；空隙表示没有连续记录。死亡用红点标出。</p>${responseHealth(r, detail, by)}</div>
+    <details class="response-section"><summary>展开同期治疗效果（包含应对其他伤害的治疗）</summary><div class="response-casts">${detail.healing.slice(0, 12).map((h) =>
+      `<div class="response-cast"><img src="${iconUrl(h.icon)}" alt=""><span class="copy">${esc(h.name)} · ${h.kind === "balance" ? "血量均衡" : wan(h.amount)}<small>${esc(by[h.who]?.name || "未知治疗")} · ${responseOffset(h.first - first)} 至 ${responseOffset(h.last - first)} · ${h.targets.length} 人</small></span></div>`).join("")}</div></details>`;
+  return html;
+}
 
 const D = () => state.data;
 const playerById = () => Object.fromEntries(D().players.map((p) => [p.id, p]));
@@ -605,18 +886,18 @@ function floorAt(t, x, y) {
 function preparePaths(raw) {
   const tracks = {};
   for (const [pid, pts] of Object.entries(raw.tracks)) {
-    tracks[pid] = pts.map(([t, x, y]) => ({ t, x, y, floor: floorAt(t, x, y) }));
+    tracks[pid] = pts.map(([t, x, y, floor]) => ({ t, x, y, floor: floor ?? floorAt(t, x, y) }));
   }
   const ps = D().pulls;
   const info = raw.enemies || {};
   const mobs = raw.mobs.map((m) => {
     const idx = ps.findIndex((p) => m.t >= p.start - 3 && m.t <= p.end + 1);
     const meta = info[m.guid] || (idx >= 0 ? (ps[idx].enemies || []).find((e) => e.guid === m.guid) : null) || {};
-    return { ...m, pull: idx, floor: idx >= 0 ? floorAt(m.t, m.x, m.y) : null,
+    return { ...m, pull: idx, floor: m.map ?? (idx >= 0 ? floorAt(m.t, m.x, m.y) : null),
              name: meta.name || "", icon: meta.icon || "", boss: meta.boss || meta.type === "Boss",
              count: meta.count || 0 };
   }).filter((m) => m.pull >= 0);
-  return { tracks, mobs, step: raw.step };
+  return { tracks, mobs, step: raw.step, tankRoute: raw.tankRoute };
 }
 
 function posAt(track, t) {
@@ -633,9 +914,51 @@ function tankId() {
   return (D().players.find((p) => p.role === "tank") || D().players[0])?.id;
 }
 
+const tankPull = () => state.paths?.tankRoute?.pulls.find((p) => p.id === curPull()?.id);
+function tankStepText(s) {
+  if (s.kind === "stop") return `坦克在此停留约 ${Math.round(s.until - s.t)} 秒`;
+  const names = new Map();
+  for (const c of s.members) names.set(c.name, (names.get(c.name) || 0) + 1);
+  return `${s.chain ? "续接" : "接入"} ${s.label} · ${[...names].map(([n, count]) => `${n} ×${count}`).join("、")}`;
+}
+
+function focusTankStep(i) {
+  const s = tankPull()?.steps[i];
+  if (!s) return;
+  stopPlay();
+  setTime(Math.max(curPull().start, s.t));
+  if (s.map && s.map !== state.floor) setFloor(s.map);
+  $("tankPlan").querySelectorAll(".tank-step").forEach((el) => el.classList.toggle("on", +el.dataset.step === i));
+  drawMap(true);
+}
+
+function renderTankPlan() {
+  const p = tankPull();
+  const head = `<div class="tank-plan-head"><b>第 ${state.pullIdx + 1} 波 · 坦克接怪过程</b><span class="sub">点击步骤，定位回放</span></div>`;
+  if (!state.paths) { $("tankPlan").innerHTML = `${head}<p>正在读取接怪与走位记录…</p>`; return; }
+  if (!p?.steps.length) {
+    $("tankPlan").innerHTML = `${head}<p>${p?.boss ? "首领战暂不分析接怪过程。" : "本波没有足够的交互或坐标记录，暂不推断接怪动作。"}</p>`;
+    return;
+  }
+  let stop = 0;
+  $("tankPlan").innerHTML = `${head}<p>A / B 按怪物首次伤害或敌对施法记录分批，并非已确认的原始怪群；标记是当时的坦克位置。蓝圈仅表示坦克停留，不代表怪物已聚齐。</p>
+    <div class="tank-steps">${p.steps.map((s, i) => {
+      const label = s.kind === "stop" ? `S${++stop}` : s.label;
+      const evidence = s.kind === "stop" ? "查看停留位置与前后的移动路径"
+        : [s.tankAction ? `坦克命中：${s.tankAction.spell}` : "首次交互不一定由坦克发起",
+          s.alive ? `此时至少 ${s.alive} 只先前接入的怪仍存活` : "",
+          s.recentDeaths?.length ? `此前 8 秒死亡：${[...new Set(s.recentDeaths.map((d) => d.name))].join("、")}` : ""].filter(Boolean).join("；");
+      return `<button type="button" class="tank-step ${s.kind} ${s.chain ? "chain" : ""}" data-step="${i}">
+        <span class="mark">${label}</span><span class="copy">${esc(tankStepText(s))}<small>${esc(evidence)}${s.x == null ? "；此刻缺少坦克坐标，未绘制位置" : ""}</small></span>
+        <time>${signed(s.t - curPull().start)}</time></button>`;
+    }).join("")}</div>`;
+  $("tankPlan").querySelectorAll(".tank-step").forEach((el) => el.onclick = () => focusTankStep(+el.dataset.step));
+}
+
 /* ---------- render ---------- */
 
 function renderAll() {
+  renderMechanics();
   renderHeader();
   renderStrip();
   renderFloors();
@@ -643,6 +966,7 @@ function renderAll() {
   renderDetail();
   renderMatrix();
   renderSummary();
+  renderTankPlan();
   setupScrub();
   drawMap(true);
 }
@@ -741,7 +1065,7 @@ function renderPullList() {
   $("pullList").querySelectorAll(".pitem").forEach((el) => el.onclick = () => selectPull(+el.dataset.i, true));
 }
 
-function selectPull(i, moveTime) {
+function selectPull(i, moveTime, reveal = true) {
   const ps = D().pulls;
   state.pullIdx = Math.max(0, Math.min(ps.length - 1, i));
   const p = curPull();
@@ -749,10 +1073,11 @@ function selectPull(i, moveTime) {
   if (p.map !== state.floor) setFloor(p.map);
   $("strip").querySelectorAll(".seg").forEach((s) => s.classList.toggle("on", +s.dataset.i === state.pullIdx));
   $("pullList").querySelectorAll(".pitem").forEach((el) => el.classList.toggle("on", +el.dataset.i === state.pullIdx));
-  $("pullList").querySelector(".pitem.on")?.scrollIntoView({ block: "nearest" });
+  if (reveal) $("pullList").querySelector(".pitem.on")?.scrollIntoView({ block: "nearest" });
   renderDetail();
   renderMatrix();
   updateClock();
+  renderTankPlan();
   drawMap(moveTime);
 }
 
@@ -1043,6 +1368,46 @@ function hull(points) {
   return lower.slice(0, -1).concat(upper.slice(0, -1));
 }
 
+function tankMapAnnotations(m, W, H) {
+  const p = tankPull();
+  if (!p) return "";
+  const scale = W / 1500, pr = (x, y) => project(m, x, y, W, H);
+  let out = "";
+  if (state.showTracks) for (const segment of p.segments) {
+    const points = segment.filter((q) => q.map === m.id).map((q) => pr(q.x, q.y));
+    if (points.length < 2) continue;
+    out += `<polyline points="${points.map((q) => q.join(",")).join(" ")}" fill="none" stroke="#111" stroke-width="${8 * scale}" stroke-linecap="round" stroke-linejoin="round"/>`;
+    // Follow recorded bends, with a direction arrow roughly every twelve seconds.
+    for (let i = 0; i < points.length - 1; i += 6) {
+      const part = points.slice(i, i + 7);
+      const distance = part.slice(1).reduce((n, q, k) => n + Math.hypot(q[0] - part[k][0], q[1] - part[k][1]), 0);
+      if (distance < 8 * scale) continue;
+      out += `<polyline points="${part.map((q) => q.join(",")).join(" ")}" fill="none" stroke="#f6c85f" stroke-width="${3 * scale}" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#tankArrow)"/>`;
+    }
+  }
+  let stops = 0;
+  const labels = [];
+  p.steps.forEach((s, i) => {
+    const label = s.kind === "stop" ? `S${++stops}` : s.label;
+    if (s.map !== m.id || s.x == null) return;
+    const [x, y] = pr(s.x, s.y), stop = s.kind === "stop";
+    const color = stop ? "#56ccf2" : s.chain ? "#f2994a" : "#f6c85f";
+    const offsets = stop ? [[-23, 23], [-23, -23], [23, 23], [23, -23]] : [[23, -23], [-23, -23], [23, 23], [-23, 23]];
+    offsets.push([43, -43], [-43, 43], [43, 43], [-43, -43]);
+    const offset = offsets.find(([dx, dy]) => labels.every(([lx, ly]) => Math.hypot(x + dx * scale - lx, y + dy * scale - ly) >= 34 * scale)) || offsets[0];
+    const [dx, dy] = offset.map((v) => v * scale);
+    labels.push([x + dx, y + dy]);
+    const tip = `<b>${esc(tankStepText(s))}</b><br><span class=t>波内 ${signed(s.t - curPull().start)} · 全程 ${mmss(s.t)}<br>${stop ? "坦克停留区域；不代表怪物已聚齐" : "首次交互批次；标记为坦克位置"}</span>`;
+    out += `<g class="tank-mark" data-step="${i}" data-tip="${esc(tip)}">
+      ${stop ? `<circle cx="${x}" cy="${y}" r="${22 * scale}" fill="${color}" fill-opacity=".12" stroke="${color}" stroke-width="${2 * scale}" stroke-dasharray="${4 * scale} ${3 * scale}"/>` : ""}
+      <circle cx="${x}" cy="${y}" r="${4 * scale}" fill="${color}" stroke="#111" stroke-width="${2 * scale}"/>
+      <line x1="${x}" y1="${y}" x2="${x + dx}" y2="${y + dy}" stroke="${color}" stroke-width="${1.5 * scale}"/>
+      <circle cx="${x + dx}" cy="${y + dy}" r="${15 * scale}" fill="#111318" stroke="${color}" stroke-width="${2 * scale}"/>
+      <text x="${x + dx}" y="${y + dy}" text-anchor="middle" dominant-baseline="central" fill="${color}" style="font-size:${13 * scale}px">${label}</text></g>`;
+  });
+  return out;
+}
+
 let drawToken = 0;
 async function drawMap(refit) {
   if (!D()) return;
@@ -1062,6 +1427,8 @@ async function drawMap(refit) {
   // pull areas from mob positions
   const mobs = state.paths?.mobs || [];
   ps.forEach((p, i) => {
+    // A convex hull can cut across walls and look like an invented movement path.
+    if (tankPull()?.segments.length) return;
     if (p.map !== m.id) return;
     const pts = mobs.filter((mb) => mb.pull === i && mb.floor === m.id).map((mb) => pr(mb.x, mb.y));
     const sel = i === state.pullIdx;
@@ -1076,7 +1443,7 @@ async function drawMap(refit) {
   });
 
   // tank movement track
-  if (state.paths && state.showTracks) {
+  if (state.paths && state.showTracks && !tankPull()?.segments.length) {
     const tid = state.selected.size === 1 ? [...state.selected][0] : tankId();
     const tr = state.paths.tracks[tid] || [];
     const cur = ps[state.pullIdx];
@@ -1165,11 +1532,14 @@ async function drawMap(refit) {
       <circle cx="${x}" cy="${y}" r="${r}" fill="${pullColor(i)}" stroke="${sel ? "#fff" : "#111"}" stroke-width="${(sel ? 3.5 : 2) * scale}"/>
       <text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" style="font-size:${(sel ? 17 : 14) * scale}px">${i + 1}</text></g>`;
   }
+  out += tankMapAnnotations(m, W, H);
   out += `<g id="liveDots"></g>`;
-  svg.innerHTML = `<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#fff"/></marker></defs>${out}`;
+  svg.innerHTML = `<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#fff"/></marker>
+    <marker id="tankArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#f6c85f"/></marker></defs>${out}`;
   svg.dataset.w = W; svg.dataset.h = H;
   svg.querySelectorAll(".pull-badge").forEach((g) => g.addEventListener("click", (e) => { if (!panMoved) selectPull(+g.dataset.i, true); }));
   svg.querySelectorAll(".mob-marker").forEach((g) => g.addEventListener("click", () => { if (!panMoved) selectPull(+g.dataset.pull, false); }));
+  svg.querySelectorAll(".tank-mark").forEach((g) => g.addEventListener("click", () => { if (!panMoved) focusTankStep(+g.dataset.step); }));
   svg.querySelectorAll("[data-tip]").forEach((g) => {
     g.addEventListener("mousemove", (e) => showTip(e, g.dataset.tip));
     g.addEventListener("mouseleave", hideTip);
@@ -1184,6 +1554,8 @@ function fitView(m, W, H) {
   const pr = (x, y) => project(m, x, y, W, H);
   D().pulls.forEach((p) => { if (p.map === m.id && p.x != null) pts.push(pr(p.x, p.y)); });
   (state.paths?.mobs || []).forEach((mb) => { if (mb.floor === m.id) pts.push(pr(mb.x, mb.y)); });
+  const focus = (tankPull()?.segments || []).flat().filter((q) => q.map === m.id).map((q) => pr(q.x, q.y));
+  if (focus.length >= 2) pts.splice(0, pts.length, ...focus);
   const inImg = pts.filter(([x, y]) => x >= 0 && x <= W && y >= 0 && y <= H);
   const box = $("mapbox"), ar = box.clientWidth / box.clientHeight || 1.5;
   if (inImg.length < 2) { state.view = W / H > ar ? [0, (H - W / ar) / 2, W, W / ar] : [(W - H * ar) / 2, 0, H * ar, H]; return; }
@@ -1224,20 +1596,25 @@ function drawLive() {
 
 /* pan & zoom */
 let pan = null, panMoved = false;
-$("mapbox").addEventListener("wheel", (e) => {
+function zoomMap(k, fx = 0.5, fy = 0.5) {
   if (!state.view) return;
-  e.preventDefault();
-  const r = $("mapbox").getBoundingClientRect();
   const [vx, vy, vw, vh] = state.view;
-  const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
-  const k = Math.exp(e.deltaY * 0.0015);
   const W = +$("map").dataset.w;
   const nw = Math.min(Math.max(vw * k, W / 30), W * 1.5), nh = nw * vh / vw;
   state.view = [vx + (vw - nw) * fx, vy + (vh - nh) * fy, nw, nh];
   applyView();
+}
+$("zoomIn").onclick = () => zoomMap(1 / 1.25);
+$("zoomOut").onclick = () => zoomMap(1.25);
+$("mapbox").addEventListener("wheel", (e) => {
+  if (!state.view || !(e.ctrlKey || e.metaKey)) return;
+  e.preventDefault();
+  const r = $("mapbox").getBoundingClientRect();
+  const delta = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? r.height : 1);
+  zoomMap(Math.exp(delta * 0.0015), (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
 }, { passive: false });
 $("mapbox").addEventListener("pointerdown", (e) => {
-  if (!state.view || e.button !== 0) return;
+  if (!state.view || e.button !== 0 || e.pointerType === "touch" || e.target.closest("button")) return;
   pan = { x: e.clientX, y: e.clientY, v: [...state.view] };
   panMoved = false;
 });
@@ -1256,6 +1633,11 @@ window.addEventListener("pointerup", () => {
   pan = null;
   $("mapbox").classList.remove("dragging");
   setTimeout(() => { panMoved = false; }, 0);
+});
+window.addEventListener("pointercancel", () => {
+  pan = null;
+  panMoved = false;
+  $("mapbox").classList.remove("dragging");
 });
 $("fitBtn").onclick = () => { state.view = null; drawMap(true); };
 $("tglTracks").onclick = () => { state.showTracks = !state.showTracks; $("tglTracks").classList.toggle("on", state.showTracks); drawMap(); };
@@ -1277,7 +1659,8 @@ $("mdtExport").onclick = async () => {
   try {
     const r = await api(`/api/mplus/mdt?code=${state.code}&fight=${state.runId}`);
     const pct = r.required ? Math.round(r.force / r.required * 100) : 0;
-    $("mdtInfo").innerHTML = `<b>${esc(r.title)}</b><br>MDT 地下城 #${r.dungeon_index} · ${r.pulls} 波 · ${r.groups} 组怪 · 预计进度 ${pct}%（${r.force}/${r.required}）`;
+    $("mdtInfo").innerHTML = `<b>${esc(r.title)}</b><br>MDT 地下城 #${r.dungeon_index} · ${r.pulls} 波 · ${r.groups} 组怪 · 预计进度 ${pct}%（${r.force}/${r.required}）
+      <br>附带 ${r.notes || 0} 个过程注释、${r.arrows || 0} 条接怪顺序示意箭头。<br>${esc(r.annotation_notice || "")}`;
     $("mdtString").value = r.string;
     $("mdtString").focus();
     $("mdtString").select();
@@ -1337,6 +1720,7 @@ function setTime(t) {
     $("pullList").querySelectorAll(".pitem").forEach((el) => el.classList.toggle("on", +el.dataset.i === i));
     renderDetail();
     renderMatrix();
+    renderTankPlan();
     drawMap(floorChanged);
   } else if (floorChanged) drawMap(true);
   else drawLive();
@@ -1368,6 +1752,7 @@ $("play").onclick = () => {
 };
 
 document.addEventListener("keydown", (e) => {
+  if (e.key === " " && e.target.closest("button, a, textarea")) return;
   if (!D() || e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
   if (e.key === "ArrowRight" || e.key === "j") selectPull(state.pullIdx + 1, true);
   if (e.key === "ArrowLeft" || e.key === "k") selectPull(state.pullIdx - 1, true);

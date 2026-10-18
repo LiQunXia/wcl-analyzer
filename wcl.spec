@@ -28,6 +28,7 @@ datas += [
     (str(ROOT / "mplus.html"), "."),
     (str(ROOT / "cooldowns.json"), "."),
     (str(ROOT / "mplus_spells.json"), "."),
+    (str(ROOT / "mplus_mechanics.json"), "."),
 ]
 
 a = Analysis(
