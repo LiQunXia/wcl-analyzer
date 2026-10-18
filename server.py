@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import re
@@ -8,7 +9,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 
 from curl_cffi import requests
 
@@ -524,6 +525,44 @@ def classify_cast(guid, name, cls, by_class, common):
     return None
 
 
+def mplus_buff_events(code, fight_id, start, end, spell_ids, spell_names=(), persist=True):
+    """Fetch complete buff event pages, limited to the timeline's tracked spells."""
+    ids = sorted({int(sid) for sid in spell_ids})
+    # These characters delimit WCL's pin format even inside quoted expressions.
+    names = sorted({name for name in spell_names if isinstance(name, str) and name
+                    and not any(char in name for char in "$^\r\n")})
+    if not ids and not names:
+        return []
+    clauses = []
+    if ids:
+        clauses.append(f"ability.id IN ({','.join(map(str, ids))})")
+    if names:
+        clauses.append("ability.name IN (" + ",".join(json.dumps(name, ensure_ascii=False) for name in names) + ")")
+    pin = "2$Off$#909049$expression$" + " OR ".join(clauses)
+    query = urlencode({"pins": pin})
+    fingerprint = hashlib.sha256(json.dumps([start, end, ids, names], ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
+
+    def fetch():
+        events = []
+        cursor = start
+        while cursor <= end:
+            path = (f"/reports/auras-events/{code}/{fight_id}/{cursor}/{end}"
+                    f"/buffs/0/0/0/0/0/source/0/-1.0.-1.-1/0/Any/Any/0?{query}")
+            page = wcl.get_json(code, path)
+            if not isinstance(page, dict) or not isinstance(page.get("events"), list):
+                raise WclError("WCL 未返回完整的增益事件数据，请稍后重试")
+            events.extend(page["events"])
+            next_cursor = page.get("nextPageTimestamp")
+            if next_cursor is None:
+                return events
+            if not isinstance(next_cursor, int) or isinstance(next_cursor, bool) or next_cursor <= cursor:
+                raise WclError("WCL 增益事件分页未能继续，请稍后重试")
+            cursor = next_cursor
+        return events
+
+    return cached(f"{code}/{fight_id}_buff_events_v1_{fingerprint}.json", fetch, persist)
+
+
 def source_graph(code, fight_id, rng, view, persist, hostile=False):
     """Graph grouped by source (player) rather than ability."""
     suffix = "_enemy" if hostile else ""
@@ -550,6 +589,86 @@ def map_image(map_id):
 def real_pull(p):
     """WCL sometimes records a few-second "pull" with no enemies (e.g. a floor transition)."""
     return bool(p.get("enemies")) or (p["end_time"] - p["start_time"]) / 1000 >= MIN_PULL_SEC
+
+
+def mplus_buff_intervals(events, casts, players, start, end, pet_owners=None):
+    """Pair actual aura events per recipient/caster; refreshes extend the same interval."""
+    by_class, common = load_mplus_spells()
+    cast_names = {(c["who"], c["name"]): c["cat"] for c in casts}
+    active, intervals, seen = {}, [], set()
+    pet_owners = pet_owners or {}
+
+    def source_id(ev):
+        return ev.get("sourceID", (ev.get("source") or {}).get("id"))
+
+    def source_owner(ev):
+        source = source_id(ev)
+        return pet_owners.get(source, source)
+
+    def category(ev):
+        ability = ev.get("ability") or {}
+        owner = source_owner(ev)
+        if owner is not None and owner not in players:
+            return None
+        owner = owner if owner in players else ev.get("targetID")
+        cat = classify_cast(ability.get("guid"), ability.get("name"),
+                            players.get(owner, {}).get("type"), by_class, common)
+        return cat or cast_names.get((owner, ability.get("name")))
+
+    def open_interval(ev, known, initial=False):
+        ability = ev["ability"]
+        return {
+            "t": start if initial else max(start, ev["timestamp"]),
+            "who": ev["targetID"], "source": source_owner(ev),
+            "spell": ability["guid"], "name": ability.get("name") or str(ability["guid"]),
+            "icon": (ability.get("abilityIcon") or "").removesuffix(".jpg"),
+            "cat": category(ev), "startKnown": known and ev["timestamp"] >= start,
+        }
+
+    def close_interval(item, timestamp, known):
+        stop = min(timestamp, end)
+        if stop <= item["t"]:
+            return
+        intervals.append({**item, "t": round((item["t"] - start) / 1000, 3),
+                          "end": round((stop - start) / 1000, 3),
+                          "endKnown": known and timestamp <= end})
+
+    for ev in sorted(events, key=lambda e: e["timestamp"]):
+        kind = ev.get("type")
+        if (kind not in {"applybuff", "refreshbuff", "applybuffstack", "removebuffstack", "removebuff"}
+                or ev.get("targetID") not in players or ev.get("sourceIsFriendly") is False
+                or not (ev.get("ability") or {}).get("guid")):
+            continue
+        key = (ev["targetID"], ev["ability"]["guid"], source_id(ev))
+        raw_key = key
+        # Some removal events omit the source. Only fall back when unambiguous.
+        if key not in active:
+            matches = [k for k in active if k[:2] == key[:2]]
+            if source_id(ev) is None:
+                if len(matches) == 1:
+                    key = matches[0]
+                elif len(matches) > 1:
+                    continue
+            elif len(matches) == 1 and matches[0][2] is None and source_owner(ev) in players:
+                # An application may omit the caster while a later event identifies it.
+                item = active.pop(matches[0])
+                item["source"] = source_owner(ev)
+                active[key] = item
+        if kind == "removebuff":
+            item = active.pop(key, None)
+            if item is None and key not in seen and category(ev):
+                item = open_interval(ev, False, initial=True)
+            if item:
+                close_interval(item, ev["timestamp"], True)
+        elif key not in active and category(ev):
+            # A first refresh/stack event means the aura was already active at the run boundary.
+            active[key] = open_interval(ev, kind == "applybuff", initial=kind != "applybuff" and key not in seen)
+        seen.add(key)
+        seen.add(raw_key)
+
+    for item in active.values():
+        close_interval(item, end, False)
+    return sorted(intervals, key=lambda b: (b["t"], b["who"], b["spell"]))
 
 
 def api_mplus_list(link):
@@ -641,7 +760,7 @@ def api_mplus(code, fight_id):
     # player casts
     by_class, common = load_mplus_spells()
     usage = {pid: {} for pid in players}
-    lust = []
+    lust, tracked_casts = [], []
     for s, ev in event_list(casts.get("series", [])):
         src = ev.get("sourceID")
         if ev.get("type") != "cast" or src not in players:
@@ -652,6 +771,7 @@ def api_mplus(code, fight_id):
         ab = ev.get("ability") or {}
         item = {"t": rel(ev["timestamp"]), "who": src, "spell": s["guid"], "name": s["name"],
                 "icon": (ab.get("abilityIcon") or "").removesuffix(".jpg"), "cat": cat}
+        tracked_casts.append(item)
         if cat == "lust":
             lust.append(item)
         u = usage[src].setdefault(s["guid"], {"spell": s["guid"], "name": item["name"], "icon": item["icon"],
@@ -676,6 +796,14 @@ def api_mplus(code, fight_id):
         if p:
             p["deaths"].append(item)
     deaths.sort(key=lambda d: d["t"])
+
+    buff_ids = set(common)
+    for player in players.values():
+        buff_ids.update(by_class.get(player.get("type"), {}))
+    buff_events = mplus_buff_events(code, fight_id, start, end, buff_ids,
+                                   [c["name"] for c in tracked_casts], persist=persist)
+    pet_owners = {pet["id"]: pet.get("petOwner") for pet in meta.get("friendlyPets", [])}
+    buffs = mplus_buff_intervals(buff_events, tracked_casts, players, start, end, pet_owners)
 
     # per-pull player throughput
     def per_player(g):
@@ -723,6 +851,7 @@ def api_mplus(code, fight_id):
         "pulls": pulls,
         "deaths": deaths,
         "lust": lust,
+        "buffs": buffs,
         "heroism": [{"t": rel(h["startTime"]), "end": rel(h["endTime"])} for h in taken.get("heroism", [])],
     }
 

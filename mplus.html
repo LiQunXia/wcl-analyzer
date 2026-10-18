@@ -226,6 +226,14 @@
   .track { position: relative; }
   .track .pre { position: absolute; top: 0; bottom: 0; left: 0; background: rgba(255,255,255,.025); border-right: 1px dashed var(--line-2); }
   .track .lustbg { position: absolute; top: 0; bottom: 0; background: rgba(239,106,76,.08); }
+  .track-events { position: absolute; inset: 0; overflow: hidden; }
+  .timeline-item { position: absolute; height: 24px; }
+  .buff-line { position: absolute; top: 7px; height: 10px; min-width: 1px; border-radius: 2px; background: linear-gradient(90deg, color-mix(in srgb, var(--cc) 38%, transparent), color-mix(in srgb, var(--cc) 20%, transparent)); cursor: pointer; }
+  .buff-line::after { content: ""; position: absolute; right: 0; top: -1px; height: 12px; border-left: 1px solid color-mix(in srgb, var(--cc) 70%, transparent); }
+  .buff-line.unknown-end::after { border-left-style: dashed; }
+  .buff-line.continues-start::before, .buff-line.continues-end::after { position: absolute; top: -3px; height: 16px; border: 0; font: 18px/16px var(--mono); color: var(--cc); }
+  .buff-line.continues-start::before { content: "‹"; left: 1px; }
+  .buff-line.continues-end::after { content: "›"; right: 1px; }
   .ic { position: absolute; width: 24px; height: 24px; transform: translateX(-50%); border-radius: 5px; box-shadow: 0 0 0 2px var(--cc); cursor: pointer; background: #000; }
   .ic img { width: 24px; height: 24px; border-radius: 5px; }
   .ic:hover { z-index: 5; transform: translateX(-50%) scale(1.25); }
@@ -748,6 +756,97 @@ function selectPull(i, moveTime) {
   drawMap(moveTime);
 }
 
+function pullTimelineItems(p, playerId) {
+  const span0 = p.start - PRE_SEC;
+  const casts = p.casts.filter((c) => c.who === playerId && visibleCast(c) && c.t >= span0 && c.t <= p.end);
+  const matched = new Set();
+  const buffs = (D().buffs || []).filter((b) => b.who === playerId && visibleCast(b)
+    && Number.isFinite(b.t) && Number.isFinite(b.end) && b.end > b.t && b.end > span0 && b.t < p.end);
+  const items = buffs.map((b) => {
+    // A self buff and its matching cast share an icon; externally applied buffs belong to the recipient.
+    const cast = b.source === b.who ? casts.filter((c) => !matched.has(c)
+      && (c.spell === b.spell || (c.name && c.name === b.name)) && Math.abs(c.t - b.t) <= 1)
+      .sort((a, c) => Math.abs(a.t - b.t) - Math.abs(c.t - b.t))[0] : null;
+    if (cast) matched.add(cast);
+    return { ...b, kind: "buff", cast };
+  });
+  return items.concat(casts.filter((c) => !matched.has(c)).map((c) => ({ ...c, kind: "cast" })),
+    p.deaths.filter((d) => d.who === playerId).map((d) => ({ ...d, kind: "death" })));
+}
+
+function buffTooltip(b, p, pl, by) {
+  const source = by[b.source];
+  const t = b.cast?.t ?? b.t;
+  return `<b>${esc(b.name)}</b> · <span style="color:${CAT_COLOR[b.cat]}">${CAT_ZH[b.cat] || "增益"}</span>
+    <br><span class=t>波内 ${signed(t - p.start)} · 全程 ${mmss(t)}</span>
+    ${source && source.id !== pl.id ? `<br>来源：<span style="color:${CLASS_COLOR[source.cls] || "var(--text)"}">${esc(source.name)}</span>` : ""}`;
+}
+
+function placeTimelineItems(items, span0, span, width) {
+  const px = (t) => (t - span0) / span * width;
+  const clip = (x) => Math.max(0, Math.min(width, x));
+  const placed = items.map((it) => {
+    const hasBuff = it.kind === "buff";
+    const anchorTime = it.cast?.t ?? it.t;
+    const inset = Math.min(14, width / 2);
+    const wantedIcon = hasBuff && anchorTime < span0 ? Math.min(24, width / 2) : px(anchorTime);
+    // Keep boundary icons fully visible; the bar and tooltip retain the exact recorded times.
+    const icon = Math.max(inset, Math.min(width - inset, wantedIcon));
+    const start = hasBuff ? clip(px(it.t)) : icon;
+    const end = hasBuff ? clip(px(it.end)) : icon;
+    return { it, icon, start, end, left: clip(Math.min(start, icon - 14)), right: clip(Math.max(end, icon + 14)) };
+  }).sort((a, b) => a.left - b.left || b.right - a.right);
+  const rows = [];
+  placed.forEach((item) => {
+    let row = rows.findIndex((end) => item.left >= end + 4);
+    if (row < 0) { row = rows.length; rows.push(item.right); } else rows[row] = item.right;
+    item.row = row;
+  });
+  return { placed, height: Math.max(1, rows.length) * 28 + 8 };
+}
+
+function layoutDetailTimeline() {
+  if (!D()) return;
+  const p = curPull(), by = playerById();
+  const span0 = p.start - PRE_SEC, span = Math.max(p.end - span0, 10);
+  $("detail").querySelectorAll(".track[data-player]").forEach((track) => {
+    const pl = by[track.dataset.player];
+    const width = track.getBoundingClientRect().width;
+    if (!width || !pl) return;
+    const { placed, height } = placeTimelineItems(pullTimelineItems(p, pl.id), span0, span, width);
+    track.style.height = `${height}px`;
+    track.querySelector(".track-events").innerHTML = placed.map(({ it, icon, start, end, left, right, row }) => {
+      const off = signed(it.t - p.start);
+      if (it.kind === "death") return `<div class="timeline-item" style="left:${left}px;top:${4 + row * 28}px;width:${right - left}px">
+        <div class="ic death" style="left:${icon - left}px" data-tip="${esc(`<b style='color:${CLASS_COLOR[pl.cls]}'>${esc(pl.name)}</b> 死亡<br><span class=t>波内 ${off} · 全程 ${mmss(it.t)}</span><br>致死：${esc(it.name || "未知")}`)}">💀</div></div>`;
+      const isBuff = it.kind === "buff";
+      const tooltip = isBuff ? buffTooltip(it, p, pl, by) : `<b>${esc(it.name)}</b> · <span style='color:${CAT_COLOR[it.cat]}'>${CAT_ZH[it.cat]}</span><br><span class=t>波内 ${off} · 全程 ${mmss(it.t)}</span>`;
+      const barClasses = isBuff ? ["buff-line", it.t < span0 ? "continues-start" : "", it.end > p.end ? "continues-end" : "",
+        it.endKnown === false ? "unknown-end" : ""].join(" ") : "";
+      return `<div class="timeline-item" style="left:${left}px;top:${4 + row * 28}px;width:${right - left}px;--cc:${CAT_COLOR[it.cat]}" data-tip="${esc(tooltip)}">
+        ${isBuff ? `<a class="${barClasses}" ${spellHref(it.spell)} style="left:${start - left}px;width:${Math.max(1, end - start)}px" aria-label="${esc(it.name)}"></a>` : ""}
+        <a class="ic" ${spellHref(it.cast?.spell || it.spell)} style="left:${icon - left}px" aria-label="${esc(it.name)}"><img src="${iconUrl(it.icon, "small")}" alt=""></a>
+      </div>`;
+    }).join("");
+  });
+  if (window.$WowheadPower) $WowheadPower.refreshLinks();
+}
+
+let timelineObserver = null;
+function observeDetailTimeline() {
+  timelineObserver?.disconnect();
+  layoutDetailTimeline();
+  const lanes = $("detail").querySelector(".lanes");
+  let lastWidth = lanes.getBoundingClientRect().width;
+  timelineObserver = new ResizeObserver((entries) => {
+    const width = entries[0].contentRect.width;
+    if (Math.abs(width - lastWidth) < .5) return;
+    lastWidth = width;
+    layoutDetailTimeline();
+  });
+  timelineObserver.observe(lanes);
+}
+
 function renderDetail() {
   const p = curPull(), i = state.pullIdx;
   const by = playerById();
@@ -761,30 +860,9 @@ function renderDetail() {
 
   const players = D().players.filter((pl) => !state.selected.size || state.selected.has(pl.id));
   const lanes = players.map((pl) => {
-    const items = p.casts.filter((c) => c.who === pl.id && visibleCast(c))
-      .map((c) => ({ ...c, kind: "cast" }))
-      .concat(p.deaths.filter((d) => d.who === pl.id).map((d) => ({ ...d, kind: "death" })))
-      .sort((a, b) => a.t - b.t);
-    const rows = [];
-    const placed = items.map((it) => {
-      const px = x(it.t);
-      let r = rows.findIndex((last) => px - last > 3.2);
-      if (r < 0) { r = rows.length; rows.push(px); } else rows[r] = px;
-      return { it, px, r };
-    });
-    const h = Math.max(1, rows.length) * 28 + 8;
-    const icons = placed.map(({ it, px, r }) => {
-      const off = signed(it.t - p.start);
-      if (it.kind === "death") {
-        return `<div class="ic death" style="left:${px}%;top:${4 + r * 28}px"
-          data-tip="${esc(`<b style='color:${CLASS_COLOR[pl.cls]}'>${esc(pl.name)}</b> 死亡<br><span class=t>波内 ${off} · 全程 ${mmss(it.t)}</span><br>致死：${esc(it.name || "未知")}`)}">💀</div>`;
-      }
-      return `<a class="ic" ${spellHref(it.spell)} style="left:${px}%;top:${4 + r * 28}px;--cc:${CAT_COLOR[it.cat]}"
-        data-tip="${esc(`<b>${esc(it.name)}</b> · <span style='color:${CAT_COLOR[it.cat]}'>${CAT_ZH[it.cat]}</span><br><span class=t>波内 ${off} · 全程 ${mmss(it.t)}</span>`)}"><img src="${iconUrl(it.icon, "small")}" alt=""></a>`;
-    }).join("");
     return `<div class="lane-row" style="--c:${LANE_COLOR[pl.cls] || "#ccc"}">
       <div class="who"><img src="${classIcon(pl.cls)}" alt=""><span>${esc(pl.name)}</span></div>
-      <div class="track" style="height:${h}px"><div class="pre" style="width:${x(p.start)}%"></div>${lustBgs}${icons}</div>
+      <div class="track" data-player="${pl.id}" style="height:36px"><div class="pre" style="width:${x(p.start)}%"></div>${lustBgs}<div class="track-events"></div></div>
     </div>`;
   }).join("");
 
@@ -842,7 +920,7 @@ function renderDetail() {
       </div>
       <div class="lanes-wrap">
         <div class="lanes-top">
-          <h4 style="margin:0">技能时间线（灰底为开怪前 ${PRE_SEC} 秒，红底为嗜血）</h4>
+          <h4 style="margin:0">技能时间线</h4>
           <div class="cat-filter" id="catFilter">${CATS.map(([k, v]) => `<button data-k="${k}" class="${state.cats.has(k) ? "on" : ""}" style="--cc:${CAT_COLOR[k]}"><i></i>${v}</button>`).join("")}</div>
         </div>
         <div class="lanes">
@@ -865,7 +943,7 @@ function renderDetail() {
     state.cats.has(k) ? state.cats.delete(k) : state.cats.add(k);
     renderDetail(); renderPullList(); renderMatrix();
   });
-  if (window.$WowheadPower) $WowheadPower.refreshLinks();
+  observeDetailTimeline();
 }
 
 function renderMatrix() {
