@@ -1,0 +1,52 @@
+name: sync-mdt-data
+
+on:
+  schedule:
+    - cron: "23 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-mdt-data-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Checkout MDT upstream
+        run: git clone --depth 1 https://github.com/Nnoggie/MythicDungeonTools.git "$RUNNER_TEMP/mdt"
+
+      - name: Regenerate bundled dungeon data
+        shell: bash
+        run: |
+          set -euo pipefail
+          revision="$(git -C "$RUNNER_TEMP/mdt" rev-parse HEAD)"
+          python scripts/sync_mdt_data.py \
+            --source "$RUNNER_TEMP/mdt" \
+            --revision "$revision"
+
+      - name: Commit changed data
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- mdt_dungeons.json licenses/MDT-DATA-NOTICE.txt; then
+            echo "Bundled MDT data already matches upstream."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mdt_dungeons.json licenses/MDT-DATA-NOTICE.txt
+          git commit -m "Sync bundled MDT dungeon data"
+          git push

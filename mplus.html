@@ -464,7 +464,7 @@
       <button class="btn" id="mdtCopy">复制导入字符串</button>
       <span class="mdt-copied" id="mdtCopied"></span>
     </div>
-    <p class="mdt-note">需要本机已安装 Mythic Dungeon Tools（程序会读取插件里的地下城数据）。在 MDT 里选择对应地下城，打开路线菜单并“导入”，粘贴上面的字符串即可。波次按 WCL 的战斗数据自动匹配到 MDT 怪物组，个别召唤物/可选怪可能略有出入，导入后可直接在 MDT 里调整。</p>
+    <p class="mdt-note">路线所需的 MDT 地下城数据已随程序内置，无需额外安装插件即可生成字符串。在游戏内 MDT 选择对应地下城，打开路线菜单并“导入”，粘贴上面的字符串即可。波次按 WCL 的战斗数据自动匹配到 MDT 怪物组，个别召唤物/可选怪可能略有出入，导入后可直接在 MDT 里调整。</p>
   </div>
 </div>
 
@@ -615,7 +615,7 @@ const staticLabels = new Map([
   ["中的法术 ID 分类，药水按名称识别。 一波的技能时间线包含开怪前 12 秒（灰底，便于看预铺/提前开爆发）。“进度”按该波内被击杀怪物的小怪值计算；若某一波怪物被并入下一波一起击杀，进度会记在下一波。 走位轨迹由回放事件中队员的坐标每 2 秒采样一次，脱战跑图时如无事件则会有空隙。", "; potions are identified by name. Each pull timeline includes 12 seconds before combat (gray background) to show preparation and early cooldowns. Forces are credited to the pull in which enemies die, including enemies carried from earlier pulls. Party positions are sampled from replay events every 2 seconds; travel outside combat may have gaps when no events are recorded."],
   ["导出 MDT 路线", "Export MDT route"],
   ["复制导入字符串", "Copy import string"],
-  ["需要本机已安装 Mythic Dungeon Tools（程序会读取插件里的地下城数据）。在 MDT 里选择对应地下城，打开路线菜单并“导入”，粘贴上面的字符串即可。波次按 WCL 的战斗数据自动匹配到 MDT 怪物组，个别召唤物/可选怪可能略有出入，导入后可直接在 MDT 里调整。", "Mythic Dungeon Tools must be installed locally so its dungeon data can be read. In MDT, select the dungeon, open the route menu, choose Import, and paste this string. Pulls are matched to MDT enemy groups using WCL combat data. Some summons or optional enemies may differ; adjust the imported route in MDT as needed."],
+  ["路线所需的 MDT 地下城数据已随程序内置，无需额外安装插件即可生成字符串。在游戏内 MDT 选择对应地下城，打开路线菜单并“导入”，粘贴上面的字符串即可。波次按 WCL 的战斗数据自动匹配到 MDT 怪物组，个别召唤物/可选怪可能略有出入，导入后可直接在 MDT 里调整。", "The dungeon data required for route export is bundled with the app; MDT does not need to be installed to generate a string. In game, select the dungeon in MDT, open the route menu, choose Import, and paste the string. Pulls are matched to MDT enemy groups using WCL combat data. Some summons or optional enemies may differ; adjust the imported route in MDT as needed."],
   ["粘贴大秘境的 WCL 链接，例如 cn.warcraftlogs.com/reports/xxxx?fight=5", "Paste a Mythic+ WCL link, e.g. warcraftlogs.com/reports/xxxx?fight=5"],
   ["显示队伍真实移动轨迹", "Show actual party movement"],
   ["显示怪物图标：同位置的怪会合并，数字为只数，悬停看名称和进度", "Show enemies. Nearby enemies are grouped; numbers indicate the count. Hover for names and forces."],

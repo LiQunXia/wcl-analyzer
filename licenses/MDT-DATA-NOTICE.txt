@@ -1,0 +1,9 @@
+This product includes a compact, JSON-converted subset of dungeon and enemy
+route data from Mythic Dungeon Tools (MDT), licensed under GNU GPL version 2.
+
+Upstream project: https://github.com/Nnoggie/MythicDungeonTools
+Source revision: 2a2df3bb28471ec9900942f1856215f85fdefe31
+Included data: dungeon indexes, names, enemy identifiers and forces, enemy
+clone indexes, group identifiers, sublevels, and map coordinates.
+
+The upstream GPL-2.0 license text is provided in MDT-GPL-2.0.txt.
