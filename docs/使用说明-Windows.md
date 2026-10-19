@@ -46,21 +46,7 @@ WebView2 组件，Windows 10/11 一般已经装好；如果提示打不开窗口
 页面用的 ECharts CDN，所以**必须联网**。大陆网络访问 WCL 可能较慢，首次分析
 一份大秘境日志（含回放）大约要几十秒，之后有缓存会快很多。
 
-## 大秘境「导出 MDT」功能的额外要求
+## 大秘境「导出 MDT」
 
-这个功能会读取本机安装的 Mythic Dungeon Tools 插件：
-
-```
-World of Warcraft\_retail_\Interface\AddOns\MythicDungeonTools
-```
-
-- 装在默认路径、或用暴雪战网安装的，一般能自动找到（程序会查注册表）。
-- 装在其它盘符的绿色版，可以设置环境变量指向插件目录：
-
-  ```bat
-  set WCL_MDT_PATH=D:\Games\World of Warcraft\_retail_\Interface\AddOns\MythicDungeonTools
-  ```
-
-  设置后从同一个命令行窗口启动 exe 即可；也可以直接在「系统属性 → 环境变量」
-  里加一条用户变量，以后双击就生效。
-- 没装 MDT 也不影响其它功能，只是点「导出 MDT」会提示找不到插件。
+导出路线所需的 MDT 地下城与怪物数据已随程序内置，无需另外安装 MDT 插件或设置路径。
+复制导入字符串后，在游戏内 MDT 选择对应地下城，打开路线菜单并选择「导入」即可。

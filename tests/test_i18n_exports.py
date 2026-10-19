@@ -39,9 +39,9 @@ class EnglishExportTest(unittest.TestCase):
              "members": [{"guid": 1002, "name": "Second enemy"}],
              "recentDeaths": [{"name": "First enemy"}]},
         ]}]}
-        dungeon = {"index": 999, "key": "TestDungeon", "path": Path("TestDungeon.lua")}
+        dungeon = {"index": 999, "key": "TestDungeon", "names": [], "enemies": enemies}
         with mock.patch.object(mdt_export, "_match_dungeon", return_value=dungeon), \
-             mock.patch.object(mdt_export, "_load_enemies", return_value=enemies):
+             mock.patch.object(mdt_export, "load_dungeons", return_value=[dungeon]):
             result = mdt_export.build_route(Path("."), {"name": "Test Dungeon", "level": 20,
                                                        "countRequired": 100}, pulls,
                                             tank_route=tank_route)
@@ -58,8 +58,8 @@ class EnglishExportTest(unittest.TestCase):
     def test_mdt_errors_use_request_language(self):
         with self.assertRaisesRegex(mdt_export.MdtError, "Not an MDT2 import string"):
             mdt_export.decode_mdt2("invalid")
-        with self.assertRaisesRegex(mdt_export.MdtError, "expected a Lua table"):
-            mdt_export._LuaParser("invalid").parse_table()
+        with self.assertRaisesRegex(mdt_export.MdtError, "No dungeon matches"):
+            mdt_export._match_dungeon([], "missing dungeon")
 
 
 class EnglishVerificationTest(unittest.TestCase):

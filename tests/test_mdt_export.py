@@ -41,51 +41,27 @@ class MdtCodecTest(unittest.TestCase):
         self.assertEqual(mdt_export.decode_mdt2(encoded), preset)
 
 
-class LuaParserTest(unittest.TestCase):
-    def test_parses_mdt_style_table(self):
-        text = '''MDT.dungeonEnemies[dungeonIndex] = {
-          [1] = {
-            ["name"] = "Test",
-            ["id"] = 12345,
-            ["count"] = 5,
-            ["isBoss"] = true,
-            ["clones"] = {
-              [1] = { ["x"] = 1.5, ["y"] = -2, ["g"] = 3, ["sublevel"] = 1 },
-            },
-          },
-        }'''
-        pos = text.index("{", text.index("MDT.dungeonEnemies"))
-        table = mdt_export._LuaParser(text, pos).parse_table()
-        self.assertEqual(table[1]["id"], 12345)
-        self.assertTrue(table[1]["isBoss"])
-        self.assertEqual(table[1]["clones"][1]["g"], 3)
+class BundledDataTest(unittest.TestCase):
+    def test_bundled_catalog_has_numeric_enemy_and_clone_indices(self):
+        catalog = mdt_export.load_dungeons(Path(__file__).resolve().parent.parent / "mdt_dungeons.json")
+        self.assertTrue(catalog)
+        self.assertTrue(all(isinstance(index, int) for index in catalog[0]["enemies"]))
+        enemy = next(iter(catalog[0]["enemies"].values()))
+        self.assertTrue(all(isinstance(index, int) for index in enemy["clones"]))
 
 
 class BuildRouteTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         root = Path(self.tmp.name)
-        (root / "Locales").mkdir()
-        (root / "Locales" / "zhCN.lua").write_text('L["TestDungeon"] = "测试副本"\n', "utf-8")
-        (root / "Locales" / "enUS.lua").write_text('L["TestDungeon"] = "Test Dungeon"\n', "utf-8")
-        (root / "TestExp").mkdir()
-        (root / "TestExp" / "TestDungeon.lua").write_text('''
-local dungeonIndex = 999
-MDT.dungeonList[dungeonIndex] = L["TestDungeon"]
-MDT.mapInfo[dungeonIndex] = { englishName = "Test Dungeon" }
-MDT.dungeonEnemies[dungeonIndex] = {
-  [1] = { ["name"] = "A", ["id"] = 1001, ["count"] = 60, ["clones"] = {
-    [1] = { ["x"] = 1, ["y"] = -1, ["g"] = 1, ["sublevel"] = 1 },
-  } },
-  [2] = { ["name"] = "B", ["id"] = 1002, ["count"] = 20, ["clones"] = {
-    [1] = { ["x"] = 3, ["y"] = -2, ["g"] = 2, ["sublevel"] = 1 },
-  } },
-  [3] = { ["name"] = "Boss", ["id"] = 1003, ["count"] = 0, ["isBoss"] = true, ["clones"] = {
-    [1] = { ["x"] = 4, ["y"] = -3, ["g"] = 3, ["sublevel"] = 1 },
-  } },
-}
-''', "utf-8")
-        self.mdt_dir = root
+        self.data_path = root / "mdt.json"
+        self.data_path.write_text('''[
+          {"index":999,"key":"TestDungeon","names":["Test Dungeon","测试副本"],"enemies":{
+            "1":{"id":1001,"count":60,"clones":{"1":{"x":1,"y":-1,"g":1,"sublevel":1}}},
+            "2":{"id":1002,"count":20,"clones":{"1":{"x":3,"y":-2,"g":2,"sublevel":1}}},
+            "3":{"id":1003,"count":0,"isBoss":true,"clones":{"1":{"x":4,"y":-3,"g":3,"sublevel":1}}}
+          }}
+        ]''', "utf-8")
         self.run = {"name": "测试副本", "level": 20, "countRequired": 100}
         self.pulls = [
             {"forcesPct": 60, "enemies": [{"guid": 1001, "engaged": 1, "killed": 1}]},
@@ -97,7 +73,7 @@ MDT.dungeonEnemies[dungeonIndex] = {
         self.tmp.cleanup()
 
     def test_build_route_is_valid_and_importable(self):
-        result = mdt_export.build_route(self.mdt_dir, self.run, self.pulls, "TESTCODE", 1)
+        result = mdt_export.build_route(self.data_path, self.run, self.pulls, "TESTCODE", 1)
         self.assertTrue(result["string"].startswith("!~MDT2~"))
         self.assertEqual(result["dungeon_index"], 999)
         self.assertEqual(result["pulls"], 3)
@@ -105,7 +81,7 @@ MDT.dungeonEnemies[dungeonIndex] = {
         self.assertEqual(decoded["value"]["currentDungeonIdx"], 999)
         self.assertEqual(decoded["text"], "WCL 测试副本 +20")
         # Each pull references valid MDT enemy/clone indices, without reusing a clone.
-        enemies = mdt_export._load_enemies(self.mdt_dir / "TestExp" / "TestDungeon.lua")
+        enemies = mdt_export.load_dungeons(self.data_path)[0]["enemies"]
         seen = set()
         for pull in decoded["value"]["pulls"]:
             # A pull whose only key is enemy index 1 is a dense Lua sequence; CBOR encodes it
@@ -121,8 +97,8 @@ MDT.dungeonEnemies[dungeonIndex] = {
         self.assertEqual(result["force"], 80)
 
     def test_export_contains_native_notes_and_schematic_arrow(self):
-        path = self.mdt_dir / "TestExp" / "TestDungeon.lua"
-        path.write_text(path.read_text().replace('["x"] = 3,', '["x"] = 30,'), "utf-8")
+        data = self.data_path.read_text("utf-8").replace('"x":3', '"x":30')
+        self.data_path.write_text(data, "utf-8")
         pulls = [{"id": 10, "forcesPct": 80, "enemies": self.pulls[0]["enemies"] + self.pulls[1]["enemies"]}]
         route = {"pulls": [{"id": 10, "start": 0, "steps": [
             {"kind": "join", "label": "A", "t": 0, "members": [{"guid": 1001, "name": "甲"}]},
@@ -130,7 +106,7 @@ MDT.dungeonEnemies[dungeonIndex] = {
             {"kind": "join", "label": "B", "t": 30, "chain": True, "alive": 1,
              "members": [{"guid": 1002, "name": "乙"}]},
         ]}]}
-        result = mdt_export.build_route(self.mdt_dir, self.run, pulls, tank_route=route)
+        result = mdt_export.build_route(self.data_path, self.run, pulls, tank_route=route)
         objects = mdt_export.decode_mdt2(result["string"])["objects"]
         self.assertEqual(result["notes"], 3)
         self.assertEqual(result["arrows"], 1)
@@ -144,7 +120,7 @@ MDT.dungeonEnemies[dungeonIndex] = {
         self.assertNotIn("999999", str(objects))  # WCL coordinates never leak into MDT space.
 
     def test_unmatched_analysis_does_not_invent_an_annotation_anchor(self):
-        result = mdt_export.build_route(self.mdt_dir, self.run, self.pulls,
+        result = mdt_export.build_route(self.data_path, self.run, self.pulls,
                                        tank_route={"pulls": [{"id": 999, "steps": [{"kind": "join"}]}]})
         self.assertEqual(result["notes"], 0)
         self.assertEqual(result["arrows"], 0)

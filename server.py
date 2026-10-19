@@ -1028,14 +1028,8 @@ def mplus_tank_route(fight, meta, paths):
 
 
 def api_mplus_mdt(code, fight_id):
-    """Build an importable MDT route string for this run using the locally installed MDT data."""
+    """Build an importable MDT route string using the bundled MDT data."""
     data = api_mplus(code, fight_id)
-    mdt_dir = mdt_export.find_mdt_dir()
-    if not mdt_dir:
-        raise WclError(translate("没有找到已安装的 MDT 插件。请确认 World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools 存在，"
-                                "或设置环境变量 WCL_MDT_PATH 指向该目录。",
-                                "Mythic Dungeon Tools was not found. Check World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools "
-                                "or set WCL_MDT_PATH to that directory."))
     annotation_error = None
     try:
         route = api_mplus_paths(code, fight_id).get("tankRoute")
@@ -1043,13 +1037,13 @@ def api_mplus_mdt(code, fight_id):
         route = None
         annotation_error = str(exc)
     try:
-        result = mdt_export.build_route(mdt_dir, data["run"], data["pulls"], code, fight_id, tank_route=route)
+        result = mdt_export.build_route(ROOT / "mdt_dungeons.json", data["run"], data["pulls"],
+                                        code, fight_id, tank_route=route)
     except mdt_export.MdtError as e:
         raise WclError(str(e))
     result.pop("preset", None)
     if annotation_error:
         result["annotation_notice"] = translate(f"路线已生成，接怪标记暂未导出：{annotation_error}", f"Route generated without pull annotations: {annotation_error}")
-    result["mdt_path"] = str(mdt_dir)
     return result
 
 
