@@ -28,6 +28,7 @@
     --c-interrupt: #9b9ea8;
     --c-rez: #f2e18b;
     --c-lust: #ef6a4c;
+    --c-custom: #9fa8ff;
     --radius: 14px;
     --mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
   }
@@ -249,6 +250,32 @@
   .cat-filter button { height: 24px; padding: 0 9px; border-radius: 99px; border: 1px solid var(--line-2); background: none; color: var(--text-3); font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
   .cat-filter button i { width: 8px; height: 8px; border-radius: 2px; background: var(--cc); }
   .cat-filter button.on { color: var(--text); border-color: color-mix(in srgb, var(--cc) 60%, transparent); background: color-mix(in srgb, var(--cc) 12%, transparent); }
+  .lane-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .spell-dialog { width: min(660px, calc(100% - 32px)); max-height: 86vh; padding: 20px; color: var(--text); background: var(--surface);
+    border: 1px solid var(--line-2); border-radius: 14px; box-shadow: 0 24px 80px rgba(0,0,0,.55); }
+  .spell-dialog::backdrop { background: rgba(0,0,0,.7); }
+  .spell-dialog h3 { margin: 0; font-size: 17px; }
+  .spell-dialog p { margin: 10px 0 14px; color: var(--text-2); font-size: 12px; }
+  .spell-controls { margin: 0; padding: 0; border: 0; min-width: 0; }
+  .spell-search { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .spell-search input, .spell-search select { min-width: 0; height: 34px; border: 1px solid var(--line-2); border-radius: 7px;
+    background: var(--surface-2); color: var(--text); font: inherit; font-size: 12px; padding: 0 10px; }
+  .spell-search input { flex: 1; min-width: 180px; }
+  .spell-list { max-height: 46vh; overflow: auto; border-block: 1px solid var(--line); scrollbar-width: thin; }
+  .spell-option { display: flex; align-items: center; gap: 10px; padding: 10px 2px; border-bottom: 1px solid var(--line); }
+  .spell-option:last-child { border-bottom: 0; }
+  .spell-option label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
+  .spell-option input { accent-color: var(--accent); width: 16px; height: 16px; flex: none; }
+  .spell-option img { width: 30px; height: 30px; border-radius: 6px; flex: none; }
+  .spell-option .spell-name { min-width: 0; }
+  .spell-option b { display: block; overflow-wrap: anywhere; font-size: 13px; font-weight: 500; }
+  .spell-option small { display: block; color: var(--text-3); font-size: 11px; }
+  .spell-option .spell-mode { color: var(--accent); }
+  .spell-option .ghost { flex: none; font-size: 11px; }
+  .spell-footer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .spell-footer span { flex: 1; color: var(--text-2); font-size: 11px; min-width: 130px; }
+  .spell-dialog .notice { margin-top: 10px; }
+  button:disabled { cursor: default; opacity: .45; }
   .lanes { position: relative; }
   .axis { position: relative; height: 20px; margin-left: 120px; border-bottom: 1px solid var(--line-2); }
   .axis span { position: absolute; bottom: 3px; font: 10px var(--mono); color: var(--text-3); transform: translateX(-50%); }
@@ -455,6 +482,25 @@
 </main>
 <div id="tip" hidden></div>
 
+<dialog class="spell-dialog" id="spellSettings" aria-labelledby="spellSettingsTitle" aria-describedby="spellSettingsHelp">
+  <div class="mdt-head"><h3 id="spellSettingsTitle">技能设置</h3><button class="mdt-close" id="spellSettingsClose" aria-label="关闭技能设置">×</button></div>
+  <p id="spellSettingsHelp">默认跟随分类筛选；单独勾选会始终显示，取消勾选会隐藏该技能。可从本场施法记录中添加额外监控，设置应用于所有波次的时间线和波次列表图标。</p>
+  <fieldset class="spell-controls" id="spellControls">
+    <div class="spell-search">
+      <input id="spellSearch" type="search" placeholder="搜索技能名称或 ID" aria-label="搜索技能名称或 ID" autocomplete="off">
+      <select id="spellView" aria-label="筛选技能列表">
+        <option value="all">全部技能</option><option value="changed">已调整</option><option value="default">默认技能</option><option value="added">额外监控</option><option value="hidden">已隐藏</option>
+      </select>
+    </div>
+    <div class="spell-list" id="spellList"></div>
+    <div class="spell-footer">
+      <button class="ghost" id="spellReset">恢复默认</button><span id="spellSettingsCount" aria-live="polite"></span>
+      <button class="ghost" id="spellCancel">取消</button><button class="btn" id="spellApply">应用设置</button>
+    </div>
+  </fieldset>
+  <div class="notice" id="spellSettingsError" role="status" hidden></div>
+</dialog>
+
 <div class="mdt-modal" id="mdtModal" hidden>
   <div class="mdt-dialog">
     <div class="mdt-head"><h3>导出 MDT 路线</h3><button class="mdt-close" id="mdtClose" title="关闭">×</button></div>
@@ -492,8 +538,8 @@ const CATS = [
   ["offensive", t("爆发", "Offensive")], ["defensive", t("减伤/保命", "Defensives")], ["potion", t("爆发药", "Combat potion")], ["healPotion", t("治疗药/糖", "Healing potion / Healthstone")],
   ["interrupt", t("打断", "Interrupt")], ["lust", t("嗜血", "Bloodlust")], ["rez", t("战复", "Battle rez")],
 ];
-const CAT_ZH = Object.fromEntries(CATS);
-const CAT_COLOR = Object.fromEntries(CATS.map(([k]) => [k, getComputedStyle(document.documentElement).getPropertyValue(`--c-${k}`).trim()]));
+const CAT_ZH = { ...Object.fromEntries(CATS), custom: t("额外监控", "Custom") };
+const CAT_COLOR = Object.fromEntries([...CATS, ["custom"]].map(([k]) => [k, getComputedStyle(document.documentElement).getPropertyValue(`--c-${k}`).trim()]));
 const PULL_COLORS = ["#f6c85f", "#6fcf97", "#56ccf2", "#bb6bd9", "#f2994a", "#eb5757", "#9be15d", "#2f80ed", "#f78fb3", "#27ae60",
   "#e2b714", "#00b8a9", "#c56cf0", "#ff9f43", "#48dbfb", "#ff6b6b", "#1dd1a1", "#feca57", "#5f27cd", "#ee5253"];
 const PRE_SEC = 12;
@@ -520,11 +566,27 @@ const classIcon = (cls) => iconUrl(`classicon_${(cls || "").toLowerCase()}`);
 const mobIconUrl = (icon) => iconUrl((icon || "").replace(/^custom-icon-/, ""));
 const spellHref = (id) => I18N.spellAttrs(id);
 const pullColor = (i) => PULL_COLORS[i % PULL_COLORS.length];
+const SPELL_PREFS_KEY = "wcl.mplus.spellPrefs.v1";
+
+function readSpellPrefs() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SPELL_PREFS_KEY) || "{}");
+    return Object.fromEntries(Object.entries(saved).filter(([id, p]) => /^[1-9]\d*$/.test(id)
+      && Number.isSafeInteger(+id) && p && ["show", "hide"].includes(p.mode)).map(([id, p]) => [id, {
+        mode: p.mode, name: typeof p.name === "string" && (p.lang || "zh-CN") === I18N.lang ? p.name : t(`技能 #${id}`, `Spell #${id}`),
+        icon: typeof p.icon === "string" ? p.icon : "", cat: Object.hasOwn(CAT_ZH, p.cat) ? p.cat : "custom", lang: p.lang || "zh-CN",
+      }]));
+  } catch { return {}; }
+}
+
+const extraSpellIds = (prefs) => Object.entries(prefs).filter(([, p]) => p.mode === "show").map(([id]) => +id).sort((a, b) => a - b);
+const spellQuery = (prefs) => { const ids = extraSpellIds(prefs); return ids.length ? `&spells=${ids.join(",")}` : ""; };
 
 const state = {
   code: null, runs: [], runId: null, data: null, paths: null, runVersion: 0,
   pullIdx: 0, floor: null, selected: new Set(),
   cats: new Set(["offensive", "defensive", "potion", "healPotion", "lust", "rez"]),
+  spellPrefs: readSpellPrefs(),
   showTracks: true, showMobs: true, focus: true, tankStep: null,
   t: 0, playing: false, view: null, matrixMode: "burst",
 };
@@ -629,7 +691,20 @@ const staticLabels = new Map([
   ["缩小地图", "Zoom out on map"],
   ["回放", "Replay"],
   ["关闭", "Close"],
-  ["正在生成…", "Generating…"]
+  ["正在生成…", "Generating…"],
+  ["技能设置", "Spell settings"],
+  ["关闭技能设置", "Close spell settings"],
+  ["默认跟随分类筛选；单独勾选会始终显示，取消勾选会隐藏该技能。可从本场施法记录中添加额外监控，设置应用于所有波次的时间线和波次列表图标。", "Spells follow category filters by default. Check an individual spell to always show it, or uncheck it to hide it. Add extra spells from this run's cast records. These settings apply to the timeline and pull-list icons for every pull."],
+  ["搜索技能名称或 ID", "Search spell name or ID"],
+  ["筛选技能列表", "Filter spell list"],
+  ["全部技能", "All spells"],
+  ["已调整", "Customized"],
+  ["默认技能", "Default spells"],
+  ["额外监控", "Extra monitoring"],
+  ["已隐藏", "Hidden"],
+  ["恢复默认", "Reset to default"],
+  ["取消", "Cancel"],
+  ["应用设置", "Apply settings"]
 ]);
 function localizePage() {
   document.title = t("大秘境复盘 · 路线与技能分析", "Mythic+ Review · Routes and Abilities");
@@ -716,7 +791,7 @@ async function loadRun(id) {
   $("runs").querySelectorAll(".run-btn").forEach((b) => b.classList.toggle("on", +b.dataset.id === id));
   showMsg("loading", t("分析大秘境中，首次读取需要十几秒…", "Analyzing the run. The first load can take several seconds\u2026"));
   try {
-    const data = await api(`/api/mplus?code=${code}&fight=${id}`);
+    const data = await api(`/api/mplus?code=${code}&fight=${id}${spellQuery(state.spellPrefs)}`);
     if (state.runVersion !== version) return;
     state.data = data;
     state.paths = null;
@@ -757,7 +832,12 @@ const D = () => state.data;
 const playerById = () => Object.fromEntries(D().players.map((p) => [p.id, p]));
 const curPull = () => D().pulls[state.pullIdx];
 const mapById = (id) => D().maps.find((m) => m.id === id);
-const visibleCast = (c) => state.cats.has(c.cat) && (!state.selected.size || state.selected.has(c.who));
+const spellVisible = (c, prefs = state.spellPrefs) => {
+  const mode = (prefs[c.trackSpell] || prefs[c.spell])?.mode;
+  return mode === "show" || (mode !== "hide" && state.cats.has(c.cat));
+};
+const visibleCast = (c) => spellVisible(c) && (!state.selected.size || state.selected.has(c.who));
+const pullCasts = (p) => p.casts.concat(p.extraCasts || []).sort((a, b) => a.t - b.t);
 
 function pullIndexAt(t) {
   const ps = D().pulls;
@@ -973,7 +1053,7 @@ function setFloor(id) {
 }
 
 function castIcons(casts, max = 14) {
-  const vis = casts.filter((c) => visibleCast(c) && c.cat !== "interrupt");
+  const vis = casts.filter((c) => visibleCast(c) && (c.cat !== "interrupt" || state.spellPrefs[c.spell]?.mode === "show"));
   const by = playerById();
   const html = vis.slice(0, max).map((c) => `<img src="${iconUrl(c.icon, "small")}" style="--cc:${CAT_COLOR[c.cat]}" alt=""
     data-tip="${esc(`<b>${esc(c.name)}</b> · ${CAT_ZH[c.cat]}<br><span style='color:${CLASS_COLOR[by[c.who]?.cls]}'>${esc(by[c.who]?.name)}</span> <span class=t>${mmss(c.t)}</span>`)}">`).join("");
@@ -994,7 +1074,7 @@ function renderPullList() {
           <div class="row1"><b>${esc(p.name)}</b>${p.boss ? `<span class="boss-tag">${t("首领", "Boss")}</span>` : ""}<span class="pct">${p.forcesPct ? `+${p.forcesPct}%` : ""}</span></div>
           <div class="row2"><span>${mmss(p.start)}</span><span>${t("用时", "Duration")} ${mmss(p.end - p.start)}</span><span>${t("累计", "Total")} ${p.cumPct}%</span>${dead.length ? `<span class="dead">💀×${dead.length}</span>` : ""}</div>
           <div class="bar"><i style="width:${Math.min(prev, 100)}%;background:rgba(92,207,138,.35)"></i><i style="width:${Math.min(p.forcesPct, 100 - Math.min(prev, 100))}%;background:${pullColor(i)}"></i></div>
-          <div class="icons">${castIcons(p.casts)}</div>
+          <div class="icons">${castIcons(pullCasts(p))}</div>
         </div>
       </div>`;
     }).join("")}`;
@@ -1020,7 +1100,7 @@ function selectPull(i, moveTime, reveal = true) {
 
 function pullTimelineItems(p, playerId) {
   const span0 = p.start - PRE_SEC;
-  const casts = p.casts.filter((c) => c.who === playerId && visibleCast(c) && c.t >= span0 && c.t <= p.end);
+  const casts = pullCasts(p).filter((c) => c.who === playerId && visibleCast(c) && c.t >= span0 && c.t <= p.end);
   const matched = new Set();
   const buffs = (D().buffs || []).filter((b) => b.who === playerId && visibleCast(b)
     && Number.isFinite(b.t) && Number.isFinite(b.end) && b.end > b.t && b.end > span0 && b.t < p.end);
@@ -1183,7 +1263,10 @@ function renderDetail() {
       <div class="lanes-wrap">
         <div class="lanes-top">
           <h4 style="margin:0">${t("技能时间线", "Ability timeline")}</h4>
-          <div class="cat-filter" id="catFilter">${CATS.map(([k, v]) => `<button data-k="${k}" class="${state.cats.has(k) ? "on" : ""}" style="--cc:${CAT_COLOR[k]}"><i></i>${v}</button>`).join("")}</div>
+          <div class="lane-tools">
+            <div class="cat-filter" id="catFilter">${CATS.map(([k, v]) => `<button data-k="${k}" class="${state.cats.has(k) ? "on" : ""}" aria-pressed="${state.cats.has(k)}" style="--cc:${CAT_COLOR[k]}"><i></i>${v}</button>`).join("")}</div>
+            <button class="ghost ${Object.keys(state.spellPrefs).length ? "on" : ""}" id="spellSettingsOpen">${t("技能设置", "Spell settings")}${spellPrefsLabel()}</button>
+          </div>
         </div>
         <div class="lanes">
           <div class="axis">${ticks.join("")}</div>
@@ -1200,6 +1283,7 @@ function renderDetail() {
     </div>`;
   $("prevPull").onclick = () => selectPull(state.pullIdx - 1, true);
   $("nextPull").onclick = () => selectPull(state.pullIdx + 1, true);
+  $("spellSettingsOpen").onclick = openSpellSettings;
   $("catFilter").querySelectorAll("button").forEach((b) => b.onclick = () => {
     const k = b.dataset.k;
     state.cats.has(k) ? state.cats.delete(k) : state.cats.add(k);
@@ -1207,6 +1291,124 @@ function renderDetail() {
   });
   observeDetailTimeline();
 }
+
+/* ---------- per-spell monitoring ---------- */
+
+let spellDraft = {}, spellSaving = false;
+const spellSettings = $("spellSettings");
+
+function spellOptions(prefs = state.spellPrefs) {
+  const options = new Map((D()?.spellOptions || []).map((s) => [s.spell, { ...s, available: true }]));
+  Object.entries(prefs).forEach(([id, pref]) => {
+    if (!options.has(+id)) options.set(+id, { ...pref, spell: +id, count: 0, available: false });
+  });
+  return [...options.values()].sort((a, b) => Number(b.available) - Number(a.available)
+    || (a.cat === "custom") - (b.cat === "custom") || a.name.localeCompare(b.name, I18N.lang) || a.spell - b.spell);
+}
+
+function spellPrefsLabel() {
+  const options = D()?.spellOptions || [];
+  const shown = options.filter((s) => state.spellPrefs[s.spell]?.mode === "show").length;
+  const hidden = options.filter((s) => state.spellPrefs[s.spell]?.mode === "hide").length;
+  return shown || hidden ? ` · ${[shown ? `+${shown}` : "", hidden ? `−${hidden}` : ""].filter(Boolean).join(" / ")}` : "";
+}
+
+function renderSpellSettings(focusId) {
+  const query = $("spellSearch").value.trim().toLocaleLowerCase();
+  const view = $("spellView").value;
+  const options = spellOptions(spellDraft);
+  const filtered = options.filter((s) => (!query || `${s.name} ${s.spell}`.toLocaleLowerCase().includes(query))
+    && (view === "all" || (view === "changed" && spellDraft[s.spell]) || (view === "default" && s.cat !== "custom")
+      || (view === "added" && spellDraft[s.spell]?.mode === "show")
+      || (view === "hidden" && spellDraft[s.spell]?.mode === "hide")));
+  const list = $("spellList"), scroll = list.scrollTop;
+  list.innerHTML = filtered.map((s) => {
+    const mode = spellDraft[s.spell]?.mode;
+    const label = mode === "show" ? t("始终显示", "Always shown") : mode === "hide" ? t("已隐藏", "Hidden") : s.cat === "custom" ? t("未监控", "Not monitored") : t("跟随分类", "Follow category");
+    return `<div class="spell-option">
+      <label><input type="checkbox" data-spell="${s.spell}" ${spellVisible(s, spellDraft) ? "checked" : ""}>
+        <img src="${iconUrl(s.icon)}" alt=""><span class="spell-name"><b>${esc(s.name)}</b>
+          <small>${s.spell} · ${CAT_ZH[s.cat] || CAT_ZH.custom} · ${s.available ? (s.count ? t(`施放 ${s.count} 次`, `${s.count} casts`) : t("增益记录", "Buff records")) : t("本场无记录", "No records in this run")}
+            · <span class="${mode ? "spell-mode" : ""}">${label}</span></small></span></label>
+      ${mode ? `<button class="ghost" data-reset-spell="${s.spell}" aria-label="${esc(t(`${s.name}恢复默认`, `Reset ${s.name} to default`))}">${t("恢复默认", "Reset to default")}</button>` : ""}
+    </div>`;
+  }).join("") || `<p>${t("没有匹配的技能。可搜索本场日志中出现过的技能名称或法术 ID。", "No matching spells. Search for a spell name or ID recorded in this run.")}</p>`;
+  list.scrollTop = scroll;
+  if (focusId) list.querySelector(`input[data-spell="${focusId}"]`)?.focus({ preventScroll: true });
+  const shown = options.filter((s) => spellDraft[s.spell]?.mode === "show").length;
+  const hidden = options.filter((s) => spellDraft[s.spell]?.mode === "hide").length;
+  $("spellSettingsCount").textContent = t(`始终显示 ${shown} · 已隐藏 ${hidden} · 自动保存在本机`, `Always shown ${shown} · Hidden ${hidden} · Saved in this browser`);
+}
+
+function openSpellSettings() {
+  stopPlay();
+  spellDraft = structuredClone(state.spellPrefs);
+  $("spellSearch").value = "";
+  $("spellView").value = "all";
+  $("spellSettingsError").hidden = true;
+  renderSpellSettings();
+  spellSettings.showModal();
+  $("spellList").scrollTop = 0;
+  $("spellSearch").focus();
+}
+
+function closeSpellSettings() {
+  if (!spellSaving) { spellSettings.close(); $("spellSettingsOpen")?.focus(); }
+}
+
+$("spellSearch").oninput = $("spellView").onchange = () => { $("spellList").scrollTop = 0; renderSpellSettings(); };
+$("spellSettingsClose").onclick = $("spellCancel").onclick = closeSpellSettings;
+spellSettings.addEventListener("cancel", (e) => { if (spellSaving) e.preventDefault(); });
+$("spellList").onchange = (e) => {
+  const id = +e.target.dataset.spell;
+  const option = spellOptions(spellDraft).find((s) => s.spell === id);
+  if (!option) return;
+  const previous = spellDraft[id];
+  $("spellSettingsError").hidden = true;
+  spellDraft[id] = { mode: e.target.checked ? "show" : "hide", name: option.name, icon: option.icon, cat: option.cat, lang: I18N.lang };
+  if (extraSpellIds(spellDraft).length > 100) {
+    if (previous) spellDraft[id] = previous; else delete spellDraft[id];
+    $("spellSettingsError").textContent = t("最多单独监控 100 个技能，请先移除部分技能。", "You can monitor up to 100 individual spells. Remove some spells first.");
+    $("spellSettingsError").hidden = false;
+  }
+  renderSpellSettings(id);
+};
+$("spellList").onclick = (e) => {
+  const id = e.target.closest("[data-reset-spell]")?.dataset.resetSpell;
+  if (id) { delete spellDraft[id]; renderSpellSettings(id); }
+};
+$("spellReset").onclick = () => { spellDraft = {}; renderSpellSettings(); };
+$("spellApply").onclick = async () => {
+  spellSaving = true;
+  $("spellControls").disabled = $("spellSettingsClose").disabled = true;
+  $("spellSettingsError").hidden = true;
+  $("spellApply").textContent = t("应用中…", "Applying…");
+  try {
+    const wanted = extraSpellIds(spellDraft);
+    // Existing data already contains all casts; only newly monitored buffs need a server request.
+    if (wanted.some((id) => !(D().trackedSpells || []).includes(id)
+      && !(D().spellOptions || []).some((s) => s.spell === id && s.cat !== "custom"))) {
+      const code = state.code, runId = state.runId, version = state.runVersion;
+      const data = await api(`/api/mplus?code=${code}&fight=${runId}${spellQuery(spellDraft)}`);
+      if (state.runVersion !== version || state.code !== code || state.runId !== runId) throw new Error(t("日志已切换，请重新打开技能设置。", "The report changed. Reopen spell settings."));
+      state.data = data;
+    }
+    state.spellPrefs = structuredClone(spellDraft);
+    let saved = true;
+    try { localStorage.setItem(SPELL_PREFS_KEY, JSON.stringify(state.spellPrefs)); } catch { saved = false; }
+    renderDetail(); renderPullList();
+    spellSettings.close();
+    $("spellSettingsOpen").focus();
+    if (!saved) showMsg("notice", t("技能设置已应用，但浏览器未能保存，刷新后需要重新设置。", "Spell settings were applied, but the browser could not save them. Set them again after refreshing."));
+  } catch (e) {
+    $("spellSettingsError").textContent = t(`设置未应用：${e.message}`, `Settings were not applied: ${e.message}`);
+    $("spellSettingsError").hidden = false;
+  } finally {
+    spellSaving = false;
+    $("spellControls").disabled = $("spellSettingsClose").disabled = false;
+    $("spellApply").textContent = t("应用设置", "Apply settings");
+  }
+};
 
 function renderMatrix() {
   const { pulls } = D();
@@ -1801,8 +2003,8 @@ $("play").onclick = () => {
 };
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === " " && e.target.closest("button, a, textarea")) return;
-  if (!D() || e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  if (!D() || spellSettings.open || !mdtModal.hidden || ["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
+  if (e.key === " " && e.target.closest?.("button, a")) return;
   if (e.key === "ArrowRight" || e.key === "j") selectPull(state.pullIdx + 1, true);
   if (e.key === "ArrowLeft" || e.key === "k") selectPull(state.pullIdx - 1, true);
   if (e.key === " ") { e.preventDefault(); $("play").click(); }

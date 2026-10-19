@@ -626,10 +626,19 @@ def real_pull(p):
     return bool(p.get("enemies")) or (p["end_time"] - p["start_time"]) / 1000 >= MIN_PULL_SEC
 
 
-def mplus_buff_intervals(events, casts, players, start, end, pet_owners=None):
+def mplus_buff_intervals(events, casts, players, start, end, pet_owners=None, extra_spells=()):
     """Pair actual aura events per recipient/caster; refreshes extend the same interval."""
     by_class, common = load_mplus_spells()
-    cast_names = {(c["who"], c["name"]): c["cat"] for c in casts}
+    extra_spells = set(extra_spells)
+    tracked_casts = [c for c in casts if c["cat"] != "custom" or c["spell"] in extra_spells]
+    cast_names = {}
+    for cast in tracked_casts:
+        key = (cast["who"], cast["name"])
+        if cast["cat"] != "custom" or key not in cast_names:
+            cast_names[key] = cast["cat"]
+    cast_ids = {}
+    for cast in casts:
+        cast_ids.setdefault((cast["who"], cast["name"], cast["cat"]), set()).add(cast["spell"])
     active, intervals, seen = {}, [], set()
     pet_owners = pet_owners or {}
 
@@ -648,17 +657,26 @@ def mplus_buff_intervals(events, casts, players, start, end, pet_owners=None):
         owner = owner if owner in players else ev.get("targetID")
         cat = classify_cast(ability.get("guid"), ability.get("name"),
                             players.get(owner, {}).get("type"), by_class, common)
-        return cat or cast_names.get((owner, ability.get("name")))
+        return (cat or cast_names.get((owner, ability.get("name")))
+                or ("custom" if ability.get("guid") in extra_spells else None))
 
     def open_interval(ev, known, initial=False):
         ability = ev["ability"]
-        return {
+        item = {
             "t": start if initial else max(start, ev["timestamp"]),
             "who": ev["targetID"], "source": source_owner(ev),
             "spell": ability["guid"], "name": ability.get("name") or str(ability["guid"]),
             "icon": (ability.get("abilityIcon") or "").removesuffix(".jpg"),
             "cat": category(ev), "startKnown": known and ev["timestamp"] >= start,
         }
+        owner = source_owner(ev)
+        owner = owner if owner in players else ev["targetID"]
+        matches = cast_ids.get((owner, item["name"], item["cat"]), set())
+        if len(matches) == 1:
+            canonical = next(iter(matches))
+            if canonical != item["spell"]:
+                item["trackSpell"] = canonical
+        return item
 
     def close_interval(item, timestamp, known):
         stop = min(timestamp, end)
@@ -722,7 +740,30 @@ def api_mplus_list(link):
     return {"code": code, "fight": fight_id, "runs": runs}
 
 
-def api_mplus(code, fight_id):
+def parse_mplus_spells(spells):
+    """Validate the bounded selection used for additional aura queries."""
+    if isinstance(spells, str):
+        spells = spells.split(",") if spells else []
+    ids = []
+    for spell in spells:
+        try:
+            valid = (not isinstance(spell, bool) and isinstance(spell, (str, int))
+                     and re.fullmatch(r"[0-9]+", str(spell)))
+            sid = int(spell) if valid else 0
+        except ValueError:
+            sid = 0
+        if sid <= 0:
+            raise WclError(translate("额外监控技能必须是用逗号分隔的正整数技能 ID",
+                                     "Additional tracked spells must be comma-separated positive integer spell IDs."))
+        ids.append(sid)
+        if len(ids) > 100:
+            raise WclError(translate("额外监控技能最多选择 100 个",
+                                     "Select no more than 100 additional tracked spells."))
+    return sorted(set(ids))
+
+
+def api_mplus(code, fight_id, extra_spells=()):
+    extra_spells = parse_mplus_spells(extra_spells)
     meta = report_meta(code)
     fight = next((f for f in meta["fights"] if f["id"] == fight_id), None)
     if not fight or not fight.get("dungeonPulls"):
@@ -765,7 +806,7 @@ def api_mplus(code, fight_id):
             "x": p.get("x"), "y": p.get("y"),
             "box": [p.get("minX"), p.get("minY"), p.get("maxX"), p.get("maxY")],
             "map": (p.get("maps") or [0])[0], "maps": p.get("maps") or [],
-            "enemies": engaged, "forces": 0, "casts": [], "deaths": [], "players": {},
+            "enemies": engaged, "forces": 0, "casts": [], "extraCasts": [], "deaths": [], "players": {},
         })
 
     def pull_at(ts, pre=PULL_PRE_SEC * 1000, post=PULL_POST_SEC * 1000):
@@ -795,28 +836,34 @@ def api_mplus(code, fight_id):
     # player casts
     by_class, common = load_mplus_spells()
     usage = {pid: {} for pid in players}
-    lust, tracked_casts = [], []
+    lust, all_casts, spell_options = [], [], {}
     for s, ev in event_list(casts.get("series", [])):
         src = ev.get("sourceID")
         if ev.get("type") != "cast" or src not in players:
             continue
         cat = classify_cast(s["guid"], s["name"], players[src].get("type"), by_class, common)
-        if not cat:
-            continue
         ab = ev.get("ability") or {}
         item = {"t": rel(ev["timestamp"]), "who": src, "spell": s["guid"], "name": s["name"],
-                "icon": (ab.get("abilityIcon") or "").removesuffix(".jpg"), "cat": cat}
-        tracked_casts.append(item)
+                "icon": (ab.get("abilityIcon") or "").removesuffix(".jpg"), "cat": cat or "custom"}
+        all_casts.append(item)
+        option = spell_options.setdefault(item["spell"], {
+            k: item[k] for k in ("spell", "name", "icon", "cat")})
+        option["count"] = option.get("count", 0) + 1
+        if cat:
+            option["cat"] = cat
+        p = pull_at(ev["timestamp"])
+        if p:
+            p["casts" if cat else "extraCasts"].append(item)
+        if not cat:
+            continue
         if cat == "lust":
             lust.append(item)
         u = usage[src].setdefault(s["guid"], {"spell": s["guid"], "name": item["name"], "icon": item["icon"],
                                               "cat": cat, "times": []})
         u["times"].append(item["t"])
-        p = pull_at(ev["timestamp"])
-        if p:
-            p["casts"].append(item)
     for p in pulls:
         p["casts"].sort(key=lambda c: c["t"])
+        p["extraCasts"].sort(key=lambda c: c["t"])
 
     # friendly deaths
     deaths = []
@@ -835,10 +882,17 @@ def api_mplus(code, fight_id):
     buff_ids = set(common)
     for player in players.values():
         buff_ids.update(by_class.get(player.get("type"), {}))
+    buff_ids.update(extra_spells)
     buff_events = mplus_buff_events(code, fight_id, start, end, buff_ids,
-                                   [c["name"] for c in tracked_casts], persist=persist)
+                                   [c["name"] for c in all_casts
+                                    if c["cat"] != "custom" or c["spell"] in extra_spells], persist=persist)
     pet_owners = {pet["id"]: pet.get("petOwner") for pet in meta.get("friendlyPets", [])}
-    buffs = mplus_buff_intervals(buff_events, tracked_casts, players, start, end, pet_owners)
+    buffs = mplus_buff_intervals(buff_events, all_casts, players, start, end, pet_owners, extra_spells)
+    for buff in buffs:
+        sid = buff.get("trackSpell", buff["spell"])
+        if sid not in spell_options:
+            spell_options[sid] = {**{k: buff[k] for k in ("name", "icon", "cat")},
+                                  "spell": sid, "count": 0}
 
     # per-pull player throughput
     def per_player(g):
@@ -888,6 +942,8 @@ def api_mplus(code, fight_id):
         "deaths": deaths,
         "lust": lust,
         "buffs": buffs,
+        "spellOptions": sorted(spell_options.values(), key=lambda s: (s["cat"], s["name"], s["spell"])),
+        "trackedSpells": extra_spells,
         "heroism": [{"t": rel(h["startTime"]), "end": rel(h["endTime"])} for h in taken.get("heroism", [])],
     }
 
@@ -1254,7 +1310,7 @@ class Handler(BaseHTTPRequestHandler):
             if url.path == "/api/mplus/mdt":
                 return self._json(api_mplus_mdt(q["code"], int(q["fight"])))
             if url.path == "/api/mplus":
-                return self._json(api_mplus(q["code"], int(q["fight"])))
+                return self._json(api_mplus(q["code"], int(q["fight"]), parse_mplus_spells(q.get("spells", ""))))
             m = re.fullmatch(r"/api/map/(\d+)\.png", url.path)
             if m:
                 return self._send(200, map_image(int(m.group(1))), "image/png", cache=True)
