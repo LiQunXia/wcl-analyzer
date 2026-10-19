@@ -1,10 +1,10 @@
 {
   "_说明": "已用实际日志核对的施法→伤害映射。window 为施法完成后的最大关联秒数；按怪物个体匹配。responses 只描述效果类型，不推断具体减伤收益。",
   "mechanics": [
-    {"cast": 1306852, "damage": [1306853], "window": 12, "name": "剧毒涌动"},
-    {"cast": 1294824, "damage": [1294827], "window": 12, "name": "亵渎猛击"},
-    {"cast": 1307894, "damage": [1307894], "window": 2, "name": "贪婪践踏"},
-    {"cast": 1299154, "damage": [1299189], "window": 40, "name": "同步毒液"}
+    {"cast": 1306852, "damage": [1306853], "window": 12, "name": "剧毒涌动", "name_en": "Toxic Surge"},
+    {"cast": 1294824, "damage": [1294827], "window": 12, "name": "亵渎猛击", "name_en": "Defiled Slam"},
+    {"cast": 1307894, "damage": [1307894], "window": 2, "name": "贪婪践踏", "name_en": "Ravenous Stomp"},
+    {"cast": 1299154, "damage": [1299189], "window": 40, "name": "同步毒液", "name_en": "Synchronized Venom"}
   ],
   "responses": {
     "team": [97462, 97463, 62618, 31821, 196718, 51052, 145629],

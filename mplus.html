@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>大秘境复盘 · 危险机制与团队应对</title>
+<title>大秘境复盘 · 路线与技能分析</title>
+<script src="/i18n.js"></script>
 <script>const whTooltips = { colorLinks: false, iconizeLinks: false, renameLinks: false };</script>
 <script src="https://wow.zamimg.com/js/tooltips.js"></script>
 <style>
@@ -57,12 +58,13 @@
   .nav a { font-size: 13px; color: var(--text-2); padding: 6px 10px; border-radius: 7px; }
   .nav a:hover { color: var(--text); background: rgba(255,255,255,.04); }
   .nav a.on { color: var(--text); background: rgba(255,255,255,.07); }
-  .search { flex: 1; display: flex; align-items: center; max-width: 640px; margin-left: auto; height: 38px;
+  .search { flex: 1; min-width: 0; display: flex; align-items: center; max-width: 640px; margin-left: auto; height: 38px;
     background: var(--surface); border: 1px solid var(--line-2); border-radius: 10px; padding: 0 4px 0 14px; }
   .search:focus-within { border-color: rgba(233,179,90,.5); box-shadow: 0 0 0 4px rgba(233,179,90,.08); }
   .search svg { width: 15px; height: 15px; color: var(--text-3); flex: none; }
   .search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--text); font: inherit; padding: 0 10px; }
   .search input::placeholder { color: var(--text-3); }
+  #languageSwitcher { flex: none; }
   .btn { height: 30px; padding: 0 14px; border-radius: 7px; border: 0; cursor: pointer; font-weight: 600; font-size: 13px;
     background: var(--accent); color: #1a1408; }
   .btn:hover { filter: brightness(1.08); }
@@ -77,7 +79,7 @@
   .hero h1 { margin: 0; font-size: 44px; line-height: 1.15; font-weight: 700; }
   .hero h1 em { font-style: normal; background: linear-gradient(120deg, #a9c6ff, #6f8ef0); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .hero p { color: var(--text-2); font-size: 16px; margin: 18px auto 0; max-width: 600px; }
-  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 900px; margin: 60px auto 0; text-align: left; }
+  .steps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-width: 760px; margin: 60px auto 0; text-align: left; }
   .step { padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(180deg, rgba(255,255,255,.025), transparent); }
   .step i { font-style: normal; font-family: var(--mono); font-size: 12px; color: #8fb6ff; }
   .step h3 { margin: 10px 0 6px; font-size: 15px; font-weight: 600; }
@@ -293,59 +295,11 @@
   .insights b { color: var(--text); }
   .insights a { color: #8fb6ff; cursor: pointer; }
 
-  /* mechanic learning */
-  .mechanics { margin-top: 18px; overflow: hidden; }
-  .mechanics .card-head { padding: 20px 22px 0; }
-  .mechanics .card-head h3 { font-size: 18px; }
-  .mechanic-body { padding: 16px 22px 22px; }
-  .mechanic-tabs, .mechanic-rounds { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
-  .mechanic-tab, .mechanic-round { border: 1px solid var(--line-2); background: var(--surface-2); border-radius: 9px; padding: 10px 14px; cursor: pointer; text-align: left; }
-  .mechanic-tab { display: flex; align-items: center; gap: 9px; }
-  .mechanic-tab img { width: 26px; height: 26px; border-radius: 5px; }
-  .mechanic-tab.on, .mechanic-round.on { border-color: var(--accent); background: var(--accent-soft); }
-  .mechanic-tab:focus-visible, .mechanic-round:focus-visible, .mechanic-body summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-  .mechanic-round small { display: block; color: var(--text-2); font-size: 11px; margin-top: 3px; }
-  .mechanic-note { color: var(--text-2); font-size: 12px; line-height: 1.8; margin: 10px 0; }
-  .response-phase { color: var(--text-2); font-size: 13px; font-weight: 500; margin: 16px 0 0; }
-  .response-phase.empty { color: var(--text-3); font-weight: 400; }
   .info { display: inline-grid; place-items: center; width: 16px; height: 16px; padding: 0; margin-left: 5px;
     border-radius: 50%; border: 1px solid var(--line-2); background: none; color: var(--text-3);
     font: 600 10px/1 var(--mono); cursor: help; vertical-align: 2px; }
   .info:hover { color: var(--text); border-color: rgba(255,255,255,.24); }
   .info:focus-visible { color: var(--text); border-color: rgba(255,255,255,.24); outline: 2px solid var(--accent); outline-offset: 2px; }
-  .mechanic-title { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 20px 0 10px; }
-  .mechanic-title h4 { font-size: 16px; margin: 0 0 6px; }
-  .mechanic-metrics { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
-  .mechanic-table { overflow-x: auto; margin: 14px 0; border: 1px solid var(--line-2); border-radius: 9px; scrollbar-color: #444954 var(--surface-2); scrollbar-width: thin; }
-  .mechanic-table table { width: 100%; border-collapse: collapse; min-width: 780px; table-layout: fixed; font-size: 12px; }
-  .mechanic-table th, .mechanic-table td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
-  .mechanic-table th { background: var(--surface-2); font-weight: 500; color: var(--text-2); }
-  .mechanic-table th:first-child { width: 102px; }
-  .mechanic-table th:first-child, .mechanic-table td:first-child { position: sticky; left: 0; background: var(--surface); z-index: 1; }
-  .mechanic-table tr:last-child td { border-bottom: 0; }
-  .mechanic-table time { display: block; font: 11px var(--mono); color: var(--text-2); margin-top: 5px; }
-  .response-buff { display: block; color: #8fc9ff; margin-top: 6px; line-height: 1.5; overflow-wrap: anywhere; }
-  .response-buff small { display: block; color: var(--text-2); font-size: 10px; }
-  .response-empty { display: block; color: var(--text-3); margin-top: 6px; font-size: 11px; }
-  .response-section { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 16px; }
-  .response-section h4 { margin: 0 0 8px; font-size: 13px; }
-  .response-casts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 9px; margin-top: 12px; }
-  .response-cast { display: flex; align-items: flex-start; gap: 10px; padding: 11px; border-radius: 9px; background: var(--surface-2); }
-  .response-cast img { width: 28px; height: 28px; border-radius: 5px; }
-  .response-cast .copy { min-width: 0; flex: 1; }
-  .response-cast small { display: block; color: var(--text-2); font-size: 11px; margin-top: 3px; }
-  .response-cast time { font: 11px var(--mono); color: var(--accent); white-space: nowrap; }
-  .response-health { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
-  .response-health > div { padding: 10px; border: 1px solid var(--line); border-radius: 9px; }
-  .response-health svg { display: block; width: 100%; height: 62px; margin: 7px 0; }
-  .response-health small { color: var(--text-2); font-size: 11px; }
-  .response-warning { padding: 10px 12px; border-radius: 8px; background: rgba(239,106,76,.08); color: #f3a491; font-size: 12px; margin: 12px 0; }
-  .response-section summary { cursor: pointer; color: var(--text-2); font-size: 12px; }
-  @media (max-width: 720px) {
-    .mechanic-body { padding: 14px; }
-    .mechanics .card-head { padding: 16px 14px 0; }
-    .response-casts { grid-template-columns: 1fr; }
-  }
 
   /* tooltip */
   #tip { position: fixed; z-index: 100; pointer-events: none; background: rgba(20,22,28,.97); border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
@@ -357,6 +311,7 @@
   .footnote p { margin: 8px 0 0; max-width: 1040px; }
 
   @media (max-width: 1100px) {
+    .brand b { display: none; }
     .main { grid-template-columns: 1fr; }
     .pull-list { position: static; max-height: 420px; }
     .detail-body { grid-template-columns: 1fr; }
@@ -370,6 +325,7 @@
     .top .wrap { gap: 12px; }
     .brand b { display: none; }
     .search { min-width: 0; }
+    #languageSwitcher .language-switcher > span { display: none; }
     .replay { flex-wrap: wrap; }
     .lane-row { grid-template-columns: 70px minmax(0, 1fr); }
     .axis { margin-left: 70px; }
@@ -384,6 +340,7 @@
       <b>大秘境复盘</b>
     </div>
     <nav class="nav"><a href="/">治疗作业</a><a href="/mplus" class="on">大秘境复盘</a></nav>
+    <div id="languageSwitcher"></div>
     <form class="search" id="form">
       <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="m11 11 3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       <input id="link" type="text" autocomplete="off" spellcheck="false" placeholder="粘贴大秘境的 WCL 链接，例如 cn.warcraftlogs.com/reports/xxxx?fight=5">
@@ -397,11 +354,10 @@
 
   <section id="empty" class="hero">
     <h1>把一整场大秘境<br><em>拆成每一波</em>来复盘</h1>
-    <p>找到造成团队压力的怪物技能，逐次查看治疗的处理与每个人的防护，再结合路线和波次学习。</p>
+    <p>把每一波的位置、怪物、走位和技能摆在一起，再结合路线和波次复盘。</p>
     <div class="steps">
       <div class="step"><i>01</i><h3>路线地图</h3><p>按楼层绘制每一波的位置、怪物分布和队伍的真实移动轨迹，可拖动时间轴回放。</p></div>
-      <div class="step"><i>02</i><h3>机制与应对</h3><p>从已支持的危险机制切入，看每一跳伤害时的防护增益、治疗动作和血量变化。</p></div>
-      <div class="step"><i>03</i><h3>技能矩阵</h3><p>全程「人 × 波次」的爆发 / 减伤 / 药水矩阵，一眼看出大招都交在了哪几波。</p></div>
+      <div class="step"><i>02</i><h3>技能矩阵</h3><p>全程「人 × 波次」的爆发 / 减伤 / 药水矩阵，一眼看出大招都交在了哪几波。</p></div>
     </div>
     <div class="example">试试示例：<a id="exampleLink">cn.warcraftlogs.com/reports/XGdhCgWHtPpa9w6J?fight=5</a></div>
   </section>
@@ -425,8 +381,6 @@
       </div>
       <div class="strip" id="strip"></div>
     </section>
-
-    <section class="card mechanics" id="mechanics" aria-label="危险机制与团队应对"></section>
 
     <div class="main">
       <section class="card mapcard">
@@ -515,27 +469,28 @@
 </div>
 
 <script>
+const { t } = window.I18N;
 const CLASS_COLOR = {
   Warrior: "#C69B6D", Paladin: "#F48CBA", Hunter: "#AAD372", Rogue: "#FFF468", Priest: "#FFFFFF", DeathKnight: "#C41E3A",
   Shaman: "#0070DD", Mage: "#3FC7EB", Warlock: "#8788EE", Monk: "#00FF98", Druid: "#FF7C0A", DemonHunter: "#A330C9", Evoker: "#33937F",
 };
 const LANE_COLOR = { ...CLASS_COLOR, Shaman: "#3d9bff" };
 const SPEC_ZH = {
-  Blood: "鲜血", Frost: "冰霜", Unholy: "邪恶", Havoc: "浩劫", Vengeance: "复仇", Devourer: "噬灭", Balance: "平衡", Feral: "野性",
-  Guardian: "守护", Restoration: "恢复", Augmentation: "增辉", Devastation: "湮灭", Preservation: "恩护", BeastMastery: "野兽控制",
-  Marksmanship: "射击", Survival: "生存", Arcane: "奥术", Fire: "火焰", Brewmaster: "酒仙", Mistweaver: "织雾", Windwalker: "踏风",
-  Holy: "神圣", Protection: "防护", Retribution: "惩戒", Discipline: "戒律", Shadow: "暗影", Assassination: "奇袭", Outlaw: "狂徒",
-  Subtlety: "敏锐", Elemental: "元素", Enhancement: "增强", Affliction: "痛苦", Demonology: "恶魔学识", Destruction: "毁灭",
-  Arms: "武器", Fury: "狂怒",
+  Blood: t("鲜血", "Blood"), Frost: t("冰霜", "Frost"), Unholy: t("邪恶", "Unholy"), Havoc: t("浩劫", "Havoc"), Vengeance: t("复仇", "Vengeance"), Devourer: t("噬灭", "Devourer"), Balance: t("平衡", "Balance"), Feral: t("野性", "Feral"),
+  Guardian: t("守护", "Guardian"), Restoration: t("恢复", "Restoration"), Augmentation: t("增辉", "Augmentation"), Devastation: t("湮灭", "Devastation"), Preservation: t("恩护", "Preservation"), BeastMastery: t("野兽控制", "Beast Mastery"),
+  Marksmanship: t("射击", "Marksmanship"), Survival: t("生存", "Survival"), Arcane: t("奥术", "Arcane"), Fire: t("火焰", "Fire"), Brewmaster: t("酒仙", "Brewmaster"), Mistweaver: t("织雾", "Mistweaver"), Windwalker: t("踏风", "Windwalker"),
+  Holy: t("神圣", "Holy"), Protection: t("防护", "Protection"), Retribution: t("惩戒", "Retribution"), Discipline: t("戒律", "Discipline"), Shadow: t("暗影", "Shadow"), Assassination: t("奇袭", "Assassination"), Outlaw: t("狂徒", "Outlaw"),
+  Subtlety: t("敏锐", "Subtlety"), Elemental: t("元素", "Elemental"), Enhancement: t("增强", "Enhancement"), Affliction: t("痛苦", "Affliction"), Demonology: t("恶魔学识", "Demonology"), Destruction: t("毁灭", "Destruction"),
+  Arms: t("武器", "Arms"), Fury: t("狂怒", "Fury"),
 };
 const CLASS_ZH = {
-  Warrior: "战士", Paladin: "圣骑士", Hunter: "猎人", Rogue: "潜行者", Priest: "牧师", DeathKnight: "死亡骑士", Shaman: "萨满祭司",
-  Mage: "法师", Warlock: "术士", Monk: "武僧", Druid: "德鲁伊", DemonHunter: "恶魔猎手", Evoker: "唤魔师",
+  Warrior: t("战士", "Warrior"), Paladin: t("圣骑士", "Paladin"), Hunter: t("猎人", "Hunter"), Rogue: t("潜行者", "Rogue"), Priest: t("牧师", "Priest"), DeathKnight: t("死亡骑士", "Death Knight"), Shaman: t("萨满祭司", "Shaman"),
+  Mage: t("法师", "Mage"), Warlock: t("术士", "Warlock"), Monk: t("武僧", "Monk"), Druid: t("德鲁伊", "Druid"), DemonHunter: t("恶魔猎手", "Demon Hunter"), Evoker: t("唤魔师", "Evoker"),
 };
-const ROLE_ZH = { tank: "坦克", healer: "治疗", dps: "输出" };
+const ROLE_ZH = { tank: t("坦克", "Tank"), healer: t("治疗", "Healer"), dps: t("输出", "DPS") };
 const CATS = [
-  ["offensive", "爆发"], ["defensive", "减伤/保命"], ["potion", "爆发药"], ["healPotion", "治疗药/糖"],
-  ["interrupt", "打断"], ["lust", "嗜血"], ["rez", "战复"],
+  ["offensive", t("爆发", "Offensive")], ["defensive", t("减伤/保命", "Defensives")], ["potion", t("爆发药", "Combat potion")], ["healPotion", t("治疗药/糖", "Healing potion / Healthstone")],
+  ["interrupt", t("打断", "Interrupt")], ["lust", t("嗜血", "Bloodlust")], ["rez", t("战复", "Battle rez")],
 ];
 const CAT_ZH = Object.fromEntries(CATS);
 const CAT_COLOR = Object.fromEntries(CATS.map(([k]) => [k, getComputedStyle(document.documentElement).getPropertyValue(`--c-${k}`).trim()]));
@@ -550,30 +505,67 @@ const MATRIX_CATS = {
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const info = (text) => `<button type="button" class="info" data-tip="${esc(text)}" aria-label="说明">i</button>`;
+const info = (text) => `<button type="button" class="info" data-tip="${esc(text)}" aria-label="${t("说明", "Information")}">i</button>`;
 const mmss = (s) => { const v = Math.max(0, Math.round(s)); return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, "0")}`; };
 const signed = (s) => (s < 0 ? "-" : "+") + mmss(Math.abs(s));
-const wan = (v) => v >= 1e8 ? `${(v / 1e8).toFixed(2)}亿` : v >= 1e4 ? `${Math.round(v / 1e4).toLocaleString()}万` : String(Math.round(v));
+const numberFormat = new Intl.NumberFormat(I18N.lang === "en" ? "en-US" : "zh-CN", { notation: "compact", maximumFractionDigits: 2 });
+const wan = (v) => numberFormat.format(Math.round(v || 0));
+const pullLabel = (i) => t(`第 ${i + 1} 波`, `Pull ${i + 1}`);
+const listSeparator = t("、", ", ");
+const playerSpec = (p) => [SPEC_ZH[p.spec] || p.spec, CLASS_ZH[p.cls] || p.cls].filter(Boolean).join(t("", " "));
 /* 图标经本地服务代理并缓存（Wowhead 的图片域名在中国大陆返回 403）；显示尺寸由 CSS 决定。 */
-const iconUrl = (icon) => `/api/icon/${encodeURIComponent(icon || "inv_misc_questionmark")}`;
+const iconUrl = (icon) => I18N.apiUrl(`/api/icon/${encodeURIComponent(icon || "inv_misc_questionmark")}`);
 const classIcon = (cls) => iconUrl(`classicon_${(cls || "").toLowerCase()}`);
 /** Enemy icons come from WCL ("custom-icon-inv_xxx.jpg"); the proxy strips the prefix/suffix. */
 const mobIconUrl = (icon) => iconUrl((icon || "").replace(/^custom-icon-/, ""));
-const spellHref = (id) => `href="https://www.wowhead.com/cn/spell=${id}" data-wowhead="spell=${id}&domain=cn" target="_blank"`;
+const spellHref = (id) => I18N.spellAttrs(id);
 const pullColor = (i) => PULL_COLORS[i % PULL_COLORS.length];
 
 const state = {
-  code: null, runs: [], runId: null, data: null, paths: null,
-  mechanics: null, mechanicsError: "", mechanicSpell: null, occurrenceId: null,
-  response: null, responseError: "", responseLoading: false, responseCache: new Map(), runVersion: 0,
+  code: null, runs: [], runId: null, data: null, paths: null, runVersion: 0,
   pullIdx: 0, floor: null, selected: new Set(),
   cats: new Set(["offensive", "defensive", "potion", "healPotion", "lust", "rez"]),
   showTracks: true, showMobs: true, focus: true, tankStep: null,
   t: 0, playing: false, view: null, matrixMode: "burst",
 };
 
+const reviewStorageKey = "wcl.mplus.review";
+let restoredReview = null;
+try { restoredReview = JSON.parse(sessionStorage.getItem(reviewStorageKey) || "null"); } catch {}
+window.addEventListener("beforeunload", () => {
+  try {
+    sessionStorage.setItem(reviewStorageKey, JSON.stringify({
+      code: state.code, runId: state.runId, link: $("link").value,
+      pullIdx: state.pullIdx, floor: state.floor, selected: [...state.selected], cats: [...state.cats],
+      showTracks: state.showTracks, showMobs: state.showMobs, focus: state.focus,
+      tankStep: state.tankStep, time: state.t, matrixMode: state.matrixMode,
+      speed: $("speed").value, scroll: scrollY,
+    }));
+  } catch {}
+});
+function restoreReview() {
+  const saved = restoredReview;
+  restoredReview = null;
+  if (!saved || saved.code !== state.code || saved.runId !== state.runId) return;
+  state.pullIdx = Math.max(0, Math.min(D().pulls.length - 1, Number(saved.pullIdx) || 0));
+  state.floor = D().maps.some((m) => m.id === saved.floor) ? saved.floor : curPull()?.map;
+  state.selected = new Set((saved.selected || []).filter((id) => D().players.some((p) => p.id === id)));
+  state.cats = new Set((saved.cats || [...state.cats]).filter((cat) => CAT_ZH[cat]));
+  state.showTracks = saved.showTracks !== false;
+  state.showMobs = saved.showMobs !== false;
+  state.focus = saved.focus !== false;
+  state.tankStep = saved.tankStep;
+  state.t = Math.min(D().run.duration, Math.max(0, Number(saved.time) || 0));
+  state.matrixMode = MATRIX_CATS[saved.matrixMode] ? saved.matrixMode : "burst";
+  $("tglTracks").classList.toggle("on", state.showTracks);
+  $("tglMobs").classList.toggle("on", state.showMobs);
+  $("matrixMode").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.v === state.matrixMode));
+  if (["10", "20", "40", "80"].includes(saved.speed)) $("speed").value = saved.speed;
+  requestAnimationFrame(() => window.scrollTo(0, Number(saved.scroll) || 0));
+}
+
 async function api(path) {
-  const r = await fetch(path);
+  const r = await fetch(I18N.apiUrl(path));
   const j = await r.json();
   if (j.error) throw new Error(j.error);
   return j;
@@ -584,6 +576,81 @@ function showMsg(kind, text) {
     ? `<div class="loading"><div class="spinner"></div>${esc(text)}</div>`
     : `<div class="notice">${esc(text)}</div>`;
 }
+
+// Translate the initial document before report data is rendered. Dynamic text uses t() at its source.
+const staticLabels = new Map([
+  ["大秘境复盘", "Mythic+ Review"],
+  ["治疗作业", "Healer Review"],
+  ["解析", "Analyze"],
+  ["把一整场大秘境", "Review an entire Mythic+ run"],
+  ["拆成每一波", "one pull at a time"],
+  ["来复盘", ""],
+  ["把每一波的位置、怪物、走位和技能摆在一起，再结合路线和波次复盘。", "Review each pull with enemy positions, movement, abilities, and route context in one place."],
+  ["路线地图", "Route map"],
+  ["按楼层绘制每一波的位置、怪物分布和队伍的真实移动轨迹，可拖动时间轴回放。", "Explore pulls, enemies, and actual party movement on each floor. Scrub the timeline to replay the route."],
+  ["技能矩阵", "Ability matrix"],
+  ["全程「人 × 波次」的爆发 / 减伤 / 药水矩阵，一眼看出大招都交在了哪几波。", "See offensive cooldowns, defensives, and potions by player and pull across the entire run."],
+  ["试试示例：", "Try an example: "],
+  ["全程时间轴", "Run timeline"],
+  ["点击色块查看该波 · 红色 = 嗜血", "Click a segment to view a pull · Red = Bloodlust"],
+  ["走位轨迹", "Movement"],
+  ["怪物位置", "Enemies"],
+  ["只看本波", "Current pull"],
+  ["适应本波", "Fit pull"],
+  ["导出 MDT", "Export MDT"],
+  ["正在读取战斗回放以绘制走位（首次约 30 秒）…", "Loading combat replay to plot movement (about 30 seconds on the first load)…"],
+  ["A/B 接怪 · 黄线坦克路径", "A/B: engagements · Yellow: tank route"],
+  ["◌ 停留", "◌ Stop"],
+  ["队员", "Players"],
+  ["怪物", "Enemies"],
+  ["波次顺序", "Pull order"],
+  ["其他波次", "Other pulls"],
+  ["✕ 死亡", "✕ Death"],
+  ["爆发 + 爆发药", "Offensive + combat potions"],
+  ["减伤 / 保命", "Defensives"],
+  ["全部", "All"],
+  ["全程总览", "Run overview"],
+  ["数据口径与采样说明", "Data sources and sampling"],
+  ["数据来自 Warcraft Logs：波次、怪物和位置来自 WCL 的大秘境拉怪划分与战斗回放；技能按", "Data comes from Warcraft Logs. Pulls, enemies, and positions use WCL’s Mythic+ pull segmentation and combat replay. Abilities are categorized by spell ID in "],
+  ["中的法术 ID 分类，药水按名称识别。 一波的技能时间线包含开怪前 12 秒（灰底，便于看预铺/提前开爆发）。“进度”按该波内被击杀怪物的小怪值计算；若某一波怪物被并入下一波一起击杀，进度会记在下一波。 走位轨迹由回放事件中队员的坐标每 2 秒采样一次，脱战跑图时如无事件则会有空隙。", "; potions are identified by name. Each pull timeline includes 12 seconds before combat (gray background) to show preparation and early cooldowns. Forces are credited to the pull in which enemies die, including enemies carried from earlier pulls. Party positions are sampled from replay events every 2 seconds; travel outside combat may have gaps when no events are recorded."],
+  ["导出 MDT 路线", "Export MDT route"],
+  ["复制导入字符串", "Copy import string"],
+  ["需要本机已安装 Mythic Dungeon Tools（程序会读取插件里的地下城数据）。在 MDT 里选择对应地下城，打开路线菜单并“导入”，粘贴上面的字符串即可。波次按 WCL 的战斗数据自动匹配到 MDT 怪物组，个别召唤物/可选怪可能略有出入，导入后可直接在 MDT 里调整。", "Mythic Dungeon Tools must be installed locally so its dungeon data can be read. In MDT, select the dungeon, open the route menu, choose Import, and paste this string. Pulls are matched to MDT enemy groups using WCL combat data. Some summons or optional enemies may differ; adjust the imported route in MDT as needed."],
+  ["粘贴大秘境的 WCL 链接，例如 cn.warcraftlogs.com/reports/xxxx?fight=5", "Paste a Mythic+ WCL link, e.g. warcraftlogs.com/reports/xxxx?fight=5"],
+  ["显示队伍真实移动轨迹", "Show actual party movement"],
+  ["显示怪物图标：同位置的怪会合并，数字为只数，悬停看名称和进度", "Show enemies. Nearby enemies are grouped; numbers indicate the count. Hover for names and forces."],
+  ["只显示当前波次的怪物与接怪标记；关闭后显示整层所有波次", "Show enemies and engagement markers for the current pull. Turn off to show all pulls on this floor."],
+  ["缩放到当前波次的坦克路线", "Fit the current pull’s tank route"],
+  ["生成可直接粘贴进 MDT 的路线字符串", "Generate a route string to import into MDT"],
+  ["地图缩放", "Map zoom"],
+  ["放大（Ctrl / ⌘ + 滚轮）", "Zoom in (Ctrl / ⌘ + scroll)"],
+  ["缩小（Ctrl / ⌘ + 滚轮）", "Zoom out (Ctrl / ⌘ + scroll)"],
+  ["放大地图", "Zoom in on map"],
+  ["缩小地图", "Zoom out on map"],
+  ["回放", "Replay"],
+  ["关闭", "Close"],
+  ["正在生成…", "Generating…"]
+]);
+function localizePage() {
+  document.title = t("大秘境复盘 · 路线与技能分析", "Mythic+ Review · Routes and Abilities");
+  const normalize = (text) => text.trim().replace(/\s+/g, " ");
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) {
+    if (node.parentElement?.closest("script, style")) continue;
+    const label = normalize(node.textContent);
+    if (staticLabels.has(label)) node.textContent = t(label, staticLabels.get(label));
+  }
+  document.querySelectorAll("[title], [placeholder], [aria-label]").forEach((el) => {
+    for (const attr of ["title", "placeholder", "aria-label"]) {
+      const value = el.getAttribute(attr);
+      if (staticLabels.has(value)) el.setAttribute(attr, t(value, staticLabels.get(value)));
+    }
+  });
+  document.querySelectorAll(".nav a").forEach((a) => { a.href = I18N.apiUrl(a.getAttribute("href")); });
+  I18N.mountLanguageSwitcher($("languageSwitcher"));
+}
+localizePage();
 
 /* ---------- tooltip ---------- */
 
@@ -620,7 +687,7 @@ $("exampleLink").onclick = () => {
 };
 
 async function loadReport(link, runId) {
-  showMsg("loading", "读取日志…");
+  showMsg("loading", t("读取日志…", "Loading report\u2026"));
   try {
     const rep = await api(`/api/mplus/runs?link=${encodeURIComponent(link)}`);
     state.code = rep.code;
@@ -636,7 +703,7 @@ async function loadReport(link, runId) {
 function renderRuns() {
   $("runs").innerHTML = state.runs.map((r) => `
     <button class="run-btn ${r.kill ? "kill" : ""} ${r.id === state.runId ? "on" : ""}" data-id="${r.id}">
-      <span class="dot"></span><b>${esc(r.name)}</b> +${r.level ?? "?"} · ${mmss(r.duration)} · ${r.pulls} 波
+      <span class="dot"></span><b>${esc(r.name)}</b> +${r.level ?? "?"} · ${mmss(r.duration)} · ${r.pulls} ${t("波", "pulls")}
     </button>`).join("");
   $("runs").hidden = state.runs.length < 2;
   $("runs").querySelectorAll(".run-btn").forEach((b) => b.onclick = () => loadRun(+b.dataset.id));
@@ -647,18 +714,11 @@ async function loadRun(id) {
   state.runId = id;
   stopPlay();
   $("runs").querySelectorAll(".run-btn").forEach((b) => b.classList.toggle("on", +b.dataset.id === id));
-  showMsg("loading", "分析大秘境中，首次读取需要十几秒…");
+  showMsg("loading", t("分析大秘境中，首次读取需要十几秒…", "Analyzing the run. The first load can take several seconds\u2026"));
   try {
     const data = await api(`/api/mplus?code=${code}&fight=${id}`);
     if (state.runVersion !== version) return;
     state.data = data;
-    state.mechanics = null;
-    state.mechanicsError = "";
-    state.mechanicSpell = null;
-    state.occurrenceId = null;
-    state.response = null;
-    state.responseLoading = false;
-    state.responseCache = new Map();
     state.paths = null;
     state.selected.clear();
     state.pullIdx = 0;
@@ -666,12 +726,12 @@ async function loadRun(id) {
     state.t = data.pulls[0]?.start ?? 0;
     state.floor = data.pulls[0]?.map ?? data.maps[0]?.id;
     state.view = null;
-    history.replaceState(null, "", `?r=${state.code}&f=${id}`);
+    restoreReview();
+    history.replaceState(null, "", I18N.apiUrl(`?r=${state.code}&f=${id}`));
     showMsg(null);
     $("result").hidden = false;
     renderAll();
     loadPaths(id);
-    loadMechanics(version, code, id);
   } catch (e) { showMsg("error", e.message); }
 }
 
@@ -684,206 +744,14 @@ async function loadPaths(id) {
     renderTankPlan();
     drawMap(true);
   } catch (e) {
-    $("pathsLoading").querySelector("span").textContent = `走位读取失败：${e.message}`;
-    $("tankPlan").innerHTML = `<p>接怪过程读取失败：${esc(e.message)}</p>`;
+    $("pathsLoading").querySelector("span").textContent = t(`走位读取失败：${e.message}`, `Movement data failed: ${e.message}`);
+    $("tankPlan").innerHTML = `<p>${t("接怪过程读取失败：", "Engagement data failed: ")}${esc(e.message)}</p>`;
     return;
   }
   $("pathsLoading").hidden = true;
 }
 
 /* ---------- derived ---------- */
-
-const RESPONSE_KIND = { team: "团队防护", external: "外部防护", immune: "免疫 / 保命", health: "生命上限",
-  balance: "血量均衡", heal: "治疗", shield: "吸收护盾", defensive: "防护增益", healPotion: "治疗药 / 糖", rez: "战复" };
-const responseOffset = (t) => `${t < 0 ? "−" : "+"}${Math.abs(t).toFixed(2)} 秒`;
-const currentMechanic = () => state.mechanics?.mechanics.find((m) => m.spell === state.mechanicSpell);
-const currentOccurrence = () => currentMechanic()?.rounds.find((r) => r.id === state.occurrenceId);
-
-async function loadMechanics(version = state.runVersion, code = state.code, id = state.runId) {
-  state.mechanicsError = "";
-  renderMechanics();
-  try {
-    const data = await api(`/api/mplus/mechanics?code=${code}&fight=${id}`);
-    if (state.runVersion !== version) return;
-    state.mechanics = data;
-    state.mechanicSpell = data.mechanics[0]?.spell ?? null;
-    renderMechanics();
-    const first = currentMechanic()?.rounds.find((r) => r.hits) || currentMechanic()?.rounds[0];
-    if (first) selectMechanicRound(first.id);
-  } catch (e) {
-    if (state.runVersion !== version) return;
-    state.mechanicsError = e.message;
-    renderMechanics();
-  }
-}
-
-async function selectMechanicRound(id, locate = false) {
-  state.occurrenceId = id;
-  state.response = state.responseCache.get(id) || null;
-  state.responseError = "";
-  const r = currentOccurrence();
-  if (!r) return;
-  if (locate) {
-    const idx = D().pulls.findIndex((p) => p.id === r.pull);
-    if (idx >= 0) selectPull(idx, false, false);
-    stopPlay();
-    setTime(r.pulses[0]?.t ?? r.t);
-  }
-  state.responseLoading = !state.response && r.hits > 0;
-  renderMechanics();
-  if (!state.responseLoading) return;
-  const version = state.runVersion;
-  try {
-    const data = await api(`/api/mplus/mechanic?code=${state.code}&fight=${state.runId}&occurrence=${encodeURIComponent(id)}`);
-    if (state.runVersion !== version) return;
-    state.responseCache.set(id, data);
-    if (state.occurrenceId !== id) return;
-    state.response = data;
-  } catch (e) {
-    if (state.runVersion !== version || state.occurrenceId !== id) return;
-    state.responseError = e.message;
-  }
-  if (state.runVersion === version && state.occurrenceId === id) {
-    state.responseLoading = false;
-    renderMechanics();
-  }
-}
-
-function responseBuff(b, hit) {
-  const by = playerById();
-  const candidates = (D().buffs || []).filter((a) => a.who === hit.who && a.t <= hit.t && a.end >= hit.t
-    && (a.spell === b.spell || a.spell === b.canonical || a.name === b.name));
-  const sources = [...new Set(candidates.map((a) => a.source).filter((s) => by[s]))];
-  const source = sources.length === 1 ? by[sources[0]] : null;
-  const label = source ? (source.id !== hit.who ? `来自 ${source.name}` : "") : b.kind === "external" ? "施放者未确认" : "";
-  return `<a class="response-buff" ${spellHref(b.spell)}>${esc(b.name)}${label ? `<small>${esc(label)}</small>` : ""}</a>`;
-}
-
-function responseCast(c, first, by) {
-  const player = by[c.who];
-  const target = by[c.target];
-  return `<div class="response-cast"><a ${spellHref(c.spell)}><img src="${iconUrl(c.icon)}" alt=""></a>
-    <span class="copy"><span style="color:${CLASS_COLOR[player?.cls] || "inherit"}">${esc(player?.name || "未知队员")}</span> · ${esc(c.name)}
-    <small>${RESPONSE_KIND[c.kind] || "技能使用"}${target && target.id !== c.who ? ` → ${esc(target.name)}` : ""}</small></span>
-    <time>${responseOffset(c.t - first)}</time></div>`;
-}
-
-function responseHealth(r, detail, by) {
-  const [start, end] = detail.window, span = Math.max(end - start, 1);
-  const x = (t) => Math.max(0, Math.min(240, (t - start) / span * 240));
-  const first = r.pulses[0].t;
-  return `<div class="response-health">${D().players.map((p) => {
-    const samples = detail.health[p.id] || [];
-    const low = samples.length ? Math.min(...samples.map((s) => s[1])) : null;
-    // Gaps over two seconds stay open; sample order is not a continuous health recording.
-    let previous = null;
-    const path = samples.map(([t, hp]) => {
-      const cmd = previous !== null && t - previous <= 2 ? "L" : "M";
-      previous = t;
-      return `${cmd}${x(t).toFixed(1)},${(52 - hp * .48).toFixed(1)}`;
-    }).join(" ");
-    const deaths = detail.deaths.filter((d) => d.who === p.id);
-    return `<div><span style="color:${CLASS_COLOR[p.cls]}">${esc(p.name)}</span>
-      <svg viewBox="0 0 240 58" role="img" aria-label="${esc(p.name)}的血量采样">
-        <rect x="${x(first)}" y="2" width="${Math.max(1, x(r.end) - x(first))}" height="52" fill="rgba(239,106,76,.1)"/>
-        <path d="M0 52H240" stroke="rgba(255,255,255,.1)"/>
-        <path d="${path}" fill="none" stroke="${CLASS_COLOR[p.cls]}" stroke-width="1.8"/>
-        ${deaths.map((d) => `<circle cx="${x(d.t)}" cy="52" r="3" fill="#ef6a4c"/>`).join("")}
-      </svg><small>${low === null ? "未记录血量采样" : `观察到最低 ${low}%`}${deaths.length ? " · 有死亡记录" : ""}</small></div>`;
-  }).join("")}</div>`;
-}
-
-function renderMechanics() {
-  const el = $("mechanics");
-  const head = `<div class="card-head"><h3>危险机制 · 团队怎么应对 ${info("增益来自每次命中时的实际记录，时间相对于首跳；“未记录防护增益”不等于没有其他保护。只分析已验证的危险机制，展示本次日志的实际应对，供结合自己的阵容与层数参考。")}</h3></div>`;
-  if (state.mechanicsError) {
-    el.innerHTML = `${head}<div class="mechanic-body"><div class="response-warning">${esc(state.mechanicsError)}</div><button class="ghost" id="retryMechanics">重试机制分析</button></div>`;
-    $("retryMechanics").onclick = () => loadMechanics();
-    return;
-  }
-  if (!state.mechanics) {
-    el.innerHTML = `${head}<div class="mechanic-body"><div class="loading"><div class="spinner"></div>正在识别怪物机制与逐次伤害…</div></div>`;
-    return;
-  }
-  const groups = state.mechanics.mechanics;
-  if (!groups.length) {
-    el.innerHTML = `${head}<div class="mechanic-body"><p class="mechanic-note">这场日志尚未匹配到已支持的机制，不代表没有危险伤害。当前支持：${state.mechanics.supported.map(esc).join("、")}。</p></div>`;
-    return;
-  }
-  const m = currentMechanic(), r = currentOccurrence(), by = playerById();
-  let html = `${head}<div class="mechanic-body"><div class="mechanic-tabs" role="group" aria-label="选择怪物机制">${groups.map((g) =>
-    `<button type="button" class="mechanic-tab ${g.spell === state.mechanicSpell ? "on" : ""}" data-mechanic="${g.spell}" aria-pressed="${g.spell === state.mechanicSpell}">
-      <img src="${iconUrl(g.icon)}" alt="">${esc(g.name)} <span class="sub">${g.rounds.length} 次</span></button>`).join("")}</div>`;
-  if (m) html += `<div class="mechanic-rounds" role="group" aria-label="选择一次机制释放">${m.rounds.map((o, i) => {
-    const pull = D().pulls.findIndex((p) => p.id === o.pull);
-    return `<button type="button" class="mechanic-round ${o.id === state.occurrenceId ? "on" : ""}" data-round="${esc(o.id)}" aria-pressed="${o.id === state.occurrenceId}">
-      ${mmss(o.t)} · 第 ${i + 1} 次<small>${pull >= 0 ? `第 ${pull + 1} 波 · 波内第 ${o.number} 次` : "波次未匹配"} · ${o.pulses.length} 跳</small></button>`;
-  }).join("")}</div>${m.unmatched ? `<p class="response-warning">有 ${m.unmatched} 条伤害未能确认对应施法，未合并进下表。</p>` : ""}`;
-  if (r) {
-    const first = r.pulses[0]?.t ?? r.t;
-    html += `<div class="mechanic-title"><div><h4>${esc(r.monster)} · ${esc(m.name)}</h4>
-      <span class="mechanic-note">怪物个体 #${r.instance} · ${mmss(r.t)} 施法完成${r.hits ? ` · ${mmss(first)} 首次伤害` : " · 未记录玩家命中"}</span></div>
-      <button type="button" class="ghost" id="locateMechanic">定位地图与回放 ↗</button></div>
-      <div class="mechanic-metrics"><span class="tag">${r.pulses.length} 跳 / ${r.targets} 人</span>
-        <span class="tag">记录承伤 <b>${wan(r.damage)}</b></span><span class="tag">吸收 <b>${wan(r.absorbed)}</b></span>
-        <span class="tag">伤害跨度 <b>${(r.end - first).toFixed(1)} 秒</b></span></div>`;
-    if (r.hits) html += `<div class="mechanic-table" tabindex="0" role="region" aria-label="逐跳承伤与防护，可横向滚动查看全队"><table><thead><tr><th>伤害发生</th>${D().players.map((p) =>
-        `<th><span style="color:${CLASS_COLOR[p.cls]}">${esc(p.name)}</span><br>${ROLE_ZH[p.role]}</th>`).join("")}</tr></thead>
-      <tbody>${r.pulses.map((pulse, i) => `<tr><td>第 ${i + 1} 跳<time>${responseOffset(pulse.t - first)}</time></td>${D().players.map((p) => {
-        const hits = pulse.players.filter((h) => h.who === p.id);
-        if (!hits.length) return `<td><span class="response-empty">未记录命中</span></td>`;
-        const amount = hits.reduce((n, h) => n + h.amount, 0), absorbed = hits.reduce((n, h) => n + h.absorbed, 0);
-        const seen = new Set();
-        const buffs = hits.flatMap((h) => h.buffs.filter((b) => {
-          if (seen.has(b.canonical)) return false;
-          seen.add(b.canonical); return true;
-        }).map((b) => responseBuff(b, h)));
-        return `<td><b>${wan(amount)}</b>${absorbed ? `<span class="response-empty">吸收 ${wan(absorbed)}</span>` : ""}
-          ${buffs.join("") || `<span class="response-empty">未记录防护增益</span>`}</td>`;
-      }).join("")}</tr>`).join("")}</tbody></table></div>`;
-    if (state.responseLoading) html += `<div class="loading"><div class="spinner"></div>正在读取这次机制前后的治疗、护盾与血量（首次稍需等待）…</div>`;
-    else if (state.responseError) html += `<div class="response-warning">治疗与血量读取失败：${esc(state.responseError)}</div><button class="ghost" id="retryResponse">重试这次应对</button>`;
-    else if (state.response) html += renderMechanicResponse(r, state.response, by);
-  }
-  el.innerHTML = `${html}</div>`;
-  el.querySelectorAll("[data-mechanic]").forEach((b) => b.onclick = () => {
-    state.mechanicSpell = +b.dataset.mechanic;
-    selectMechanicRound(currentMechanic().rounds[0].id, true);
-  });
-  el.querySelectorAll("[data-round]").forEach((b) => b.onclick = () => selectMechanicRound(b.dataset.round, true));
-  if ($("retryResponse")) $("retryResponse").onclick = () => selectMechanicRound(state.occurrenceId);
-  if ($("locateMechanic")) $("locateMechanic").onclick = () => {
-    const idx = D().pulls.findIndex((p) => p.id === r.pull);
-    if (idx >= 0) selectPull(idx, false, false);
-    stopPlay(); setTime(r.pulses[0]?.t ?? r.t);
-    $("mapbox").scrollIntoView({ behavior: "smooth", block: "center" });
-  };
-}
-
-function renderMechanicResponse(r, detail, by) {
-  const first = r.pulses[0]?.t ?? r.t;
-  let html = detail.replayMatched ? "" : `<p class="response-warning">回放中的命中条数与伤害记录不一致，下列治疗和血量可能不完整。</p>`;
-  if (detail.deaths.length) html += `<div class="response-warning">${detail.deaths.map((d) =>
-    `${esc(by[d.who]?.name || "未知队员")} 在 ${responseOffset(d.t - first)} 死亡（${esc(d.name)}）`).join("；")}</div>`;
-  if (detail.replayMatched && detail.allDamage > 0) html += `<div class="mechanic-metrics"><span class="tag">占本窗口承伤 <b>${(r.damage / detail.allDamage * 100).toFixed(1)}%</b></span></div>`;
-  html += `<div class="response-section"><h4>治疗怎么处理 ${info("取首跳前 12 秒至末跳后 5 秒内的关键技能记录；施放时间不等于完整覆盖。")}</h4>`;
-  const healerCasts = detail.responses.filter((c) => by[c.who]?.role === "healer");
-  for (const [phase, label] of [["before", "伤害前 · 提前准备"], ["during", "伤害中 · 处理与恢复"], ["after", "伤害后 · 恢复"]]) {
-    const casts = healerCasts.filter((c) => c.phase === phase && c.key);
-    if (!casts.length) { html += `<p class="response-phase empty">${label} · 暂无关键技能</p>`; continue; }
-    html += `<p class="response-phase">${label}</p><div class="response-casts">${casts.map((c) => responseCast(c, first, by)).join("")}</div>`;
-  }
-  const routine = healerCasts.filter((c) => !c.key);
-  if (routine.length) html += `<details class="response-section"><summary>展开常规治疗施法（${routine.length} 次）</summary><div class="response-casts">${routine.map((c) => responseCast(c, first, by)).join("")}</div></details>`;
-  html += `</div><div class="response-section"><h4>直接吸收 / 抵消本次伤害的效果</h4><div class="response-casts">${detail.absorbs.map((a) =>
-    `<div class="response-cast"><img src="${iconUrl(a.icon)}" alt=""><span class="copy">${esc(a.name)} · ${wan(a.amount)}<small>${esc(by[a.who]?.name || "未知来源")} → ${a.targets.map((id) => esc(by[id]?.name || "未知队员")).join("、")}</small></span></div>`).join("") || `<span class="response-empty">没有记录到可直接归因的护盾吸收事件</span>`}</div></div>`;
-  const others = detail.responses.filter((c) => by[c.who]?.role !== "healer");
-  html += `<details class="response-section"><summary>坦克 / 输出防护与药水（${others.length} 次）</summary><div class="response-casts">${others.map((c) => responseCast(c, first, by)).join("")}</div></details>
-    <div class="response-section"><h4>全队血量变化 · 事件采样 ${info("红底为本次伤害时段；每半秒保留最低观测值，空隙表示没有连续记录，死亡用红点标出。")}</h4>${responseHealth(r, detail, by)}</div>
-    <details class="response-section"><summary>同期其他治疗（${detail.healing.slice(0, 12).length} 次）</summary><div class="response-casts">${detail.healing.slice(0, 12).map((h) =>
-      `<div class="response-cast"><img src="${iconUrl(h.icon)}" alt=""><span class="copy">${esc(h.name)} · ${h.kind === "balance" ? "血量均衡" : wan(h.amount)}<small>${esc(by[h.who]?.name || "未知治疗")} · ${responseOffset(h.first - first)} 至 ${responseOffset(h.last - first)} · ${h.targets.length} 人</small></span></div>`).join("")}</div></details>`;
-  return html;
-}
 
 const D = () => state.data;
 const playerById = () => Object.fromEntries(D().players.map((p) => [p.id, p]));
@@ -946,10 +814,10 @@ function tankId() {
 
 const tankPull = () => state.paths?.tankRoute?.pulls.find((p) => p.id === curPull()?.id);
 function tankStepText(s) {
-  if (s.kind === "stop") return `坦克在此停留约 ${Math.round(s.until - s.t)} 秒`;
+  if (s.kind === "stop") return t(`坦克在此停留约 ${Math.round(s.until - s.t)} 秒`, `Tank stopped here for about ${Math.round(s.until - s.t)} seconds`);
   const names = new Map();
   for (const c of s.members) names.set(c.name, (names.get(c.name) || 0) + 1);
-  return `${s.chain ? "续接" : "接入"} ${s.label} · ${[...names].map(([n, count]) => `${n} ×${count}`).join("、")}`;
+  return `${s.chain ? t("续接", "Chain pull") : t("接入", "Engage")} ${s.label} · ${[...names].map(([n, count]) => `${n} ×${count}`).join(listSeparator)}`;
 }
 
 function focusTankStep(i) {
@@ -972,20 +840,19 @@ function focusTankStep(i) {
 
 function renderTankPlan() {
   const p = tankPull();
-  const head = `<div class="tank-plan-head"><b>第 ${state.pullIdx + 1} 波 · 坦克接怪过程</b><span class="sub">点击步骤定位 · 展开依据</span>${info("A/B 按怪物首次伤害或敌对施法记录分批，并非已确认的原始怪群；标记是当时的坦克位置。青色虚线圈仅表示坦克停留，不代表怪物已聚齐。")}</div>`;
-  if (!state.paths) { $("tankPlan").innerHTML = `${head}<p>正在读取接怪与走位记录…</p>`; return; }
+  const head = `<div class="tank-plan-head"><b>${pullLabel(state.pullIdx)} · ${t("坦克接怪过程", "Tank engagement steps")}</b><span class="sub">${t("点击步骤定位 · 展开依据", "Click a step to locate it and view evidence")}</span>${info(t("A/B 按怪物首次伤害或敌对施法记录分批，并非已确认的原始怪群；标记是当时的坦克位置。青色虚线圈仅表示坦克停留，不代表怪物已聚齐。", "A/B groups are inferred from first damage or hostile casts; they do not confirm original enemy packs. Markers show the tank position at that time. Cyan dashed circles show tank stops and do not confirm that enemies were grouped."))}</div>`;
+  if (!state.paths) { $("tankPlan").innerHTML = `${head}<p>${t("正在读取接怪与走位记录…", "Loading engagement and movement records\u2026")}</p>`; return; }
   if (!p?.steps.length) {
-    $("tankPlan").innerHTML = `${head}<p>${p?.boss ? "首领战暂不分析接怪过程。" : "本波没有足够的交互或坐标记录，暂不推断接怪动作。"}</p>`;
+    $("tankPlan").innerHTML = `${head}<p>${p?.boss ? t("首领战暂不分析接怪过程。", "Engagement analysis is not available for boss fights.") : t("本波没有足够的交互或坐标记录，暂不推断接怪动作。", "This pull has too few interactions or coordinates to infer engagement steps.")}</p>`;
     return;
   }
   let stop = 0;
   $("tankPlan").innerHTML = `${head}<div class="tank-steps">${p.steps.map((s, i) => {
       const label = s.kind === "stop" ? `S${++stop}` : s.label;
-      const evidence = s.kind === "stop" ? "查看停留位置与前后的移动路径"
-        : [s.tankAction ? `坦克命中：${s.tankAction.spell}` : "首次交互不一定由坦克发起",
-          s.alive ? `此时至少 ${s.alive} 只先前接入的怪仍存活` : "",
-          s.recentDeaths?.length ? `此前 8 秒死亡：${[...new Set(s.recentDeaths.map((d) => d.name))].join("、")}` : ""].filter(Boolean).join("；");
-      const evidenceAll = `${evidence}${s.x == null ? "；此刻缺少坦克坐标，未绘制位置" : ""}`;
+      const evidence = s.kind === "stop" ? t("查看停留位置与前后的移动路径", "View the stop location and movement before and after it")
+        : [s.tankAction ? t(`坦克命中：${s.tankAction.spell}`, `Tank hit: ${s.tankAction.spell}`) : t("首次交互不一定由坦克发起", "The first interaction may have been initiated by another player"),
+          s.recentDeaths?.length ? t(`此前 8 秒死亡：${[...new Set(s.recentDeaths.map((d) => d.name))].join(listSeparator)}`, `Deaths in the previous 8 seconds: ${[...new Set(s.recentDeaths.map((d) => d.name))].join(listSeparator)}`) : ""].filter(Boolean).join(t("；", "; "));
+      const evidenceAll = `${evidence}${s.x == null ? t("；此刻缺少坦克坐标，未绘制位置", "; tank coordinates are unavailable at this time") : ""}`;
       return `<button type="button" class="tank-step ${s.kind} ${s.chain ? "chain" : ""} ${state.tankStep === i ? "on" : ""}" data-step="${i}" title="${esc(evidenceAll)}">
         <span class="mark">${label}</span><span class="copy">${esc(tankStepText(s))}<small>${esc(evidenceAll)}</small></span>
         <time>${signed(s.t - curPull().start)}</time></button>`;
@@ -997,7 +864,6 @@ function renderTankPlan() {
 
 function renderAll() {
   syncFocusUI();
-  renderMechanics();
   renderHeader();
   renderStrip();
   renderFloors();
@@ -1021,31 +887,31 @@ function syncFocusUI() {
 function renderMapNow() {
   const m = mapById(state.floor), p = curPull();
   if (!p || p.map !== state.floor) {
-    $("mapNow").innerHTML = m ? `<span>${esc(m.name)}${state.focus ? "" : " · 整层总览"}</span>` : "";
+    $("mapNow").innerHTML = m ? `<span>${esc(m.name)}${state.focus ? "" : t(" · 整层总览", " \u00b7 Floor overview")}</span>` : "";
     return;
   }
-  $("mapNow").innerHTML = `<i style="background:${pullColor(state.pullIdx)}"></i><span>第 ${state.pullIdx + 1} 波 · <b>${esc(p.name)}</b></span>`;
+  $("mapNow").innerHTML = `<i style="background:${pullColor(state.pullIdx)}"></i><span>${pullLabel(state.pullIdx)} · <b>${esc(p.name)}</b></span>`;
 }
 
 function renderHeader() {
   const { run, players, deaths, pulls } = D();
-  $("eyebrow").textContent = `第 ${run.id} 场 · 大秘境 · ${run.affixes.join(" / ")}`;
+  $("eyebrow").textContent = t(`第 ${run.id} 场 · 大秘境 · ${run.affixes.join(" / ")}`, `Run ${run.id} · Mythic+ · ${run.affixes.join(" / ")}`);
   $("dungeon").textContent = run.name;
   $("lvl").textContent = `+${run.level ?? "?"}`;
   const forces = run.countReached != null ? Math.round(run.countReached / run.countRequired * 1000) / 10 : null;
   $("meta").innerHTML = `
-    <span class="tag ${run.kill ? "kill" : "wipe"}">${run.kill ? "限时内完成" : "未完成 / 超时"}</span>
-    <span class="tag">用时 <b>${mmss(run.completion || run.duration)}</b></span>
-    <span class="tag">波次 <b>${pulls.length}</b></span>
-    ${forces != null ? `<span class="tag">进度 <b>${forces}%</b></span>` : ""}
-    <span class="tag">死亡 <b>${deaths.length}</b></span>
-    <span class="tag">嗜血 <b>${D().heroism.length}</b> 次</span>
-    ${run.rating ? `<span class="tag">分数 <b>${Math.round(run.rating)}</b></span>` : ""}`;
+    <span class="tag ${run.kill ? "kill" : "wipe"}">${run.kill ? t("限时内完成", "Completed in time") : t("未完成 / 超时", "Incomplete / over time")}</span>
+    <span class="tag">${t("用时", "Duration")} <b>${mmss(run.completion || run.duration)}</b></span>
+    <span class="tag">${t("波次", "Pulls")} <b>${pulls.length}</b></span>
+    ${forces != null ? `<span class="tag">${t("进度", "Forces")} <b>${forces}%</b></span>` : ""}
+    <span class="tag">${t("死亡", "Deaths")} <b>${deaths.length}</b></span>
+    <span class="tag">${t("嗜血", "Bloodlust")} <b>${D().heroism.length}</b> ${t("次", "uses")}</span>
+    ${run.rating ? `<span class="tag">${t("分数", "Score")} <b>${Math.round(run.rating)}</b></span>` : ""}`;
   $("roster").innerHTML = players.map((p) => `
     <button class="member ${state.selected.has(p.id) ? "on" : ""}" data-id="${p.id}" style="--c:${CLASS_COLOR[p.cls] || "#ccc"}"
-      data-tip="${esc(`<b>${esc(p.name)}</b> ${esc(p.server || "")}<br>${SPEC_ZH[p.spec] || p.spec}${CLASS_ZH[p.cls] || p.cls} · ${ROLE_ZH[p.role]}<br>全程伤害 ${wan(p.total.dmg)} · 治疗 ${wan(p.total.heal)} · 承伤 ${wan(p.total.taken)}<br><span class=t>点击只看此人（可多选）</span>`)}">
+      data-tip="${esc(`<b>${esc(p.name)}</b> ${esc(p.server || "")}<br>${playerSpec(p)} · ${ROLE_ZH[p.role]}<br>${t("全程伤害", "Total damage")} ${wan(p.total.dmg)} · ${t("治疗", "Healing")} ${wan(p.total.heal)} · ${t("承伤", "Damage taken")} ${wan(p.total.taken)}<br><span class=t>${t("点击只看此人（可多选）", "Click to filter this player (multiple selections allowed)")}</span>`)}">
       <img src="${classIcon(p.cls)}" alt="">
-      <div class="who"><b>${esc(p.name)}</b><span>${SPEC_ZH[p.spec] || p.spec}${CLASS_ZH[p.cls] || ""} · ${ROLE_ZH[p.role]}</span></div>
+      <div class="who"><b>${esc(p.name)}</b><span>${playerSpec(p)} · ${ROLE_ZH[p.role]}</span></div>
     </button>`).join("");
   $("roster").classList.toggle("filtering", state.selected.size > 0);
   $("roster").querySelectorAll(".member").forEach((b) => b.onclick = () => {
@@ -1068,8 +934,8 @@ function renderStrip() {
     ${heroism.map((h) => `<div class="lust" style="left:${pct(h.t)};width:${pct(h.end - h.t)}"></div>`).join("")}
     ${pulls.map((p, i) => `<div class="seg ${p.boss ? "boss" : ""} ${i === state.pullIdx ? "on" : ""}" data-i="${i}"
         style="left:${pct(p.start)};width:${pct(Math.max(p.end - p.start, 1))};background-color:${pullColor(i)}"
-        data-tip="${esc(`<b>第 ${i + 1} 波 · ${esc(p.name)}</b><br><span class=t>${mmss(p.start)} – ${mmss(p.end)}（${mmss(p.end - p.start)}）</span><br>进度 +${p.forcesPct}% → ${p.cumPct}%`)}">${i + 1}</div>`).join("")}
-    ${deaths.map((d) => `<span class="death" style="left:${pct(d.t)}" data-tip="${esc(`<b style='color:${CLASS_COLOR[by[d.who]?.cls]}'>${esc(by[d.who]?.name)}</b> 死亡 · ${mmss(d.t)}<br>${esc(d.name || "")}`)}">💀</span>`).join("")}
+        data-tip="${esc(`<b>${pullLabel(i)} · ${esc(p.name)}</b><br><span class=t>${mmss(p.start)} – ${mmss(p.end)}（${mmss(p.end - p.start)}）</span><br>${t("进度", "Forces")} +${p.forcesPct}% → ${p.cumPct}%`)}">${i + 1}</div>`).join("")}
+    ${deaths.map((d) => `<span class="death" style="left:${pct(d.t)}" data-tip="${esc(`<b style='color:${CLASS_COLOR[by[d.who]?.cls]}'>${esc(by[d.who]?.name)}</b> ${t("死亡", "Deaths")} · ${mmss(d.t)}<br>${esc(d.name || "")}`)}">💀</span>`).join("")}
     <div class="cursor" id="stripCursor" style="left:${pct(state.t)}"></div>`;
   $("strip").querySelectorAll(".seg").forEach((s) => s.onclick = () => selectPull(+s.dataset.i, true));
 }
@@ -1079,7 +945,7 @@ function renderFloors() {
   const floors = D().maps.filter((m) => used.has(m.id));
   $("floors").innerHTML = floors.map((m) => {
     const n = D().pulls.filter((p) => p.map === m.id).length;
-    return `<button data-id="${m.id}" class="${m.id === state.floor ? "on" : ""}">${esc(m.name)}${n ? ` · ${n}波` : ""}</button>`;
+    return `<button data-id="${m.id}" class="${m.id === state.floor ? "on" : ""}">${esc(m.name)}${n ? ` · ${n} ${t("波", "pulls")}` : ""}</button>`;
   }).join("");
   $("floors").hidden = floors.length < 2;
   $("floors").querySelectorAll("button").forEach((b) => b.onclick = () => {
@@ -1118,15 +984,15 @@ function renderPullList() {
   const { pulls, run } = D();
   const by = playerById();
   $("pullList").innerHTML = `
-    <div class="card-head"><h3>拉怪波次</h3><span class="sub">${pulls.length} 波 · 目标 ${run.countRequired}</span></div>
+    <div class="card-head"><h3>${t("拉怪波次", "Pulls")}</h3><span class="sub">${pulls.length} ${t("波", "pulls")} · ${t("目标", "Required")} ${run.countRequired}</span></div>
     ${pulls.map((p, i) => {
       const dead = p.deaths.filter((d) => !state.selected.size || state.selected.has(d.who));
       const prev = i ? pulls[i - 1].cumPct : 0;
       return `<div class="pitem ${i === state.pullIdx ? "on" : ""}" data-i="${i}">
         <div class="pnum" style="background:${pullColor(i)}">${i + 1}</div>
         <div>
-          <div class="row1"><b>${esc(p.name)}</b>${p.boss ? `<span class="boss-tag">首领</span>` : ""}<span class="pct">${p.forcesPct ? `+${p.forcesPct}%` : ""}</span></div>
-          <div class="row2"><span>${mmss(p.start)}</span><span>用时 ${mmss(p.end - p.start)}</span><span>累计 ${p.cumPct}%</span>${dead.length ? `<span class="dead">💀×${dead.length}</span>` : ""}</div>
+          <div class="row1"><b>${esc(p.name)}</b>${p.boss ? `<span class="boss-tag">${t("首领", "Boss")}</span>` : ""}<span class="pct">${p.forcesPct ? `+${p.forcesPct}%` : ""}</span></div>
+          <div class="row2"><span>${mmss(p.start)}</span><span>${t("用时", "Duration")} ${mmss(p.end - p.start)}</span><span>${t("累计", "Total")} ${p.cumPct}%</span>${dead.length ? `<span class="dead">💀×${dead.length}</span>` : ""}</div>
           <div class="bar"><i style="width:${Math.min(prev, 100)}%;background:rgba(92,207,138,.35)"></i><i style="width:${Math.min(p.forcesPct, 100 - Math.min(prev, 100))}%;background:${pullColor(i)}"></i></div>
           <div class="icons">${castIcons(p.casts)}</div>
         </div>
@@ -1172,10 +1038,10 @@ function pullTimelineItems(p, playerId) {
 
 function buffTooltip(b, p, pl, by) {
   const source = by[b.source];
-  const t = b.cast?.t ?? b.t;
-  return `<b>${esc(b.name)}</b> · <span style="color:${CAT_COLOR[b.cat]}">${CAT_ZH[b.cat] || "增益"}</span>
-    <br><span class=t>波内 ${signed(t - p.start)} · 全程 ${mmss(t)}</span>
-    ${source && source.id !== pl.id ? `<br>来源：<span style="color:${CLASS_COLOR[source.cls] || "var(--text)"}">${esc(source.name)}</span>` : ""}`;
+  const castTime = b.cast?.t ?? b.t;
+  return `<b>${esc(b.name)}</b> · <span style="color:${CAT_COLOR[b.cat]}">${CAT_ZH[b.cat] || t("增益", "Buff")}</span>
+    <br><span class=t>${t("波内", "Pull time")} ${signed(castTime - p.start)} · ${t("全程", "Run time")} ${mmss(castTime)}</span>
+    ${source && source.id !== pl.id ? `<br>${t("来源：", "Source: ")}<span style="color:${CLASS_COLOR[source.cls] || "var(--text)"}">${esc(source.name)}</span>` : ""}`;
 }
 
 function placeTimelineItems(items, span0, span, width) {
@@ -1214,9 +1080,9 @@ function layoutDetailTimeline() {
     track.querySelector(".track-events").innerHTML = placed.map(({ it, icon, start, end, left, right, row }) => {
       const off = signed(it.t - p.start);
       if (it.kind === "death") return `<div class="timeline-item" style="left:${left}px;top:${4 + row * 28}px;width:${right - left}px">
-        <div class="ic death" style="left:${icon - left}px" data-tip="${esc(`<b style='color:${CLASS_COLOR[pl.cls]}'>${esc(pl.name)}</b> 死亡<br><span class=t>波内 ${off} · 全程 ${mmss(it.t)}</span><br>致死：${esc(it.name || "未知")}`)}">💀</div></div>`;
+        <div class="ic death" style="left:${icon - left}px" data-tip="${esc(`<b style='color:${CLASS_COLOR[pl.cls]}'>${esc(pl.name)}</b> ${t("死亡", "Deaths")}<br><span class=t>${t("波内", "Pull time")} ${off} · ${t("全程", "Run time")} ${mmss(it.t)}</span><br>${t("致死：", "Fatal ability: ")}${esc(it.name || t("未知", "Unknown"))}`)}">💀</div></div>`;
       const isBuff = it.kind === "buff";
-      const tooltip = isBuff ? buffTooltip(it, p, pl, by) : `<b>${esc(it.name)}</b> · <span style='color:${CAT_COLOR[it.cat]}'>${CAT_ZH[it.cat]}</span><br><span class=t>波内 ${off} · 全程 ${mmss(it.t)}</span>`;
+      const tooltip = isBuff ? buffTooltip(it, p, pl, by) : `<b>${esc(it.name)}</b> · <span style='color:${CAT_COLOR[it.cat]}'>${CAT_ZH[it.cat]}</span><br><span class=t>${t("波内", "Pull time")} ${off} · ${t("全程", "Run time")} ${mmss(it.t)}</span>`;
       const barClasses = isBuff ? ["buff-line", it.t < span0 ? "continues-start" : "", it.end > p.end ? "continues-end" : "",
         it.endKnown === false ? "unknown-end" : ""].join(" ") : "";
       return `<div class="timeline-item" style="left:${left}px;top:${4 + row * 28}px;width:${right - left}px;--cc:${CAT_COLOR[it.cat]}" data-tip="${esc(tooltip)}">
@@ -1269,7 +1135,7 @@ function renderDetail() {
     const mine = p.casts.filter((c) => c.who === pl.id);
     const cnt = (cat) => mine.filter((c) => c.cat === cat).length;
     const chips = (cat) => mine.filter((c) => c.cat === cat).map((c) => `<img src="${iconUrl(c.icon, "small")}" style="--cc:${CAT_COLOR[cat]}" alt=""
-      data-tip="${esc(`<b>${esc(c.name)}</b><br><span class=t>波内 ${signed(c.t - p.start)}</span>`)}">`).join("") || `<span style="color:var(--text-3)">—</span>`;
+      data-tip="${esc(`<b>${esc(c.name)}</b><br><span class=t>${t("波内", "Pull time")} ${signed(c.t - p.start)}</span>`)}">`).join("") || `<span style="color:var(--text-3)">—</span>`;
     return `<tr style="--c:${CLASS_COLOR[pl.cls]}">
       <td>${esc(pl.name)}</td>
       <td><span class="meter" style="width:${Math.round((s.dmg || 0) / maxDmg * 60)}px"></span>${wan((s.dmg || 0) / dur)}</td>
@@ -1283,40 +1149,40 @@ function renderDetail() {
   }).join("");
 
   const enemies = p.enemies.map((e) => `
-    <div class="enemy ${e.boss ? "boss" : ""} ${e.killed ? "" : "miss"}" data-tip="${esc(`<b>${esc(e.name)}</b><br>击杀 ${e.killed} / 接触 ${e.engaged}<br>每只小怪值 ${e.count}`)}">
+    <div class="enemy ${e.boss ? "boss" : ""} ${e.killed ? "" : "miss"}" data-tip="${esc(`<b>${esc(e.name)}</b><br>${t("击杀", "Killed")} ${e.killed} / ${t("接触", "Engaged")} ${e.engaged}<br>${t("每只小怪值", "Forces per enemy")} ${e.count}`)}">
       <span class="n">×${e.killed || e.engaged}</span><span class="nm">${esc(e.name)}</span>
       <span class="f">${e.count && e.killed ? `${(e.count * e.killed / D().run.countRequired * 100).toFixed(1)}%` : ""}</span>
     </div>`).join("");
 
-  const deadNames = p.deaths.map((d) => `<span style="color:${CLASS_COLOR[by[d.who]?.cls]}">${esc(by[d.who]?.name)}</span>（${signed(d.t - p.start)}，${esc(d.name || "未知")}）`).join("、");
+  const deadNames = p.deaths.map((d) => `<span style="color:${CLASS_COLOR[by[d.who]?.cls]}">${esc(by[d.who]?.name)}</span>（${signed(d.t - p.start)}，${esc(d.name || t("未知", "Unknown"))}）`).join(listSeparator);
   $("detail").innerHTML = `
     <div class="detail-head">
       <div class="pnum" style="background:${pullColor(i)}">${i + 1}</div>
       <div>
-        <h3>${esc(p.name)} ${p.boss ? `<span class="tag" style="vertical-align:3px">首领战</span>` : ""}</h3>
+        <h3>${esc(p.name)} ${p.boss ? `<span class="tag" style="vertical-align:3px">${t("首领战", "Boss fight")}</span>` : ""}</h3>
         <div class="meta" style="margin-top:6px">
-          <span class="tag">开怪 <b>${mmss(p.start)}</b></span>
-          <span class="tag">用时 <b>${mmss(p.end - p.start)}</b></span>
-          <span class="tag">进度 <b>+${p.forcesPct}%</b> → <b>${p.cumPct}%</b></span>
+          <span class="tag">${t("开怪", "Start")} <b>${mmss(p.start)}</b></span>
+          <span class="tag">${t("用时", "Duration")} <b>${mmss(p.end - p.start)}</b></span>
+          <span class="tag">${t("进度", "Forces")} <b>+${p.forcesPct}%</b> → <b>${p.cumPct}%</b></span>
           <span class="tag">${esc(mapById(p.map)?.name || "")}</span>
-          ${p.deaths.length ? `<span class="tag wipe">死亡 ${p.deaths.length}</span>` : ""}
+          ${p.deaths.length ? `<span class="tag wipe">${t("死亡", "Deaths")} ${p.deaths.length}</span>` : ""}
         </div>
       </div>
       <div class="nav-btns">
-        <button class="ghost" id="prevPull" ${i === 0 ? "disabled" : ""}>← 上一波</button>
-        <button class="ghost" id="nextPull" ${i === D().pulls.length - 1 ? "disabled" : ""}>下一波 →</button>
+        <button class="ghost" id="prevPull" ${i === 0 ? "disabled" : ""}>${t("← 上一波", "\u2190 Previous pull")}</button>
+        <button class="ghost" id="nextPull" ${i === D().pulls.length - 1 ? "disabled" : ""}>${t("下一波 →", "Next pull \u2192")}</button>
       </div>
     </div>
     <div class="detail-body">
       <div class="enemies">
-        <h4>本波怪物</h4>
-        ${enemies || `<div class="note-small">没有记录到怪物</div>`}
-        ${p.forcesPct === 0 && !p.boss ? `<div class="note-small">本波没有击杀记录：怪物多半被带到下一波一起击杀。</div>` : ""}
+        <h4>${t("本波怪物", "Enemies in this pull")}</h4>
+        ${enemies || `<div class="note-small">${t("没有记录到怪物", "No enemies recorded")}</div>`}
+        ${p.forcesPct === 0 && !p.boss ? `<div class="note-small">${t("本波没有击杀记录：怪物多半被带到下一波一起击杀。", "No kills recorded in this pull. Enemies were likely carried into the next pull.")}</div>` : ""}
         ${deadNames ? `<div class="note-small" style="color:#f3a491">💀 ${deadNames}</div>` : ""}
       </div>
       <div class="lanes-wrap">
         <div class="lanes-top">
-          <h4 style="margin:0">技能时间线</h4>
+          <h4 style="margin:0">${t("技能时间线", "Ability timeline")}</h4>
           <div class="cat-filter" id="catFilter">${CATS.map(([k, v]) => `<button data-k="${k}" class="${state.cats.has(k) ? "on" : ""}" style="--cc:${CAT_COLOR[k]}"><i></i>${v}</button>`).join("")}</div>
         </div>
         <div class="lanes">
@@ -1325,9 +1191,9 @@ function renderDetail() {
         </div>
       </div>
       <div class="stats">
-        <h4>本波数据</h4>
+        <h4>${t("本波数据", "Pull statistics")}</h4>
         <table>
-          <thead><tr><th>队员</th><th>DPS</th><th>HPS</th><th>承伤</th><th>爆发</th><th>减伤/保命</th><th>药水</th><th>打断</th></tr></thead>
+          <thead><tr><th>${t("队员", "Player")}</th><th>DPS</th><th>HPS</th><th>${t("承伤", "Damage taken")}</th><th>${t("爆发", "Offensive")}</th><th>${t("减伤/保命", "Defensives")}</th><th>${t("药水", "Potions")}</th><th>${t("打断", "Interrupts")}</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
@@ -1346,12 +1212,12 @@ function renderMatrix() {
   const { pulls } = D();
   const players = D().players.filter((pl) => !state.selected.size || state.selected.has(pl.id));
   const by = playerById();
-  const head = `<tr><th>队员</th>${pulls.map((p, i) => `<th><span class="pn" data-i="${i}" style="background:${pullColor(i)}" data-tip="${esc(`第 ${i + 1} 波 · ${esc(p.name)}`)}">${i + 1}</span></th>`).join("")}</tr>`;
+  const head = `<tr><th>${t("队员", "Player")}</th>${pulls.map((p, i) => `<th><span class="pn" data-i="${i}" style="background:${pullColor(i)}" data-tip="${esc(`${pullLabel(i)} · ${esc(p.name)}`)}">${i + 1}</span></th>`).join("")}</tr>`;
   const body = players.map((pl) => `<tr style="--c:${CLASS_COLOR[pl.cls]}"><td>${esc(pl.name)}</td>${pulls.map((p, i) => {
     const cs = p.casts.filter((c) => c.who === pl.id && MATRIX_CATS[state.matrixMode].includes(c.cat));
     const dead = p.deaths.some((d) => d.who === pl.id);
     return `<td class="${i === state.pullIdx ? "cur" : ""}"><div class="chips">${cs.map((c) => `<img src="${iconUrl(c.icon, "small")}" style="--cc:${CAT_COLOR[c.cat]}" alt=""
-      data-tip="${esc(`<b>${esc(c.name)}</b> · ${CAT_ZH[c.cat]}<br><span class=t>第 ${i + 1} 波 ${signed(c.t - p.start)}</span>`)}">`).join("")}${dead ? "💀" : ""}</div></td>`;
+      data-tip="${esc(`<b>${esc(c.name)}</b> · ${CAT_ZH[c.cat]}<br><span class=t>${pullLabel(i)} ${signed(c.t - p.start)}</span>`)}">`).join("")}${dead ? "💀" : ""}</div></td>`;
   }).join("")}</tr>`).join("");
   $("matrix").innerHTML = `<table class="matrix">${head}${body}</table>`;
   $("matrix").querySelectorAll(".pn").forEach((el) => el.onclick = () => { selectPull(+el.dataset.i, true); $("detail").scrollIntoView({ behavior: "smooth" }); });
@@ -1371,40 +1237,42 @@ function renderSummary() {
       <td>${wan(pl.total.heal / dur)}</td>
       <td>${wan(pl.total.taken)}</td>
       <td><div class="chips">${offs.map((u) => `<img src="${iconUrl(u.icon, "small")}" style="--cc:${CAT_COLOR.offensive}" alt=""
-        data-tip="${esc(`<b>${esc(u.name)}</b><br>使用 ${u.times.length} 次`)}">`).join("") || "—"} ${count(pl.id, "offensive") || ""}</div></td>
+        data-tip="${esc(`<b>${esc(u.name)}</b><br>${t("使用", "Used")} ${u.times.length} ${t("次", "times")}`)}">`).join("") || "—"} ${count(pl.id, "offensive") || ""}</div></td>
       <td>${count(pl.id, "defensive") || "—"}</td>
-      <td>${potPulls.length ? `${count(pl.id, "potion")} 次（第 ${potPulls.join("、")} 波）` : "—"}</td>
+      <td>${potPulls.length ? t(`${count(pl.id, "potion")} 次（第 ${potPulls.join(listSeparator)} 波）`, `${count(pl.id, "potion")} uses (pulls ${potPulls.join(", ")})`) : "—"}</td>
       <td>${count(pl.id, "healPotion") || "—"}</td>
       <td>${count(pl.id, "interrupt") || "—"}</td>
       <td>${deaths.filter((d) => d.who === pl.id).length || "—"}</td>
     </tr>`;
   }).join("");
   $("summary").innerHTML = `<table>
-    <thead><tr><th>队员</th><th>DPS</th><th>HPS</th><th>承伤</th><th>爆发技能（总次数）</th><th>减伤次数</th><th>爆发药</th><th>治疗药/糖</th><th>打断</th><th>死亡</th></tr></thead>
+    <thead><tr><th>${t("队员", "Player")}</th><th>DPS</th><th>HPS</th><th>${t("承伤", "Damage taken")}</th><th>${t("爆发技能（总次数）", "Offensive abilities (total uses)")}</th><th>${t("减伤次数", "Defensive uses")}</th><th>${t("爆发药", "Combat potion")}</th><th>${t("治疗药/糖", "Healing potion / Healthstone")}</th><th>${t("打断", "Interrupts")}</th><th>${t("死亡", "Deaths")}</th></tr></thead>
     <tbody>${rows}</tbody></table>`;
 
   const by = playerById();
-  const link = (i) => `<a data-i="${i}">第 ${i + 1} 波</a>`;
+  const link = (i) => `<a data-i="${i}">${pullLabel(i)}</a>`;
   const notes = [];
   const trash = pulls.map((p, i) => ({ p, i })).filter(({ p }) => !p.boss && p.forces > 0);
   if (trash.length) {
     const rate = trash.map(({ p, i }) => ({ i, r: p.forcesPct / Math.max((p.end - p.start) / 60, 0.1) })).sort((a, b) => b.r - a.r);
-    notes.push(`小怪效率最高的是 ${link(rate[0].i)}（每分钟 <b>${rate[0].r.toFixed(1)}%</b>），最低的是 ${link(rate[rate.length - 1].i)}（每分钟 ${rate[rate.length - 1].r.toFixed(1)}%）。`);
+    const best = rate[0], worst = rate[rate.length - 1];
+    notes.push(t(`小怪效率最高的是 ${link(best.i)}（每分钟 <b>${best.r.toFixed(1)}%</b>），最低的是 ${link(worst.i)}（每分钟 ${worst.r.toFixed(1)}%）。`, `The most efficient trash pull was ${link(best.i)} (<b>${best.r.toFixed(1)}%</b> forces per minute); the least efficient was ${link(worst.i)} (${worst.r.toFixed(1)}% per minute).`));
     const big = [...trash].sort((a, b) => b.p.forcesPct - a.p.forcesPct)[0];
-    notes.push(`最大的一波是 ${link(big.i)} ${esc(big.p.name)}，一次拿下 <b>${big.p.forcesPct}%</b> 进度，用时 ${mmss(big.p.end - big.p.start)}。`);
+    notes.push(t(`最大的一波是 ${link(big.i)} ${esc(big.p.name)}，一次拿下 <b>${big.p.forcesPct}%</b> 进度，用时 ${mmss(big.p.end - big.p.start)}。`, `The largest pull was ${link(big.i)} ${esc(big.p.name)}: <b>${big.p.forcesPct}%</b> forces in ${mmss(big.p.end - big.p.start)}.`));
   }
   const bossTime = pulls.filter((p) => p.boss).reduce((s, p) => s + p.end - p.start, 0);
   const fightTime = pulls.reduce((s, p) => s + p.end - p.start, 0);
-  notes.push(`战斗时间 ${mmss(fightTime)}（首领 ${mmss(bossTime)}、小怪 ${mmss(fightTime - bossTime)}），跑图与等待 <b>${mmss(Math.max(0, run.duration - fightTime))}</b>。`);
+  notes.push(t(`战斗时间 ${mmss(fightTime)}（首领 ${mmss(bossTime)}、小怪 ${mmss(fightTime - bossTime)}），跑图与等待 <b>${mmss(Math.max(0, run.duration - fightTime))}</b>。`, `Combat time: ${mmss(fightTime)} (bosses ${mmss(bossTime)}, trash ${mmss(fightTime - bossTime)}). Travel and waiting: <b>${mmss(Math.max(0, run.duration - fightTime))}</b>.`));
   const lustPulls = D().heroism.map((h) => pullIndexAt(h.t));
-  if (lustPulls.length) notes.push(`嗜血开在 ${lustPulls.map(link).join("、")}。`);
+  if (lustPulls.length) notes.push(t(`嗜血开在 ${lustPulls.map(link).join(listSeparator)}。`, `Bloodlust was used in ${lustPulls.map(link).join(listSeparator)}.`));
   const potionPulls = pulls.map((p, i) => ({ i, n: new Set(p.casts.filter((c) => c.cat === "potion").map((c) => c.who)).size })).filter((x) => x.n >= 2);
-  if (potionPulls.length) notes.push(`多人同时喝爆发药的波次：${potionPulls.map((x) => `${link(x.i)}（${x.n} 人）`).join("、")}。`);
+  if (potionPulls.length) notes.push(t(`多人同时喝爆发药的波次：${potionPulls.map((x) => `${link(x.i)}（${x.n} 人）`).join(listSeparator)}。`, `Multiple players used combat potions in ${potionPulls.map((x) => `${link(x.i)} (${x.n} players)`).join(listSeparator)}.`));
   const noBurst = pulls.map((p, i) => ({ p, i })).filter(({ p }) => p.end - p.start > 40 && !p.casts.some((c) => c.cat === "offensive"));
-  if (noBurst.length) notes.push(`持续超过 40 秒却没人开爆发的波次：${noBurst.map(({ i }) => link(i)).join("、")}。`);
+  if (noBurst.length) notes.push(t(`持续超过 40 秒却没人开爆发的波次：${noBurst.map(({ i }) => link(i)).join(listSeparator)}。`, `Pulls longer than 40 seconds with no offensive cooldowns: ${noBurst.map(({ i }) => link(i)).join(listSeparator)}.`));
   for (const d of deaths) {
     const i = pulls.findIndex((p) => d.t >= p.start - 2 && d.t <= p.end + 8);
-    notes.push(`<span style="color:${CLASS_COLOR[by[d.who]?.cls]}">${esc(by[d.who]?.name)}</span> 死于 ${i >= 0 ? link(i) : mmss(d.t)}（${esc(d.name || "未知")}，${mmss(d.t)}）。`);
+    const player = `<span style="color:${CLASS_COLOR[by[d.who]?.cls]}">${esc(by[d.who]?.name)}</span>`;
+    notes.push(t(`${player} 死于 ${i >= 0 ? link(i) : mmss(d.t)}（${esc(d.name || t("未知", "Unknown"))}，${mmss(d.t)}）。`, `${player} died in ${i >= 0 ? link(i) : mmss(d.t)} (${esc(d.name || t("未知", "Unknown"))}, ${mmss(d.t)}).`));
   }
   $("insights").innerHTML = notes.map((n) => `<li>${n}</li>`).join("");
   $("insights").querySelectorAll("a[data-i]").forEach((a) => a.onclick = () => { selectPull(+a.dataset.i, true); $("detail").scrollIntoView({ behavior: "smooth" }); });
@@ -1425,7 +1293,7 @@ function loadImgSize(id) {
     const im = new Image();
     im.onload = () => ok(imgSize[id] = [im.naturalWidth, im.naturalHeight]);
     im.onerror = () => ok(imgSize[id] = [1500, 1000]);
-    im.src = `/api/map/${id}.png`;
+    im.src = I18N.apiUrl(`/api/map/${id}.png`);
   });
 }
 
@@ -1501,7 +1369,7 @@ function tankMapAnnotations(m, W, H) {
   for (const st of stops) {
     if (folded.has(st.i)) continue;
     const s = st.s, [x, y] = pos.get(st.i), active = state.tankStep === st.i;
-    const tip = `<b>${esc(tankStepText(s))}</b><br><span class=t>${stopLabel.get(st.i)} · 波内 ${signed(s.t - curPull().start)} · 全程 ${mmss(s.t)}<br>坦克停留区域；不代表怪物已聚齐</span>`;
+    const tip = `<b>${esc(tankStepText(s))}</b><br><span class=t>${stopLabel.get(st.i)} · ${t("波内", "Pull time")} ${signed(s.t - curPull().start)} · ${t("全程", "Run time")} ${mmss(s.t)}<br>${t("坦克停留区域；不代表怪物已聚齐", "Tank stop area; enemies may not have been grouped")}</span>`;
     out += `<g class="tank-mark stop" data-step="${st.i}" data-tip="${esc(tip)}">
       ${active ? `<circle cx="${x}" cy="${y}" r="${14 * scale}" fill="#56ccf2" fill-opacity=".16" stroke="#56ccf2" stroke-width="${1.4 * scale}"/>` : ""}
       <circle cx="${x}" cy="${y}" r="${9 * scale}" fill="#56ccf2" fill-opacity=".07" stroke="#56ccf2" stroke-width="${1.6 * scale}" stroke-dasharray="${3 * scale} ${2.5 * scale}"/>
@@ -1533,8 +1401,8 @@ function tankMapAnnotations(m, W, H) {
     }
     const [lx, ly] = pick || fallback || [x + stepLen, y - stepLen];
     placed.push({ x: lx, y: ly });
-    const stopHint = pausesHere.map((st) => `${stopLabel.get(st.i)} · 停留 ${Math.round(st.s.until - st.s.t)} 秒`).join("、");
-    const tip = `<b>${esc(tankStepText(s))}</b><br><span class=t>波内 ${signed(s.t - curPull().start)} · 全程 ${mmss(s.t)}<br>${s.chain ? "续接批次" : "首次交互批次"}；标记为坦克位置${stopHint ? `<br>${esc(stopHint)}（同一位置）` : ""}</span>`;
+    const stopHint = pausesHere.map((st) => t(`${stopLabel.get(st.i)} · 停留 ${Math.round(st.s.until - st.s.t)} 秒`, `${stopLabel.get(st.i)} · Stopped ${Math.round(st.s.until - st.s.t)} seconds`)).join(listSeparator);
+    const tip = `<b>${esc(tankStepText(s))}</b><br><span class=t>${t("波内", "Pull time")} ${signed(s.t - curPull().start)} · ${t("全程", "Run time")} ${mmss(s.t)}<br>${s.chain ? t("续接批次", "Chained engagement group") : t("首次交互批次", "First interaction group")}${t("；标记为坦克位置", "; marker shows tank position")}${stopHint ? `<br>${esc(stopHint)}${t("（同一位置）", " (same location)")}` : ""}</span>`;
     out += `<g class="tank-mark ${s.chain ? "chain" : ""}" data-step="${j.i}" data-tip="${esc(tip)}">
       ${active ? `<circle cx="${x}" cy="${y}" r="${14 * scale}" fill="${color}" fill-opacity=".16" stroke="${color}" stroke-width="${1.4 * scale}"/>` : ""}
       ${pausesHere.length ? `<circle cx="${x}" cy="${y}" r="${11 * scale}" fill="none" stroke="#56ccf2" stroke-width="${1.4 * scale}" stroke-dasharray="${2.4 * scale} ${2.4 * scale}" opacity=".9"/>` : ""}
@@ -1564,7 +1432,7 @@ async function drawMap(refit, fitCurrent = false) {
   const ps = D().pulls;
   const by = playerById();
   const focus = state.focus;
-  let out = `<image href="/api/map/${m.id}.png" x="0" y="0" width="${W}" height="${H}"/>`;
+  let out = `<image href="${I18N.apiUrl(`/api/map/${m.id}.png`)}" x="0" y="0" width="${W}" height="${H}"/>`;
   out += `<rect x="0" y="0" width="${W}" height="${H}" fill="rgba(0,0,0,.18)"/>`;
 
   // pull areas from mob positions
@@ -1634,8 +1502,8 @@ async function drawMap(refit, fitCurrent = false) {
       const parts = [...g.parts.values()].sort((a, b) => b.n - a.n);
       const main = parts[0];
       const forces = parts.reduce((s, p) => s + p.count * p.n, 0);
-      const names = parts.slice(0, 4).map((p) => `${esc(p.name || "未知怪物")}${p.n > 1 ? ` ×${p.n}` : ""}`).join("、");
-      const tip = `<b>${esc(main.name || "未知怪物")}</b>${main.n > 1 ? ` ×${main.n}` : ""}<br><span class=t>第 ${g.pull + 1} 波 · 同位置 ${g.n} 只${forces ? ` · 进度 +${Math.round(forces * 100) / 100}%` : ""}</span>${parts.length > 1 ? `<br><span class=t>${names}${parts.length > 4 ? "…" : ""}</span>` : ""}`;
+      const names = parts.slice(0, 4).map((p) => `${esc(p.name || t("未知怪物", "Unknown enemy"))}${p.n > 1 ? ` ×${p.n}` : ""}`).join(listSeparator);
+      const tip = `<b>${esc(main.name || t("未知怪物", "Unknown enemy"))}</b>${main.n > 1 ? ` ×${main.n}` : ""}<br><span class=t>${pullLabel(g.pull)} · ${t(`同位置 ${g.n} 只`, `${g.n} enemies at this location`)}${forces ? ` · ${t("进度", "Forces")} +${Math.round(forces * 100) / 100}%` : ""}</span>${parts.length > 1 ? `<br><span class=t>${names}${parts.length > 4 ? "…" : ""}</span>` : ""}`;
       return `<g class="mob-marker" data-pull="${g.pull}"${sel ? "" : ' opacity=".72"'} data-tip="${esc(tip)}">
         <circle cx="${g.x}" cy="${g.y}" r="${r + 1.4 * scale}" fill="rgba(0,0,0,.7)" stroke="${sel ? "#fff" : pullColor(g.pull)}" stroke-width="${(sel ? 2 : 1.3) * scale}"${main.boss ? ` stroke-dasharray="${3 * scale} ${2 * scale}"` : ""}/>
         <clipPath id="mobclip${k}"><circle cx="${g.x}" cy="${g.y}" r="${r}"/></clipPath>
@@ -1665,7 +1533,7 @@ async function drawMap(refit, fitCurrent = false) {
       if (!pos || pos.floor !== m.id) continue;
       const [x, y] = pr(pos.x, pos.y);
       const s = 7.5 * scale;
-      out += `<g data-tip="${esc(`<b style='color:${CLASS_COLOR[by[d.who]?.cls]}'>${esc(by[d.who]?.name)}</b> 死亡 · ${mmss(d.t)}<br>${esc(d.name || "")}`)}">
+      out += `<g data-tip="${esc(`<b style='color:${CLASS_COLOR[by[d.who]?.cls]}'>${esc(by[d.who]?.name)}</b> ${t("死亡", "Deaths")} · ${mmss(d.t)}<br>${esc(d.name || "")}`)}">
         <circle cx="${x}" cy="${y}" r="${s * 1.2}" fill="rgba(0,0,0,.6)"/>
         <path d="M${x - s / 1.4} ${y - s / 1.4}L${x + s / 1.4} ${y + s / 1.4}M${x + s / 1.4} ${y - s / 1.4}L${x - s / 1.4} ${y + s / 1.4}" stroke="#ef6a4c" stroke-width="${2.4 * scale}" stroke-linecap="round"/></g>`;
     }
@@ -1678,7 +1546,7 @@ async function drawMap(refit, fitCurrent = false) {
     const fill = context ? "rgba(17,19,24,.82)" : pullColor(i);
     const stroke = sel ? "#fff" : context ? pullColor(i) : "#111";
     const font = (sel ? (focus ? 10.5 : 14) : context ? 9 : 10) * scale;
-    out += `<g class="pull-badge" data-i="${i}"${context ? ' opacity=".72"' : ""} data-tip="${esc(`<b>第 ${i + 1} 波 · ${esc(p.name)}</b><br><span class=t>${mmss(p.start)} 开怪 · 用时 ${mmss(p.end - p.start)}</span><br>进度 +${p.forcesPct}% → ${p.cumPct}%`)}">
+    out += `<g class="pull-badge" data-i="${i}"${context ? ' opacity=".72"' : ""} data-tip="${esc(`<b>${pullLabel(i)} · ${esc(p.name)}</b><br><span class=t>${mmss(p.start)} ${t("开怪", "Start")} · ${t("用时", "Duration")} ${mmss(p.end - p.start)}</span><br>${t("进度", "Forces")} +${p.forcesPct}% → ${p.cumPct}%`)}">
       ${p.boss ? `<circle cx="${x}" cy="${y}" r="${r + 4 * scale}" fill="none" stroke="${pullColor(i)}" stroke-width="${(context ? 1.2 : 2) * scale}" stroke-dasharray="${3.5 * scale} ${2.5 * scale}"/>` : ""}
       <circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${(sel ? 2.6 : context ? 1.4 : 1.8) * scale}"/>
       <text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" fill="${context ? pullColor(i) : "#111"}" style="font-size:${font}px">${i + 1}</text></g>`;
@@ -1831,16 +1699,16 @@ $("mdtClose").onclick = closeMdt;
 mdtModal.addEventListener("click", (e) => { if (e.target === mdtModal) closeMdt(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !mdtModal.hidden) closeMdt(); });
 $("mdtExport").onclick = async () => {
-  if (!state.code || !state.runId) { showMsg("notice", "请先加载一份大秘境日志"); return; }
-  $("mdtInfo").textContent = "正在根据当前战斗生成 MDT 路线…";
+  if (!state.code || !state.runId) { showMsg("notice", t("请先加载一份大秘境日志", "Load a Mythic+ report first")); return; }
+  $("mdtInfo").textContent = t("正在根据当前战斗生成 MDT 路线…", "Generating an MDT route for this run\u2026");
   $("mdtString").value = "";
   $("mdtCopied").textContent = "";
   mdtModal.hidden = false;
   try {
     const r = await api(`/api/mplus/mdt?code=${state.code}&fight=${state.runId}`);
     const pct = r.required ? Math.round(r.force / r.required * 100) : 0;
-    $("mdtInfo").innerHTML = `<b>${esc(r.title)}</b><br>MDT 地下城 #${r.dungeon_index} · ${r.pulls} 波 · ${r.groups} 组怪 · 预计进度 ${pct}%（${r.force}/${r.required}）
-      <br>附带 ${r.notes || 0} 个过程注释、${r.arrows || 0} 条接怪顺序示意箭头。<br>${esc(r.annotation_notice || "")}`;
+    $("mdtInfo").innerHTML = `<b>${esc(r.title)}</b><br>${t("MDT 地下城", "MDT dungeon")} #${r.dungeon_index} · ${r.pulls} ${t("波", "pulls")} · ${r.groups} ${t("组怪", "enemy groups")} · ${t("预计进度", "Estimated forces")} ${pct}%（${r.force}/${r.required}）
+      <br>${t(`附带 ${r.notes || 0} 个过程注释、${r.arrows || 0} 条接怪顺序示意箭头。`, `Includes ${r.notes || 0} engagement notes and ${r.arrows || 0} engagement order arrows.`)}<br>${esc(r.annotation_notice || "")}`;
     $("mdtString").value = r.string;
     $("mdtString").focus();
     $("mdtString").select();
@@ -1857,7 +1725,7 @@ $("mdtCopy").onclick = async () => {
     $("mdtString").select();
     document.execCommand("copy");
   }
-  $("mdtCopied").textContent = "已复制，去 MDT 粘贴";
+  $("mdtCopied").textContent = t("已复制，去 MDT 粘贴", "Copied. Paste into MDT.");
   setTimeout(() => { $("mdtCopied").textContent = ""; }, 2200);
 };
 
@@ -1879,7 +1747,7 @@ function setupScrub() {
 function updateClock() {
   const p = D().pulls[pullIndexAt(state.t)];
   const inPull = p && state.t >= p.start && state.t <= p.end;
-  $("clock").textContent = `${mmss(state.t)}${inPull ? ` · 第${pullIndexAt(state.t) + 1}波` : ""}`;
+  $("clock").textContent = `${mmss(state.t)}${inPull ? ` · ${pullLabel(pullIndexAt(state.t))}` : ""}`;
   const c = $("stripCursor");
   if (c) c.style.left = `${(state.t / D().run.duration) * 100}%`;
 }
@@ -1925,7 +1793,7 @@ function stopPlay() {
 }
 $("play").onclick = () => {
   if (state.playing) return stopPlay();
-  if (!state.paths) { showTip({ clientX: innerWidth / 2, clientY: 120 }, "走位数据还在加载中…"); setTimeout(hideTip, 1500); }
+  if (!state.paths) { showTip({ clientX: innerWidth / 2, clientY: 120 }, t("走位数据还在加载中…", "Movement data is still loading\u2026")); setTimeout(hideTip, 1500); }
   state.playing = true;
   lastTs = 0;
   $("playIcon").setAttribute("d", "M2 1h3v10H2zM7 1h3v10H7z");
@@ -1944,9 +1812,15 @@ window.addEventListener("resize", () => { if (D()) { state.view = null; drawMap(
 /* ---------- boot ---------- */
 
 const params = new URLSearchParams(location.search);
+$("link").value = restoredReview?.link || "";
+if (!params.get("r") && restoredReview?.code) {
+  params.set("r", restoredReview.code);
+  if (restoredReview.runId != null) params.set("f", restoredReview.runId);
+}
 if (params.get("r")) {
-  $("link").value = `https://www.warcraftlogs.com/reports/${params.get("r")}`;
-  loadReport($("link").value, params.get("f") ? +params.get("f") : undefined);
+  const reportLink = `https://www.warcraftlogs.com/reports/${params.get("r")}`;
+  if (!$("link").value) $("link").value = reportLink;
+  loadReport(reportLink, params.get("f") ? +params.get("f") : undefined);
 }
 </script>
 </body>

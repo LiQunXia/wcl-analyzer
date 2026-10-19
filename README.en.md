@@ -4,7 +4,7 @@
 
 Turn Warcraft Logs fights into a readable healing cooldown timeline, and break a Mythic+ run down pull by pull.
 
-No Python install, no account, and logs stay on your computer. The app interface is currently in Chinese; UI labels below include the Chinese text with an English translation.
+No Python install, no account, and logs stay on your computer. The interface supports Chinese and English.
 
 ## Download
 
@@ -27,6 +27,12 @@ If Releases does not have a macOS build yet, see [Run from source](#run-from-sou
 Want to try it? Use this public log (the one in the screenshots): <https://cn.warcraftlogs.com/reports/qA96N4W2jwkKDv8c?fight=53>
 
 Warcraft Logs may occasionally ask for human verification. A small window will open; click “I am a human and not a bot” yourself, and the analysis will continue automatically.
+
+## Language
+
+Choose **English** or **中文** from the language selector at the top right. Your choice is remembered across both review pages and applies to the interface, encounters, dungeons, enemies, ability names, Wowhead hover tooltips, and MRT/MDT export text. Character names keep their original spelling. Switching languages reloads the current report and fight.
+
+Open `http://127.0.0.1:8000/?lang=en` or `/mplus?lang=en` to select English directly. Report data and spell names are cached separately for each language, so the first switch needs to fetch data again. Hover tooltips require access to Wowhead.
 
 ## Fight review
 
@@ -83,3 +89,5 @@ python3 -m venv .venv
 Then open <http://127.0.0.1:8000>. On Windows, replace the last command with `.venv\Scripts\python server.py`.
 
 See [AGENTS.md](AGENTS.md) for the code layout, tests, and packaging.
+
+Run offline tests with `.venv/bin/python -m unittest discover -s tests`, including locale propagation, concurrent request/cache isolation, and localized MDT exports.

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>治疗作业 · 从顶尖团队的日志学习大招时机</title>
+<script src="/i18n.js"></script>
 <script>const whTooltips = { colorLinks: false, iconizeLinks: false, renameLinks: false };</script>
 <script src="https://wow.zamimg.com/js/tooltips.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
@@ -43,7 +44,7 @@
   /* ---------- top bar ---------- */
   .top { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(14px) saturate(140%);
     background: rgba(10, 11, 14, 0.72); border-bottom: 1px solid var(--line); }
-  .top .wrap { display: flex; align-items: center; gap: 28px; height: 64px; }
+  .top .wrap { display: flex; align-items: center; gap: 18px; min-height: 64px; padding-top: 10px; padding-bottom: 10px; }
   .brand { display: flex; align-items: center; gap: 11px; flex: none; }
   .brand-mark { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
     background: linear-gradient(145deg, #f3c877, #b9782c); box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 6px 18px rgba(233,179,90,.25); }
@@ -52,6 +53,8 @@
   .brand span { color: var(--text-3); font-size: 12px; margin-left: 2px; }
   .nav-link { flex: none; font-size: 13px; color: var(--text-2); padding: 6px 10px; border-radius: 7px; }
   .nav-link:hover { color: var(--text); background: rgba(255,255,255,.05); }
+  .language-switcher { flex: none; }
+  .language-switcher select { color: var(--text); background: var(--surface); border: 1px solid var(--line-2); border-radius: 7px; padding: 6px; font: inherit; font-size: 12px; }
   .search { flex: 1; display: flex; align-items: center; max-width: 640px; margin-left: auto; height: 38px;
     background: var(--surface); border: 1px solid var(--line-2); border-radius: 10px; padding: 0 4px 0 14px; transition: border-color .15s, box-shadow .15s; }
   .search:focus-within { border-color: rgba(233,179,90,.5); box-shadow: 0 0 0 4px rgba(233,179,90,.08); }
@@ -245,6 +248,9 @@
   }
   @media (max-width: 720px) {
     .wrap { padding: 0 16px; }
+    .top .wrap { flex-wrap: wrap; gap: 10px; }
+    .search { order: 3; flex-basis: 100%; max-width: none; }
+    .language-switcher { margin-left: auto; }
     .brand span { display: none; }
     .steps { grid-template-columns: 1fr; }
     .hero h1 { font-size: 32px; }
@@ -256,13 +262,14 @@
   <div class="wrap">
     <div class="brand">
       <div class="brand-mark"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5v13M1.5 8h13" stroke="#1a1408" stroke-width="2.6" stroke-linecap="round"/></svg></div>
-      <b>治疗作业</b><span>Healing Playbook</span>
+      <b data-en="Healing Playbook">治疗作业</b><span data-en="WCL Analyzer">Healing Playbook</span>
     </div>
-    <a href="/mplus" class="nav-link">大秘境复盘 →</a>
+    <a href="/mplus" class="nav-link" data-en="Mythic+ Review →">大秘境复盘 →</a>
+    <div id="languageSwitcher" class="language-switcher"></div>
     <form class="search" id="form">
       <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="m11 11 3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-      <input id="link" type="text" autocomplete="off" spellcheck="false" placeholder="粘贴一份 Warcraft Logs 链接，例如 warcraftlogs.com/reports/xxxx?fight=12">
-      <button class="btn" type="submit">解析</button>
+      <input id="link" type="text" autocomplete="off" spellcheck="false" placeholder="粘贴一份 Warcraft Logs 链接，例如 warcraftlogs.com/reports/xxxx?fight=12" data-en-placeholder="Paste a Warcraft Logs link, e.g. warcraftlogs.com/reports/xxxx?fight=12">
+      <button class="btn" type="submit" data-en="Analyze">解析</button>
     </form>
   </div>
 </header>
@@ -271,12 +278,12 @@
   <div id="msg"></div>
 
   <section id="empty" class="hero">
-    <h1>跟着顶尖团队，<br>学会<em>什么时候开大</em></h1>
-    <p>把一份优秀团队的战斗日志变成一份治疗作业：Boss 放什么技能、谁在什么时候交了什么大招，一目了然。</p>
+    <h1 id="heroTitle">跟着顶尖团队，<br>学会<em>什么时候开大</em></h1>
+    <p data-en="Learn from a great raid’s combat log: see each boss ability and exactly who used which healing cooldown, and when.">把一份优秀团队的战斗日志变成一份治疗作业：Boss 放什么技能、谁在什么时候交了什么大招，一目了然。</p>
     <div class="steps">
-      <div class="step"><i>01</i><h3>粘贴日志</h3><p>找一份同难度的击杀日志，复制 WCL 链接粘到上方。</p></div>
-      <div class="step"><i>02</i><h3>看关键节点</h3><p>按阶段列出每个需要大招的 Boss 技能，以及对方团队的应对方式。</p></div>
-      <div class="step"><i>03</i><h3>抄成 MRT 作业</h3><p>点选你的职业只看自己的轴，一键复制成 MRT 时间轴备忘。</p></div>
+      <div class="step"><i>01</i><h3 data-en="Paste a log">粘贴日志</h3><p data-en="Find a kill log at your difficulty and paste its WCL link above.">找一份同难度的击杀日志，复制 WCL 链接粘到上方。</p></div>
+      <div class="step"><i>02</i><h3 data-en="Review key moments">看关键节点</h3><p data-en="Review important boss abilities and the raid’s cooldown response, organized by phase.">按阶段列出每个需要大招的 Boss 技能，以及对方团队的应对方式。</p></div>
+      <div class="step"><i>03</i><h3 data-en="Copy to MRT">抄成 MRT 作业</h3><p data-en="Select your spec to focus on its cooldowns, then copy an MRT timeline note.">点选你的职业只看自己的轴，一键复制成 MRT 时间轴备忘。</p></div>
     </div>
   </section>
 
@@ -290,25 +297,25 @@
         <div class="meta" id="meta"></div>
       </div>
       <div class="roster-wrap">
-        <div class="roster-hint">点选治疗，只看他的大招轴</div>
+        <div class="roster-hint" data-en="Select a healer to focus on their cooldowns">点选治疗，只看他的大招轴</div>
         <div class="roster" id="roster"></div>
       </div>
     </section>
 
     <section class="card">
       <div class="card-head">
-        <h3>战斗总览</h3>
+        <h3 data-en="Fight overview">战斗总览</h3>
         <div class="legend">
-          <span><i style="background:linear-gradient(180deg,#ef6a4c,#e9b35a)"></i>全团承伤</span>
-          <span><i style="background:rgba(242,161,90,.35)"></i>嗜血</span>
-          <span><i style="background:#ef6a4c;border-radius:50%;width:7px;height:7px"></i>玩家死亡</span>
+          <span><i style="background:linear-gradient(180deg,#ef6a4c,#e9b35a)"></i><span data-en="Raid damage taken">全团承伤</span></span>
+          <span><i style="background:rgba(242,161,90,.35)"></i><span data-en="Bloodlust">嗜血</span></span>
+          <span><i style="background:#ef6a4c;border-radius:50%;width:7px;height:7px"></i><span data-en="Player deaths">玩家死亡</span></span>
         </div>
         <div class="chart-tools">
-          <span>⌘/Ctrl + 滚轮缩放 · 拖动或横向滑动平移</span>
+          <span data-en="⌘/Ctrl + scroll to zoom · Drag or scroll sideways to pan">⌘/Ctrl + 滚轮缩放 · 拖动或横向滑动平移</span>
           <div class="zoom">
-            <button id="zoomOut" title="缩小">−</button>
-            <button id="zoomReset" title="适应宽度">100%</button>
-            <button id="zoomIn" title="放大">+</button>
+            <button id="zoomOut" title="缩小" data-en-title="Zoom out">−</button>
+            <button id="zoomReset" title="适应宽度" data-en-title="Fit to width">100%</button>
+            <button id="zoomIn" title="放大" data-en-title="Zoom in">+</button>
           </div>
         </div>
       </div>
@@ -322,26 +329,26 @@
       <section>
         <div class="section-head">
           <div>
-            <h3>关键节点</h3>
-            <p>每个节点 = 一次需要大招应对的 Boss 技能。悬停可在总览图上定位。</p>
+            <h3 data-en="Key moments">关键节点</h3>
+            <p data-en="Each moment groups cooldowns used for a boss ability. Hover to locate it in the overview.">每个节点 = 一次需要大招应对的 Boss 技能。悬停可在总览图上定位。</p>
           </div>
-          <label class="switch"><input id="ext" type="checkbox"><i></i>显示单体保命</label>
+          <label class="switch"><input id="ext" type="checkbox"><i></i><span data-en="Show external defensives">显示单体保命</span></label>
         </div>
         <div class="threats" id="threats"></div>
         <div id="playbook"></div>
-        <p class="footnote">Boss 技能由大招施放前 3 秒到后 12 秒内、伤害超出该技能平时水平最多的技能判定；"读条后 / 提前"是相对该技能最近一次 Boss 施放的时间。压力条表示大招后 15 秒的团伤相对全场平均的倍数。</p>
+        <p class="footnote" data-en="Boss abilities are matched by their largest increase over normal damage within 3 seconds before and 12 seconds after a cooldown. “After cast / Before cast” is relative to the nearest boss cast. Pressure compares raid damage in the 15 seconds after a cooldown with the fight average.">Boss 技能由大招施放前 3 秒到后 12 秒内、伤害超出该技能平时水平最多的技能判定；"读条后 / 提前"是相对该技能最近一次 Boss 施放的时间。压力条表示大招后 15 秒的团伤相对全场平均的倍数。</p>
       </section>
 
       <aside class="card note">
         <div class="note-head">
-          <h3>MRT 作业</h3>
-          <p>复制后粘贴到 MRT → 备忘，时间到了会自动提醒。</p>
+          <h3 data-en="MRT note">MRT 作业</h3>
+          <p data-en="Paste into MRT → Note for timed reminders.">复制后粘贴到 MRT → 备忘，时间到了会自动提醒。</p>
           <div class="note-tools">
             <div class="seg" id="nameMode">
-              <button data-v="spec" class="on">按职业</button>
-              <button data-v="player">按玩家名</button>
+              <button data-v="spec" class="on" data-en="By spec">按职业</button>
+              <button data-v="player" data-en="By player">按玩家名</button>
             </div>
-            <button class="btn copy" id="copy"><svg viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="9" height="9" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" stroke="currentColor" stroke-width="1.6"/></svg><span>复制</span></button>
+            <button class="btn copy" id="copy"><svg viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="9" height="9" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" stroke="currentColor" stroke-width="1.6"/></svg><span data-en="Copy">复制</span></button>
           </div>
         </div>
         <div class="note-body" id="note"></div>
@@ -351,11 +358,22 @@
 </main>
 
 <script>
+const t = window.I18N.t;
+document.title = t("治疗作业 · 从顶尖团队的日志学习大招时机", "Healing Playbook · Learn cooldown timing from top raids");
+document.querySelectorAll("[data-en]").forEach((el) => { el.textContent = t(el.textContent, el.dataset.en); });
+document.querySelectorAll("[data-en-title]").forEach((el) => { el.title = t(el.title, el.dataset.enTitle); });
+document.querySelectorAll("[data-en-placeholder]").forEach((el) => { el.placeholder = t(el.placeholder, el.dataset.enPlaceholder); });
+document.getElementById("heroTitle").innerHTML = t("跟着顶尖团队，<br>学会<em>什么时候开大</em>", "Learn from top raids.<br>Know <em>when to use your cooldowns.</em>");
+document.querySelector(".nav-link").href = `/mplus?lang=${window.I18N.lang}`;
+window.I18N.mountLanguageSwitcher(document.getElementById("languageSwitcher"));
+
 const CLASS_COLOR = { Priest: "#FFFFFF", Druid: "#FF7C0A", Shaman: "#0070DD", Paladin: "#F48CBA", Monk: "#00FF98", Evoker: "#33937F" };
 const LANE_COLOR = { ...CLASS_COLOR, Shaman: "#3d9bff" };
-const SPEC_ZH = {
-  "Priest-Holy": "神牧", "Priest-Discipline": "戒律", "Druid-Restoration": "奶德", "Shaman-Restoration": "奶萨",
-  "Paladin-Holy": "奶骑", "Monk-Mistweaver": "织雾", "Evoker-Preservation": "恩护",
+const SPEC_LABEL = {
+  "Priest-Holy": t("神牧", "Holy Priest"), "Priest-Discipline": t("戒律", "Discipline Priest"),
+  "Druid-Restoration": t("奶德", "Restoration Druid"), "Shaman-Restoration": t("奶萨", "Restoration Shaman"),
+  "Paladin-Holy": t("奶骑", "Holy Paladin"), "Monk-Mistweaver": t("织雾", "Mistweaver Monk"),
+  "Evoker-Preservation": t("恩护", "Preservation Evoker"),
 };
 const SPEC_ICON = {
   "Priest-Holy": "spell_holy_guardianspirit", "Priest-Discipline": "spell_holy_powerwordshield",
@@ -368,18 +386,22 @@ const MOMENT_GAP_SEC = 6, MOMENT_SPAN_SEC = 15, HIGHLIGHT_SEC = 15;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-const wan = (v) => v >= 1e8 ? `${(v / 1e8).toFixed(2)}亿` : `${Math.round(v / 1e4).toLocaleString()}万`;
+const compactNumber = (v) => {
+  if (window.I18N.lang === "en") return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(v);
+  return v >= 1e8 ? `${(v / 1e8).toFixed(2)}亿` : `${Math.round(v / 1e4).toLocaleString("zh-CN")}万`;
+};
+const spellName = (item, fallback = "", includeName = true) => item?.localizedName || item?.spellName || (includeName && item?.name) || t(item?.zh || item?.en, item?.en || item?.zh) || fallback;
 /* 图标经本地服务代理并缓存（Wowhead 的图片域名在中国大陆返回 403）；显示尺寸由 CSS 决定。 */
-const iconUrl = (icon) => `/api/icon/${encodeURIComponent(icon || "inv_misc_questionmark")}`;
-const spellAttr = (id) => `href="https://www.wowhead.com/cn/spell=${id}" data-wowhead="spell=${id}&domain=cn" target="_blank"`;
+const iconUrl = (icon) => window.I18N.apiUrl(`/api/icon/${encodeURIComponent(icon || "inv_misc_questionmark")}`);
+const spellAttr = (id) => window.I18N.spellAttrs(id);
 
 const state = { code: null, fights: [], fightId: null, data: null, selected: new Set(), focusBoss: null, nameMode: "spec", zoom: 1 };
 let chart = null, axisChart = null, moments = [];
 
 async function api(path) {
-  const r = await fetch(path);
+  const r = await fetch(window.I18N.apiUrl(path));
   const j = await r.json();
-  if (j.error) throw new Error(j.error);
+  if (!r.ok || j.error) throw new Error(j.error || t(`请求失败（${r.status}）`, `Request failed (${r.status})`));
   return j;
 }
 
@@ -391,15 +413,19 @@ function showMsg(kind, text) {
 
 /* ---------- report & fights ---------- */
 
+const rememberLink = () => { try { sessionStorage.setItem("wcl.raid.link", $("link").value); } catch {} };
+$("link").addEventListener("input", rememberLink);
+window.addEventListener("beforeunload", rememberLink);
 $("form").onsubmit = (e) => { e.preventDefault(); loadReport($("link").value); };
 
 async function loadReport(link, fightId) {
-  showMsg("loading", "读取日志…");
+  rememberLink();
+  showMsg("loading", t("读取日志…", "Loading report…"));
   try {
     const rep = await api(`/api/report?link=${encodeURIComponent(link)}`);
     state.code = rep.code;
     state.fights = rep.fights;
-    if (!rep.fights.length) throw new Error("这份日志里没有 Boss 战");
+    if (!rep.fights.length) throw new Error(t("这份日志里没有 Boss 战", "This report contains no boss fights"));
     const want = fightId ?? rep.fight;
     const kills = rep.fights.filter((f) => f.kill);
     const pick = rep.fights.find((f) => f.id === want) || kills[kills.length - 1] || rep.fights[rep.fights.length - 1];
@@ -420,8 +446,8 @@ function renderFights() {
     <div class="boss-group">
       <h4>${esc(g.name)} · ${esc(g.difficulty)}</h4>
       <div class="pulls">${g.pulls.map((f) => `
-        <button class="pull ${f.kill ? "kill" : ""} ${f.id === state.fightId ? "active" : ""}" data-id="${f.id}" title="第 ${f.id} 场">
-          <span class="dot"></span>${f.kill ? `击杀 ${mmss(f.duration)}` : `${f.bossPercentage}%`}
+        <button class="pull ${f.kill ? "kill" : ""} ${f.id === state.fightId ? "active" : ""}" data-id="${f.id}" title="${t(`第 ${f.id} 场`, `Pull ${f.id}`)}">
+          <span class="dot"></span>${f.kill ? `${t("击杀", "Kill")} ${mmss(f.duration)}` : `${f.bossPercentage}%`}
         </button>`).join("")}
       </div>
     </div>`).join("");
@@ -432,7 +458,7 @@ function renderFights() {
 async function loadFight(id) {
   state.fightId = id;
   $("fights").querySelectorAll(".pull").forEach((b) => b.classList.toggle("active", +b.dataset.id === id));
-  showMsg("loading", "分析战斗中，首次读取需要几秒…");
+  showMsg("loading", t("分析战斗中，首次读取需要几秒…", "Analyzing fight. The first load may take a few seconds…"));
   try {
     const data = await api(`/api/fight?code=${state.code}&fight=${id}`);
     if (state.fightId !== id) return;
@@ -440,7 +466,11 @@ async function loadFight(id) {
     state.selected.clear();
     state.focusBoss = null;
     state.zoom = 1;
-    history.replaceState(null, "", `?r=${state.code}&f=${id}`);
+    const currentUrl = new URL(location.href);
+    currentUrl.searchParams.set("r", state.code);
+    currentUrl.searchParams.set("f", id);
+    currentUrl.searchParams.set("lang", window.I18N.lang);
+    history.replaceState(null, "", currentUrl);
     showMsg(null);
     render();
     $("chartScroll").scrollLeft = 0;
@@ -458,7 +488,7 @@ function specLabels() {
   for (const h of state.data.healers) count[h.spec] = (count[h.spec] || 0) + 1;
   for (const h of state.data.healers) {
     seen[h.spec] = (seen[h.spec] || 0) + 1;
-    out[h.id] = (SPEC_ZH[h.spec] || h.spec) + (count[h.spec] > 1 ? seen[h.spec] : "");
+    out[h.id] = (SPEC_LABEL[h.spec] || h.spec) + (count[h.spec] > 1 ? seen[h.spec] : "");
   }
   return out;
 }
@@ -489,14 +519,14 @@ function buildMoments(casts) {
 }
 
 function pressureLevel(r) {
-  if (r >= 1.5) return { n: 4, color: "#ef6a4c", label: "极高" };
-  if (r >= 1.2) return { n: 3, color: "#f09a4a", label: "高" };
-  if (r >= 0.9) return { n: 2, color: "#e9b35a", label: "中" };
-  return { n: 1, color: "#7c808a", label: "低" };
+  if (r >= 1.5) return { n: 4, color: "#ef6a4c", label: t("极高", "Very high") };
+  if (r >= 1.2) return { n: 3, color: "#f09a4a", label: t("高", "High") };
+  if (r >= 0.9) return { n: 2, color: "#e9b35a", label: t("中", "Medium") };
+  return { n: 1, color: "#7c808a", label: t("低", "Low") };
 }
 
 function phaseSections(items) {
-  const phases = state.data.phases.length ? state.data.phases : [{ t: 0, name: "全程" }];
+  const phases = state.data.phases.length ? state.data.phases : [{ t: 0, name: t("全程", "Full fight") }];
   return phases.map((p, i) => {
     const end = phases[i + 1]?.t ?? state.data.fight.duration;
     return { ...p, idx: i, end, items: items.filter((x) => x.t >= p.t && (x.t < end || i === phases.length - 1)) };
@@ -504,11 +534,11 @@ function phaseSections(items) {
 }
 
 function phaseLabel(p, total) {
-  if (total <= 1) return { badge: "全程", name: "" };
+  if (total <= 1) return { badge: t("全程", "Full fight"), name: "" };
   const isIntermission = /intermission|转阶段/i.test(p.name);
   const stageNo = state.data.phases.slice(0, p.idx + 1).filter((x) => !/intermission|转阶段/i.test(x.name)).length;
   const name = p.name.replace(/^(Stage \w+|Intermission)\s*[:：]\s*/i, "");
-  return { badge: isIntermission ? "转阶段" : `P${stageNo}`, name };
+  return { badge: isIntermission ? t("转阶段", "Intermission") : `P${stageNo}`, name };
 }
 
 /* ---------- render ---------- */
@@ -533,14 +563,14 @@ function renderAll() {
 
 function renderHeader() {
   const { fight, deaths, healers } = state.data;
-  $("eyebrow").textContent = `第 ${fight.id} 场 · ${state.code}`;
+  $("eyebrow").textContent = `${t(`第 ${fight.id} 场`, `Pull ${fight.id}`)} · ${state.code}`;
   $("bossName").textContent = fight.name;
   $("meta").innerHTML = [
     `<span class="tag">${esc(fight.difficulty)}</span>`,
-    fight.kill ? `<span class="tag kill">● 击杀</span>` : `<span class="tag wipe">团灭 · ${fight.bossPercentage}%</span>`,
+    fight.kill ? `<span class="tag kill">● ${t("击杀", "Kill")}</span>` : `<span class="tag wipe">${t("团灭", "Wipe")} · ${fight.bossPercentage}%</span>`,
     `<span class="tag mono">${mmss(fight.duration)}</span>`,
-    `<span class="tag">${healers.length} 名治疗</span>`,
-    `<span class="tag">${deaths.length} 次死亡</span>`,
+    `<span class="tag">${t(`${healers.length} 名治疗`, `${healers.length} healer${healers.length === 1 ? "" : "s"}`)}</span>`,
+    `<span class="tag">${t(`${deaths.length} 次死亡`, `${deaths.length} death${deaths.length === 1 ? "" : "s"}`)}</span>`,
   ].join("");
 }
 
@@ -566,9 +596,9 @@ function renderThreats() {
   const abilities = state.data.bossAbilities;
   const names = Object.keys(count).sort((a, b) => count[b] - count[a]);
   if (state.focusBoss && !count[state.focusBoss]) state.focusBoss = null;
-  $("threats").innerHTML = (names.length ? `<span class="threats-label">需要大招的技能</span>` : "") + names.map((n) => `
+  $("threats").innerHTML = (names.length ? `<span class="threats-label">${t("需要大招的技能", "Abilities requiring cooldowns")}</span>` : "") + names.map((n) => `
     <button class="threat ${state.focusBoss === n ? "on" : ""}" data-n="${esc(n)}">
-      <img src="${iconUrl(abilities[n]?.icon)}" alt=""><b>${esc(abilities[n]?.zh || n)}</b><em>×${count[n]}</em>
+      <img src="${iconUrl(abilities[n]?.icon)}" alt=""><b>${esc(spellName(abilities[n], n))}</b><em>×${count[n]}</em>
     </button>`).join("");
   $("threats").querySelectorAll(".threat").forEach((b) => b.onclick = () => {
     state.focusBoss = state.focusBoss === b.dataset.n ? null : b.dataset.n;
@@ -584,8 +614,8 @@ function applyFocus() {
 
 function offsetLabel(dt) {
   const s = Math.round(Math.abs(dt));
-  if (s === 0) return "同步";
-  return dt > 0 ? `读条后 ${s}s` : `提前 ${s}s`;
+  if (s === 0) return t("同步", "At cast");
+  return dt > 0 ? t(`读条后 ${s}s`, `${s}s after cast`) : t(`提前 ${s}s`, `${s}s before cast`);
 }
 
 function renderPlaybook() {
@@ -601,28 +631,28 @@ function renderPlaybook() {
     const n = p.items.filter((x) => x.kind === "moment").length;
     const body = p.items.map((x) => {
       if (x.kind === "hero") {
-        return `<div class="marker"><div class="time">${mmss(x.t)}</div><div class="node"></div><div class="label">嗜血 / 英勇</div></div>`;
+        return `<div class="marker"><div class="time">${mmss(x.t)}</div><div class="node"></div><div class="label">${t("嗜血 / 英勇", "Bloodlust / Heroism")}</div></div>`;
       }
       const m = x.m, lv = pressureLevel(m.ratio), ab = m.boss && abilities[m.boss];
       const threat = ab
-        ? `<img src="${iconUrl(ab.icon)}" alt=""><a class="name" ${spellAttr(ab.spell)}>${esc(ab.zh || m.boss)}</a>
-           ${m.anchor != null ? `<span class="cast-at">Boss 施放于 <b>${mmss(m.anchor)}</b></span>` : ""}`
-        : `<span class="name none">无明显对应技能 · 可能是预铺或常驻伤害</span>`;
+        ? `<img src="${iconUrl(ab.icon)}" alt=""><a class="name" ${spellAttr(ab.spell)}>${esc(spellName(ab, m.boss))}</a>
+           ${m.anchor != null ? `<span class="cast-at">${t("Boss 施放于", "Boss cast at")} <b>${mmss(m.anchor)}</b></span>` : ""}`
+        : `<span class="name none">${t("无明显对应技能 · 可能是预铺或常驻伤害", "No clear matching ability · Possibly ramping or sustained damage")}</span>`;
       const cds = m.cds.map((c) => {
         const h = byId[c.sourceID];
         const off = m.anchor != null ? offsetLabel(c.t - m.anchor) : mmss(c.t);
         return `<div class="cd ${c.category === "external" ? "ext" : ""}" style="--c:${CLASS_COLOR[h.cls] || "#ccc"}">
           <img src="${iconUrl(c.icon)}" alt="">
-          <div class="what"><a ${spellAttr(c.spell)}>${esc(c.zh || c.en)}</a><span><b>${esc(labels[h.id])}</b> · ${esc(h.name)}</span></div>
-          <span class="off" title="施放于 ${mmss(c.t)}">${off}</span>
+          <div class="what"><a ${spellAttr(c.spell)}>${esc(spellName(c))}</a><span><b>${esc(labels[h.id])}</b> · ${esc(h.name)}</span></div>
+          <span class="off" title="${t("施放于", "Cast at")} ${mmss(c.t)}">${off}</span>
         </div>`;
       }).join("");
       return `<li class="moment" id="m-${x.i}" data-i="${x.i}" style="--lv:${lv.color}">
         <div class="time">${mmss(m.t)}</div><div class="node"></div>
         <div class="body">
           <div class="threat-line">${threat}
-            <span class="pressure" title="大招后 15 秒团伤为全场平均的 ${m.ratio}×">
-              <span class="bars">${[1, 2, 3, 4].map((k) => `<i class="${k <= lv.n ? "on" : ""}"></i>`).join("")}</span>压力${lv.label}
+            <span class="pressure" title="${t(`大招后 15 秒团伤为全场平均的 ${m.ratio}×`, `Raid damage in the next 15 seconds is ${m.ratio}× the fight average`)}">
+              <span class="bars">${[1, 2, 3, 4].map((k) => `<i class="${k <= lv.n ? "on" : ""}"></i>`).join("")}</span>${t("压力", "Pressure: ")}${lv.label}
             </span>
           </div>
           <div class="cds">${cds}</div>
@@ -631,8 +661,8 @@ function renderPlaybook() {
     }).join("");
     return `<section class="phase">
       <div class="phase-head"><span class="phase-badge">${esc(lbl.badge)}</span><b>${esc(lbl.name)}</b>
-        <span class="range">${mmss(p.t)} – ${mmss(p.end)} · ${n} 个节点</span></div>
-      ${n || p.items.length ? `<ol class="moments">${body}</ol>` : `<div class="empty-phase">这个阶段没有使用${state.selected.size ? "所选治疗的" : ""}大招</div>`}
+        <span class="range">${mmss(p.t)} – ${mmss(p.end)} · ${t(`${n} 个节点`, `${n} moment${n === 1 ? "" : "s"}`)}</span></div>
+      ${n || p.items.length ? `<ol class="moments">${body}</ol>` : `<div class="empty-phase">${state.selected.size ? t("这个阶段没有使用所选治疗的大招", "The selected healers used no cooldowns in this phase") : t("这个阶段没有使用大招", "No cooldowns used in this phase")}</div>`}
     </section>`;
   }).join("");
 
@@ -659,7 +689,7 @@ function renderNote() {
     const lbl = phaseLabel(p, sections.length);
     if (sections.length > 1) html += `<div class="note-phase">${esc(lbl.badge)} ${esc(lbl.name)}</div>`;
     for (const { m } of p.items) {
-      const boss = m.boss ? abilities[m.boss]?.zh || m.boss : "";
+      const boss = m.boss ? spellName(abilities[m.boss], m.boss) : "";
       const who = [];
       for (const c of m.cds) {
         const h = byId[c.sourceID];
@@ -675,7 +705,7 @@ function renderNote() {
       </div></div>`;
     }
   }
-  $("note").innerHTML = html || `<div class="note-phase">没有可导出的大招</div>`;
+  $("note").innerHTML = html || `<div class="note-phase">${t("没有可导出的大招", "No cooldowns to export")}</div>`;
   $("note").dataset.text = lines.join("\n");
 }
 
@@ -689,9 +719,9 @@ $("copy").onclick = async () => {
   const label = $("copy").querySelector("span");
   try {
     await navigator.clipboard.writeText($("note").dataset.text || "");
-    label.textContent = "已复制";
-  } catch { label.textContent = "复制失败"; }
-  setTimeout(() => label.textContent = "复制", 1600);
+    label.textContent = t("已复制", "Copied");
+  } catch { label.textContent = t("复制失败", "Copy failed"); }
+  setTimeout(() => label.textContent = t("复制", "Copy"), 1600);
 };
 
 /* ---------- chart ---------- */
@@ -701,6 +731,8 @@ function renderChart(casts) {
   const byId = healerById(), labels = specLabels();
   const healers = data.healers.filter((h) => !state.selected.size || state.selected.has(h.id));
   const lanes = ["Boss", ...healers.map((h) => String(h.id))];
+  const axisWidth = window.I18N.lang === "en" ? 152 : 116;
+  $("chartAxis").style.width = `${axisWidth}px`;
   const laneH = 34, areaTop = 34, areaH = 120, lanesTop = areaTop + areaH + 22;
   const height = lanesTop + lanes.length * laneH + 30;
   const width = chartWidth(state.zoom);
@@ -735,17 +767,17 @@ function renderChart(casts) {
   const fontFamily = getComputedStyle(document.body).fontFamily;
   const gridTops = [{ top: areaTop, height: areaH }, { top: lanesTop, height: lanes.length * laneH }];
   const yAxes = (showLabels) => [
-    { gridIndex: 0, type: "value", min: 0, max: maxDmg * 1.18, splitNumber: 2, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: showLabels, color: "#5e626c", fontSize: 11, formatter: (v) => v ? `${wan(v)}/s` : "" },
+    { gridIndex: 0, type: "value", min: 0, max: maxDmg * 1.18, splitNumber: 2, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: showLabels, color: "#5e626c", fontSize: 11, formatter: (v) => v ? `${compactNumber(v)}/s` : "" },
       splitLine: { show: !showLabels, lineStyle: { color: "rgba(255,255,255,.04)" } } },
     { gridIndex: 1, type: "category", data: lanes, inverse: true, axisTick: { show: false }, axisLine: { show: false },
-      axisLabel: { show: showLabels, rich, formatter: (id) => id === "Boss" ? "{boss|BOSS 技能}" : `{${byId[id].cls}|${byId[id].name}}\n{sub|${labels[id]}}`, lineHeight: 15 },
+      axisLabel: { show: showLabels, rich, formatter: (id) => id === "Boss" ? `{boss|${t("BOSS 技能", "BOSS abilities")}}` : `{${byId[id].cls}|${byId[id].name}}\n{sub|${labels[id]}}`, lineHeight: 15 },
       splitLine: { show: !showLabels, lineStyle: { color: "rgba(255,255,255,.04)" } } },
   ];
 
   axisChart.setOption({
     animation: false,
     textStyle: { fontFamily },
-    grid: gridTops.map((g) => ({ ...g, left: 115, right: 0 })),
+    grid: gridTops.map((g) => ({ ...g, left: axisWidth - 1, right: 0 })),
     xAxis: [0, 1].map((i) => ({ gridIndex: i, type: "value", show: false })),
     yAxis: yAxes(true),
   }, true);
@@ -764,7 +796,7 @@ function renderChart(casts) {
     tooltip: { trigger: "item", confine: true, ...tip },
     series: [
       {
-        name: "团伤", type: "line", xAxisIndex: 0, yAxisIndex: 0, data: dmg, smooth: 0.35, symbol: "none",
+        name: t("团伤", "Raid damage"), type: "line", xAxisIndex: 0, yAxisIndex: 0, data: dmg, smooth: 0.35, symbol: "none",
         lineStyle: { width: 1.5, color: "#ef8a4c" },
         areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
           { offset: 0, color: "rgba(239,106,76,.55)" }, { offset: 1, color: "rgba(233,179,90,.02)" }]) },
@@ -772,18 +804,18 @@ function renderChart(casts) {
         tooltip: { show: false },
       },
       {
-        name: "窗口", type: "line", xAxisIndex: 1, yAxisIndex: 1, data: [], silent: true,
+        name: t("窗口", "Highlight"), type: "line", xAxisIndex: 1, yAxisIndex: 1, data: [], silent: true,
         markArea: { silent: true, itemStyle: { color: "rgba(233,179,90,.08)", borderColor: "rgba(233,179,90,.35)", borderWidth: 1 }, data: [] },
       },
       {
-        name: "窗口上", type: "line", xAxisIndex: 0, yAxisIndex: 0, data: [], silent: true,
+        name: t("窗口上", "Highlight above"), type: "line", xAxisIndex: 0, yAxisIndex: 0, data: [], silent: true,
         markArea: { silent: true, itemStyle: { color: "rgba(233,179,90,.1)" }, data: [] },
       },
       {
-        name: "死亡", type: "scatter", xAxisIndex: 0, yAxisIndex: 0, symbolSize: 7,
+        name: t("死亡", "Deaths"), type: "scatter", xAxisIndex: 0, yAxisIndex: 0, symbolSize: 7,
         itemStyle: { color: "#ef6a4c", borderColor: "#0a0b0e", borderWidth: 1.5 },
         data: data.deaths.map((d) => ({ value: [d.t, maxDmg * 1.1], d })),
-        tooltip: { formatter: (p) => `<b style="color:${CLASS_COLOR[p.data.d.cls] || "#fff"}">${esc(p.data.d.name)}</b> 死亡 · ${mmss(p.data.d.t)}<br><span style="color:#9b9ea8">${esc(p.data.d.zh || p.data.d.en || "")}</span>` },
+        tooltip: { formatter: (p) => `<b style="color:${CLASS_COLOR[p.data.d.cls] || "#fff"}">${esc(p.data.d.name)}</b> ${t("死亡", "died")} · ${mmss(p.data.d.t)}<br><span style="color:#9b9ea8">${esc(spellName(p.data.d, "", false))}</span>` },
       },
       {
         name: "Boss", type: "scatter", xAxisIndex: 1, yAxisIndex: 1,
@@ -792,25 +824,25 @@ function renderChart(casts) {
           symbolSize: abilities[c.en] ? 20 : 15,
           itemStyle: { opacity: abilities[c.en] ? 1 : 0.55 },
         })),
-        tooltip: { formatter: (p) => `<span style="color:#9b9ea8">${mmss(p.data.c.t)} · Boss 施放</span><br><b>${esc(p.data.c.zh || p.data.c.en)}</b>` },
+        tooltip: { formatter: (p) => `<span style="color:#9b9ea8">${mmss(p.data.c.t)} · ${t("Boss 施放", "Boss cast")}</span><br><b>${esc(spellName(p.data.c))}</b>` },
       },
       {
-        name: "大招", type: "scatter", xAxisIndex: 1, yAxisIndex: 1, cursor: "pointer",
+        name: t("大招", "Cooldowns"), type: "scatter", xAxisIndex: 1, yAxisIndex: 1, cursor: "pointer",
         data: casts.map((c, ci) => ({
           value: [c.t, String(c.sourceID)], c, ci,
           symbol: `image://${iconUrl(c.icon)}`, symbolSize: c.category === "raid" ? 24 : 18,
         })),
         tooltip: { formatter: (p) => {
           const c = p.data.c, h = byId[c.sourceID], ab = c.boss && abilities[c.boss];
-          return `<span style="color:#9b9ea8">${mmss(c.t)} · <span style="color:${CLASS_COLOR[h.cls]}">${esc(h.name)}</span></span><br><b>${esc(c.zh || c.en)}</b>` +
-            (ab ? `<br><span style="color:#9b9ea8">应对</span> ${esc(ab.zh || c.boss)}` : "") + `<br><span style="color:#5e626c">点击定位到节点</span>`;
+          return `<span style="color:#9b9ea8">${mmss(c.t)} · <span style="color:${CLASS_COLOR[h.cls]}">${esc(h.name)}</span></span><br><b>${esc(spellName(c))}</b>` +
+            (ab ? `<br><span style="color:#9b9ea8">${t("应对", "Response to")}</span> ${esc(spellName(ab, c.boss))}` : "") + `<br><span style="color:#5e626c">${t("点击定位到节点", "Click to jump to the moment")}</span>`;
         } },
       },
     ],
   }, true);
 
   chart.off("click");
-  chart.on("click", { seriesName: "大招" }, (p) => {
+  chart.on("click", { seriesName: t("大招", "Cooldowns") }, (p) => {
     if (Date.now() - lastDragEnd < 80) return;
     const i = moments.findIndex((m) => m.cds.includes(casts[p.data.ci]));
     const li = $(`m-${i}`);
@@ -822,14 +854,14 @@ function renderChart(casts) {
   });
   updateZoomUi();
   chart.off("mouseover"); chart.off("mouseout");
-  chart.on("mouseover", { seriesName: "大招" }, (p) => highlightWindow(p.data.c.t, p.data.c.t + HIGHLIGHT_SEC));
-  chart.on("mouseout", { seriesName: "大招" }, () => highlightWindow(null));
+  chart.on("mouseover", { seriesName: t("大招", "Cooldowns") }, (p) => highlightWindow(p.data.c.t, p.data.c.t + HIGHLIGHT_SEC));
+  chart.on("mouseout", { seriesName: t("大招", "Cooldowns") }, () => highlightWindow(null));
 }
 
 function highlightWindow(t0, t1) {
   if (!chart) return;
   const area = t0 == null ? [] : [[{ xAxis: t0 }, { xAxis: Math.min(t1, state.data.fight.duration) }]];
-  chart.setOption({ series: [{ name: "窗口", markArea: { data: area } }, { name: "窗口上", markArea: { data: area } }] });
+  chart.setOption({ series: [{ name: t("窗口", "Highlight"), markArea: { data: area } }, { name: t("窗口上", "Highlight above"), markArea: { data: area } }] });
 }
 
 /* ---------- chart zoom & pan ---------- */
@@ -911,9 +943,11 @@ window.addEventListener("pointerup", () => {
 /* ---------- boot ---------- */
 
 const params = new URLSearchParams(location.search);
+try { $("link").value = sessionStorage.getItem("wcl.raid.link") || ""; } catch {}
 if (params.get("r")) {
-  $("link").value = `https://www.warcraftlogs.com/reports/${params.get("r")}`;
-  loadReport($("link").value, params.get("f") ? +params.get("f") : undefined);
+  const reportLink = `https://www.warcraftlogs.com/reports/${params.get("r")}`;
+  if (!$("link").value) $("link").value = reportLink;
+  loadReport(reportLink, params.get("f") ? +params.get("f") : undefined);
 }
 </script>
 </body>

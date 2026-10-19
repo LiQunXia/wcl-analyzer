@@ -26,6 +26,7 @@ hiddenimports += ["webview"]
 datas += [
     (str(ROOT / "index.html"), "."),
     (str(ROOT / "mplus.html"), "."),
+    (str(ROOT / "i18n.js"), "."),
     (str(ROOT / "cooldowns.json"), "."),
     (str(ROOT / "mplus_spells.json"), "."),
     (str(ROOT / "mplus_mechanics.json"), "."),

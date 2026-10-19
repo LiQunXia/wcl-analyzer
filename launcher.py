@@ -38,7 +38,7 @@ def free_port(preferred=8000):
             except OSError:
                 continue
             return sock.getsockname()[1]
-    raise SystemExit("找不到可用端口，请关闭其他占用 8000 端口的程序后重试")
+    raise SystemExit("找不到可用端口 / No available port. 请关闭其他占用 8000 端口的程序后重试 / Close other apps using port 8000 and retry.")
 
 
 def open_later(url, delay=1.0):
@@ -46,9 +46,9 @@ def open_later(url, delay=1.0):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="WCL 治疗作业（本地桌面版）")
-    parser.add_argument("--port", type=int, default=8000, help="首选端口，被占用时自动更换")
-    parser.add_argument("--no-browser", action="store_true", help="启动后不打开浏览器")
+    parser = argparse.ArgumentParser(description="WCL 治疗作业 / Healing Playbook (local desktop app)")
+    parser.add_argument("--port", type=int, default=8000, help="首选端口，被占用时自动更换 / Preferred port; falls back if in use")
+    parser.add_argument("--no-browser", action="store_true", help="启动后不打开浏览器 / Do not open the browser")
     args = parser.parse_args(argv)
 
     port = free_port(args.port)
@@ -56,8 +56,9 @@ def main(argv=None):
     url = f"http://127.0.0.1:{port}"
 
     print()
-    print(f"  治疗作业 已启动：{url}", flush=True)
+    print(f"  治疗作业 / Healing Playbook: {url}", flush=True)
     print("  浏览器会自动打开。用完后关闭这个窗口即可退出。", flush=True)
+    print("  The browser opens automatically. Close this window to quit. Choose 中文 / English on the page.", flush=True)
     print(flush=True)
 
     if not args.no_browser:
@@ -81,7 +82,7 @@ if __name__ == "__main__":
         # 双击运行时没有终端保留错误信息，停一下让人能看清。
         if getattr(sys, "frozen", False) and sys.stdin and sys.stdin.isatty():
             try:
-                input("\n启动失败，按回车键退出……")
+                input("\n启动失败，按回车键退出 / Startup failed. Press Enter to exit…")
             except (EOFError, KeyboardInterrupt):
                 pass
         raise SystemExit(1)
