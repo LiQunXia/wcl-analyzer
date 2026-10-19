@@ -4,7 +4,7 @@
 
 Turn Warcraft Logs fights into a readable healing cooldown timeline, and break a Mythic+ run down pull by pull.
 
-No Python install, no account, and logs stay on your computer. The app interface is currently in Chinese; UI labels below include the Chinese text with an English translation.
+No Python install, no account, and logs stay on your computer. The interface supports Chinese and English.
 
 ## Download
 
@@ -28,6 +28,12 @@ Want to try it? Use this public log (the one in the screenshots): <https://cn.wa
 
 Warcraft Logs may occasionally ask for human verification. A small window will open; click “I am a human and not a bot” yourself, and the analysis will continue automatically.
 
+## Language
+
+Choose **English** or **中文** from the language selector at the top right. Your choice is remembered across both review pages and applies to the interface, encounters, dungeons, enemies, ability names, Wowhead hover tooltips, and MRT/MDT export text. Character names keep their original spelling. Switching languages reloads the current report and fight.
+
+Open `http://127.0.0.1:8000/?lang=en` or `/mplus?lang=en` to select English directly. Report data and spell names are cached separately for each language, so the first switch needs to fetch data again. Hover tooltips require access to Wowhead.
+
 ## Fight review
 
 ![Fight review: damage taken, boss abilities, healing cooldowns, and the MRT note](docs/images/analysis.png)
@@ -43,7 +49,7 @@ Click “大秘境复盘” (Mythic+ Review) at the top of the page, paste a Myt
 
 ![Mythic+ route map: pulls, enemies, movement, and deaths](docs/images/mplus-map.png)
 
-**Route map:** Each pull's location, enemies, tank path, and deaths are drawn on the map. Zoom, pan, or replay the run; the full pull list is on the right.
+**Route map:** Each pull's location, enemies, tank path, and deaths are drawn on the map. Zoom, pan, or replay the run; the full pull list is on the right. “只看本波” (current pull only) is on by default, keeping the selected pull's enemies and tank marks while other pulls become small clickable dots; turn it off for the whole-floor view.
 
 ![Pull breakdown: enemies, cooldown timeline, and cooldown matrix](docs/images/mplus-detail.png)
 
@@ -83,3 +89,5 @@ python3 -m venv .venv
 Then open <http://127.0.0.1:8000>. On Windows, replace the last command with `.venv\Scripts\python server.py`.
 
 See [AGENTS.md](AGENTS.md) for the code layout, tests, and packaging.
+
+Run offline tests with `.venv/bin/python -m unittest discover -s tests`, including floor transitions, locale propagation, concurrent request/cache isolation, and localized MDT exports. Report-link boot and Analyze button regression tests require Node.js and are skipped when it is unavailable.

@@ -120,6 +120,35 @@ MDT.dungeonEnemies[dungeonIndex] = {
                     seen.add((enemy_idx, clone_idx))
         self.assertEqual(result["force"], 80)
 
+    def test_export_contains_native_notes_and_schematic_arrow(self):
+        path = self.mdt_dir / "TestExp" / "TestDungeon.lua"
+        path.write_text(path.read_text().replace('["x"] = 3,', '["x"] = 30,'), "utf-8")
+        pulls = [{"id": 10, "forcesPct": 80, "enemies": self.pulls[0]["enemies"] + self.pulls[1]["enemies"]}]
+        route = {"pulls": [{"id": 10, "start": 0, "steps": [
+            {"kind": "join", "label": "A", "t": 0, "members": [{"guid": 1001, "name": "甲"}]},
+            {"kind": "stop", "t": 8, "until": 20, "x": 999999, "y": 999999},
+            {"kind": "join", "label": "B", "t": 30, "chain": True, "alive": 1,
+             "members": [{"guid": 1002, "name": "乙"}]},
+        ]}]}
+        result = mdt_export.build_route(self.mdt_dir, self.run, pulls, tank_route=route)
+        objects = mdt_export.decode_mdt2(result["string"])["objects"]
+        self.assertEqual(result["notes"], 3)
+        self.assertEqual(result["arrows"], 1)
+        arrow = next(o for o in objects if o.get("t"))
+        self.assertEqual(arrow["l"], [1.0, -1.0, 30.0, -2.0])
+        self.assertEqual(arrow["d"][2:4], [1, True])
+        text = "\n".join(o["d"][4] for o in objects if o.get("n"))
+        self.assertIn("示意位置", text)
+        self.assertIn("停留约 12s", text)
+        self.assertIn("旧怪仍存活", text)
+        self.assertNotIn("999999", str(objects))  # WCL coordinates never leak into MDT space.
+
+    def test_unmatched_analysis_does_not_invent_an_annotation_anchor(self):
+        result = mdt_export.build_route(self.mdt_dir, self.run, self.pulls,
+                                       tank_route={"pulls": [{"id": 999, "steps": [{"kind": "join"}]}]})
+        self.assertEqual(result["notes"], 0)
+        self.assertEqual(result["arrows"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

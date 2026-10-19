@@ -1,5 +1,6 @@
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -15,6 +16,7 @@ from curl_cffi import requests
 
 import mdt_export
 import wcl_verify
+from localization import LANGUAGE, language, normalize_language, translate
 
 def _resource_dir():
     """Directory holding the HTML/JSON assets.
@@ -77,6 +79,7 @@ def _run_verify_window(url):
     """在子进程里弹出内嵌浏览器，等用户点完“我是人类”，取回 cookie。"""
     env = dict(os.environ)
     env["WCL_WEBVIEW_DIR"] = str(CACHE / "webview")
+    env["WCL_LANGUAGE"] = language()
     kwargs = {}
     if os.name == "nt":
         # 子进程只需要 WebView 的窗口，不需要额外的控制台窗口。
@@ -93,15 +96,15 @@ def _run_verify_window(url):
             **kwargs,
         )
     except subprocess.TimeoutExpired:
-        return {"error": "等待人工验证超时，请重试"}
+        return {"error": translate("等待人工验证超时，请重试", "Human verification timed out. Please try again.")}
     except OSError as exc:
-        return {"error": f"无法启动验证窗口：{exc}"}
+        return {"error": translate(f"无法启动验证窗口：{exc}", f"Could not start verification: {exc}")}
 
     result = wcl_verify.parse_result(proc.stdout)
     if result is None:
         detail = (proc.stderr or "").strip().splitlines()
-        hint = detail[-1] if detail else f"退出码 {proc.returncode}"
-        return {"error": f"验证窗口异常退出：{hint}"}
+        hint = detail[-1] if detail else translate(f"退出码 {proc.returncode}", f"exit code {proc.returncode}")
+        return {"error": translate(f"验证窗口异常退出：{hint}", f"Verification window exited unexpectedly: {hint}")}
     return result
 
 
@@ -144,20 +147,29 @@ class WclClient:
             pass
 
     def _request_json(self, path, report_url):
-        r = self.session.get(f"{WCL}{path}", headers={"Referer": report_url}, timeout=60)
+        # Internal WCL endpoints use lang=cn/en (locale/translate are ignored).
+        # Keep pins and pagination filters intact and never mutate session headers.
+        url = urlparse(path)
+        query = parse_qs(url.query, keep_blank_values=True)
+        query["lang"] = ["en" if language() == "en" else "cn"]
+        path = url._replace(query=urlencode(query, doseq=True)).geturl()
+        r = self.session.get(f"{WCL}{path}", headers={
+            "Referer": report_url,
+            "Accept-Language": "en-US,en;q=0.9" if language() == "en" else "zh-CN,zh;q=0.9",
+        }, timeout=60)
         if "application/json" in r.headers.get("content-type", ""):
             text = r.text
             if text.startswith("Use the API"):
-                raise WclError("WCL 拒绝了请求（反爬提示），请稍后再试")
+                raise WclError(translate("WCL 拒绝了请求（反爬提示），请稍后再试", "WCL rejected the request. Please try again later."))
             return json.loads(text)
         if r.status_code == 404:
-            raise WclError("找不到这份日志，可能是私有日志或链接有误")
+            raise WclError(translate("找不到这份日志，可能是私有日志或链接有误", "Report not found. It may be private or the link may be incorrect."))
         if r.status_code == 429:
-            raise WclError("请求过于频繁，被 WCL 限流了，请稍后再试")
+            raise WclError(translate("请求过于频繁，被 WCL 限流了，请稍后再试", "WCL is rate limiting requests. Please try again later."))
         if r.status_code >= 500:
-            raise WclError(f"WCL 服务暂时不可用（HTTP {r.status_code}），请稍后再试")
+            raise WclError(translate(f"WCL 服务暂时不可用（HTTP {r.status_code}），请稍后再试", f"WCL is temporarily unavailable (HTTP {r.status_code}). Please try again later."))
         if r.text.lstrip().startswith("Use the API"):
-            raise WclError("WCL 拒绝了请求（反爬提示），请稍后再试")
+            raise WclError(translate("WCL 拒绝了请求（反爬提示），请稍后再试", "WCL rejected the request. Please try again later."))
         # 其余情况基本都是人机验证页，需要用户亲自点一下。
         return None
 
@@ -168,10 +180,10 @@ class WclClient:
                 if self._request_json(path, report_url) is not None:
                     return
             if time.time() - self.verified_at < 60:
-                raise WclError("刚刚完成验证仍被 WCL 拦截，请稍后再试")
+                raise WclError(translate("刚刚完成验证仍被 WCL 拦截，请稍后再试", "WCL still blocked the request after verification. Please try again later."))
             result = _run_verify_window(report_url)
             if "cookies" not in result:
-                raise WclError(result.get("error") or "人机验证未完成")
+                raise WclError(result.get("error") or translate("人机验证未完成", "Human verification was not completed."))
             self._save_cookies(result["cookies"])
             self._set_cookies(result["cookies"])
             self.verified_at = time.time()
@@ -189,14 +201,15 @@ class WclClient:
             data = self._request_json(path, report_url)
         if data is not None:
             return data
-        raise WclError("完成人机验证后 WCL 仍未返回数据，请稍后重试")
+        raise WclError(translate("完成人机验证后 WCL 仍未返回数据，请稍后重试", "WCL returned no data after verification. Please try again later."))
 
 
 wcl = WclClient()
 
 
 def cached(name, fetch, persist=True):
-    path = CACHE / name
+    # Legacy caches contain the uploader's language; don't reuse them across locales.
+    path = CACHE / "localized-v1" / language() / name
     if path.exists():
         return json.loads(path.read_text("utf-8"))
     data = fetch()
@@ -206,16 +219,28 @@ def cached(name, fetch, persist=True):
     return data
 
 
-# ---------- spells (zhCN names + icons via Wowhead) ----------
+# ---------- localized spell names + icons via Wowhead ----------
 
 _spell_lock = threading.Lock()
-_spell_file = CACHE / "spells.json"
-_spells = json.loads(_spell_file.read_text("utf-8")) if _spell_file.exists() else {}
+_spell_files = {lang: CACHE / f"spells_{lang}.json" for lang in ("zh-CN", "en")}
 
 
-def _fetch_spell(spell_id):
+def _read_spell_cache(path):
     try:
-        r = requests.get(f"https://nether.wowhead.com/tooltip/spell/{spell_id}?locale=4", timeout=15)
+        return json.loads(path.read_text("utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+_spells = {lang: _read_spell_cache(path) for lang, path in _spell_files.items()}
+if not _spells["zh-CN"]:
+    _spells["zh-CN"] = _read_spell_cache(CACHE / "spells.json")
+
+
+def _fetch_spell(spell_id, lang=None):
+    locale = 0 if normalize_language(lang or language()) == "en" else 4
+    try:
+        r = requests.get(f"https://nether.wowhead.com/tooltip/spell/{spell_id}?locale={locale}", timeout=15)
         j = r.json()
         return spell_id, {"name": j.get("name"), "icon": j.get("icon")} if j.get("name") else None
     except Exception:
@@ -223,17 +248,21 @@ def _fetch_spell(spell_id):
 
 
 def spell_info(spell_ids):
-    missing = [i for i in {str(i) for i in spell_ids} if i not in _spells]
+    lang = language()
+    spell_ids = set(spell_ids)
+    store = _spells[lang]
+    missing = [i for i in {str(i) for i in spell_ids} if i not in store]
     if missing:
         with ThreadPoolExecutor(8) as pool:
-            results = list(pool.map(_fetch_spell, missing))
+            # ContextVar values aren't inherited by workers on all supported Pythons.
+            results = list(pool.map(lambda sid: _fetch_spell(sid, lang), missing))
         with _spell_lock:
             for sid, info in results:
                 if info:
-                    _spells[sid] = info
-            CACHE.mkdir(exist_ok=True)
-            _spell_file.write_text(json.dumps(_spells, ensure_ascii=False, indent=0), "utf-8")
-    return {int(i): _spells.get(str(i)) or {} for i in spell_ids}
+                    store[sid] = info
+            CACHE.mkdir(parents=True, exist_ok=True)
+            _spell_files[lang].write_text(json.dumps(store, ensure_ascii=False, indent=0), "utf-8")
+    return {int(i): store.get(str(i)) or {} for i in spell_ids}
 
 
 # ---------- report ----------
@@ -241,7 +270,7 @@ def spell_info(spell_ids):
 def parse_link(link):
     m = re.search(r"reports/([A-Za-z0-9]{16})", link) or re.fullmatch(r"\s*([A-Za-z0-9]{16})\s*", link)
     if not m:
-        raise WclError("无法识别的 WCL 链接，需要形如 https://www.warcraftlogs.com/reports/XXXX")
+        raise WclError(translate("无法识别的 WCL 链接，需要形如 https://www.warcraftlogs.com/reports/XXXX", "Invalid WCL link. Use a link such as https://www.warcraftlogs.com/reports/XXXX"))
     fight = re.search(r"[?&]fight=(\d+)", link)
     return m.group(1), int(fight.group(1)) if fight else None
 
@@ -251,11 +280,12 @@ META_TTL_SEC = 300
 
 
 def report_meta(code):
-    hit = _meta_cache.get(code)
+    key = (language(), code)
+    hit = _meta_cache.get(key)
     if hit and time.time() - hit[0] < META_TTL_SEC:
         return hit[1]
     meta = wcl.get_json(code, f"/reports/fights-and-participants/{code}/0")
-    _meta_cache[code] = (time.time(), meta)
+    _meta_cache[key] = (time.time(), meta)
     return meta
 
 
@@ -263,7 +293,9 @@ def fmt_fight(f):
     return {
         "id": f["id"],
         "name": f.get("name"),
-        "difficulty": DIFFICULTY.get(f.get("difficulty"), str(f.get("difficulty"))),
+        "difficulty": (DIFFICULTY if language() == "zh-CN" else
+                       {1: "Raid Finder", 3: "Normal", 4: "Heroic", 5: "Mythic", 10: "Mythic+"}
+                       ).get(f.get("difficulty"), str(f.get("difficulty"))),
         "kill": bool(f.get("kill")),
         "duration": round((f["end_time"] - f["start_time"]) / 1000),
         "bossPercentage": (f.get("fightPercentage") or 0) / 100,
@@ -346,7 +378,7 @@ def api_fight(code, fight_id):
     meta = report_meta(code)
     fight = next((f for f in meta["fights"] if f["id"] == fight_id), None)
     if not fight:
-        raise WclError(f"这份日志里没有第 {fight_id} 场战斗")
+        raise WclError(translate(f"这份日志里没有第 {fight_id} 场战斗", f"Fight {fight_id} was not found in this report."))
     start, end = fight["start_time"], fight["end_time"]
     persist = not fight.get("inProgress")
     rng = f"{code}/{fight_id}/{start}/{end}"
@@ -501,6 +533,9 @@ HEALER_SPECS = {"Restoration", "Holy", "Discipline", "Mistweaver", "Preservation
 AFFIX = {9: "残暴", 10: "强韧", 147: "萨拉塔斯的狡诈", 148: "晋升：萨拉塔斯之力", 152: "挑战者的危境",
          158: "虚空缚誓", 159: "萨拉塔斯的契约：宿主", 160: "萨拉塔斯的契约：吞噬",
          161: "萨拉塔斯的契约：脉冲", 162: "萨拉塔斯的契约：交织"}
+AFFIX_EN = {9: "Tyrannical", 10: "Fortified", 147: "Xal'atath's Guile", 148: "Xal'atath's Bargain: Ascendant",
+            152: "Challenger's Peril", 158: "Xal'atath's Bargain: Voidbound", 159: "Xal'atath's Bargain: Oblivion",
+            160: "Xal'atath's Bargain: Devour", 162: "Xal'atath's Bargain: Pulsar"}
 MAP_URL = "https://assets.rpglogs.com/img/warcraft/maps/{}-map.png"
 
 
@@ -550,13 +585,13 @@ def mplus_buff_events(code, fight_id, start, end, spell_ids, spell_names=(), per
                     f"/buffs/0/0/0/0/0/source/0/-1.0.-1.-1/0/Any/Any/0?{query}")
             page = wcl.get_json(code, path)
             if not isinstance(page, dict) or not isinstance(page.get("events"), list):
-                raise WclError("WCL 未返回完整的增益事件数据，请稍后重试")
+                raise WclError(translate("WCL 未返回完整的增益事件数据，请稍后重试", "WCL returned incomplete buff events. Please try again later."))
             events.extend(page["events"])
             next_cursor = page.get("nextPageTimestamp")
             if next_cursor is None:
                 return events
             if not isinstance(next_cursor, int) or isinstance(next_cursor, bool) or next_cursor <= cursor:
-                raise WclError("WCL 增益事件分页未能继续，请稍后重试")
+                raise WclError(translate("WCL 增益事件分页未能继续，请稍后重试", "WCL buff event pagination did not advance. Please try again later."))
             cursor = next_cursor
         return events
 
@@ -580,7 +615,7 @@ def map_image(map_id):
     if not path.exists():
         r = requests.get(MAP_URL.format(map_id), timeout=60)
         if r.status_code != 200 or not r.headers.get("content-type", "").startswith("image/"):
-            raise WclError(f"地图 {map_id} 获取失败（HTTP {r.status_code}）")
+            raise WclError(translate(f"地图 {map_id} 获取失败（HTTP {r.status_code}）", f"Could not load map {map_id} (HTTP {r.status_code})."))
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(r.content)
     return path.read_bytes()
@@ -683,7 +718,7 @@ def api_mplus_list(link):
         "pulls": sum(map(real_pull, f["dungeonPulls"])),
     } for f in meta["fights"] if f.get("dungeonPulls")]
     if not runs:
-        raise WclError("这份日志里没有找到大秘境战斗")
+        raise WclError(translate("这份日志里没有找到大秘境战斗", "No Mythic+ runs were found in this report."))
     return {"code": code, "fight": fight_id, "runs": runs}
 
 
@@ -691,7 +726,7 @@ def api_mplus(code, fight_id):
     meta = report_meta(code)
     fight = next((f for f in meta["fights"] if f["id"] == fight_id), None)
     if not fight or not fight.get("dungeonPulls"):
-        raise WclError(f"第 {fight_id} 场不是大秘境战斗（没有拉怪数据）")
+        raise WclError(translate(f"第 {fight_id} 场不是大秘境战斗（没有拉怪数据）", f"Fight {fight_id} is not a Mythic+ run (no pull data)."))
     start, end = fight["start_time"], fight["end_time"]
     n_sec = int((end - start) / 1000) + 1
     persist = not fight.get("inProgress")
@@ -843,7 +878,8 @@ def api_mplus(code, fight_id):
             "level": fight.get("keystoneLevel"), "kill": bool(fight.get("kill")),
             "duration": rel(end), "completion": round((fight.get("completionTime") or 0) / 1000),
             "medal": fight.get("medal"), "rating": fight.get("rating"),
-            "affixes": [AFFIX.get(a, f"词缀 {a}") for a in fight.get("affixes") or []],
+            "affixes": [(AFFIX if language() == "zh-CN" else AFFIX_EN).get(a, translate(f"词缀 {a}", f"Affix {a}"))
+                        for a in fight.get("affixes") or []],
             "countRequired": required, "countReached": fight.get("countReached"),
         },
         "maps": maps,
@@ -865,9 +901,9 @@ def api_mplus_paths(code, fight_id):
     meta = report_meta(code)
     fight = next((f for f in meta["fights"] if f["id"] == fight_id), None)
     if not fight or not fight.get("dungeonPulls"):
-        raise WclError(f"第 {fight_id} 场不是大秘境战斗（没有拉怪数据）")
+        raise WclError(translate(f"第 {fight_id} 场不是大秘境战斗（没有拉怪数据）", f"Fight {fight_id} is not a Mythic+ run (no pull data)."))
     persist = not fight.get("inProgress")
-    data = cached(f"{code}/{fight_id}_paths.json", lambda: _extract_paths(code, fight, meta), persist)
+    data = cached(f"{code}/{fight_id}_paths_v2.json", lambda: _extract_paths(code, fight, meta), persist)
     # Enemy names/icons come from the (cached) report metadata, so old path caches stay valid.
     guids = {m.get("guid") for m in data.get("mobs") or []}
     counts = {int(k): v for k, v in (fight.get("npcCountMap") or {}).items()}
@@ -876,7 +912,119 @@ def api_mplus_paths(code, fight_id):
                     "type": e.get("type") or "", "count": counts.get(e["guid"], 0)}
         for e in meta["enemies"] if e.get("guid") in guids
     }
+    data["tankRoute"] = mplus_tank_route(fight, meta, data)
     return data
+
+
+def mplus_tank_route(fight, meta, paths):
+    """Conservative action sketch using replay interactions, deaths and tank samples.
+
+    A batch is a time window of first *recorded interactions*, not an MDT spawn pack.
+    Never infer aggro, range, a kill, or enemy convergence from a missing event.
+    Coordinates on joins/stops are the tank's observed position, not enemy spawns.
+    """
+    players = {p["id"]: p for p in meta["friendlies"]
+               if f".{fight['id']}." in (p.get("fights") or "") and p.get("type") in CLASS_TYPES}
+    tank = next((pid for pid, p in players.items() if player_role(p.get("icon")) == "tank"), None)
+    pulls = [p for p in fight.get("dungeonPulls", []) if real_pull(p)]
+    result = {"tank": tank, "pulls": []}
+    if tank is None:
+        return result
+    start = fight["start_time"]
+    relative = lambda ts: round((ts - start) / 1000, 1)
+    track = sorted(paths.get("tracks", {}).get(str(tank), paths.get("tracks", {}).get(tank, [])))
+    maps = (fight.get("dungeonReplay") or {}).get("maps", [])
+
+    def locate(t, pull):
+        # Use an actual nearby sample; do not bridge missing movement or floors.
+        near = min(track, key=lambda q: abs(q[0] - t), default=None)
+        if near is None or abs(near[0] - t) > 3:
+            return {}
+        if len(near) > 3 and near[3] is not None:
+            if near[3] not in (pull.get("maps") or []):
+                return {}
+            return {"x": near[1], "y": near[2], "map": near[3]}
+        floors = [m for m in maps if m["mapID"] in (pull.get("maps") or [])
+                  and m["mapMinX"] <= near[1] <= m["mapMaxX"]
+                  and m["mapMinY"] <= near[2] <= m["mapMaxY"]]
+        if len(floors) != 1:
+            return {}
+        return {"x": near[1], "y": near[2], "map": floors[0]["mapID"]}
+
+    died = {(d["actor"], d["instance"]): d["t"] for d in paths.get("enemyDeaths", [])}
+    contacts = sorted(paths.get("contacts", []), key=lambda c: c["t"])
+    assigned = set()
+    prior = []
+    for pull in pulls:
+        lo, hi = relative(pull["start_time"]), relative(pull["end_time"])
+        if pull.get("boss"):
+            result["pulls"].append({"id": pull["id"], "start": lo, "end": hi, "steps": [],
+                                    "segments": [], "observed": 0, "boss": True})
+            continue
+        members = {(actor, instance) for _, actor, lower, upper, *_ in pull.get("enemies", [])
+                   for instance in range(lower, upper + 1)}
+        own = [c for c in contacts if (c["actor"], c["instance"]) in members
+               and (fight.get("npcCountMap") or {}).get(str(c["guid"]), 0) > 0
+               and (c["actor"], c["instance"]) not in assigned and lo - 2 <= c["t"] <= hi]
+        batches = []
+        for c in own:
+            key = (c["actor"], c["instance"])
+            assigned.add(key)
+            pos = locate(c["t"], pull)
+            batch = batches[-1] if batches else None
+            if (batch is None or c["t"] - batch["t"] > 5
+                    or (pos and "x" in batch and math.hypot(pos["x"] - batch["x"], pos["y"] - batch["y"]) > 2500)):
+                batch = {"kind": "join", "t": c["t"], "until": c["t"], "label": "",
+                         "members": [], **pos}
+                batches.append(batch)
+            batch["members"].append(c)
+            batch["until"] = c["t"]
+
+        for i, batch in enumerate(batches):
+            batch["label"] = chr(65 + i) if i < 26 else str(i + 1)
+            older = [c for c in prior + own if c["t"] < batch["t"] - 5]
+            # A future recorded death proves survival; last coordinate does not.
+            alive = [c for c in older if died.get((c["actor"], c["instance"]), -1) > batch["t"]
+                     and (c["actor"], c["instance"]) in members]
+            batch["alive"] = len(alive)
+            batch["chain"] = bool(alive and batch["t"] - min(c["t"] for c in alive) >= 15 and not pull.get("boss"))
+            recent = [c for c in older if batch["t"] - 8 <= died.get((c["actor"], c["instance"]), -100) < batch["t"]]
+            batch["recentDeaths"] = [{"name": c["name"], "t": died[(c["actor"], c["instance"])]} for c in recent]
+            tank_hits = [c for c in batch["members"] if c["who"] == tank and c.get("outgoing")]
+            batch["tankAction"] = tank_hits[0] if tank_hits else None
+
+        # Find sustained small-radius tank stays. These do not prove enemies gathered.
+        samples = [q for q in track if lo <= q[0] <= hi]
+        stops, window = [], []
+        for q in samples + [[hi + 10, 0, 0]]:
+            changed_floor = (window and len(q) > 3 and len(window[-1]) > 3 and q[3] != window[-1][3])
+            if window and (changed_floor or q[0] - window[-1][0] > 5 or math.hypot(q[1] - window[0][1], q[2] - window[0][2]) > 800):
+                if len(window) >= 4 and window[-1][0] - window[0][0] >= 8:
+                    pos = locate(window[0][0], pull)
+                    if pos:
+                        # Ignore repeated jitter stops in the same area.
+                        if not stops or math.hypot(pos["x"] - stops[-1]["x"], pos["y"] - stops[-1]["y"]) > 1200:
+                            stops.append({"kind": "stop", "t": window[0][0], "until": window[-1][0], **pos})
+                window = []
+            window.append(q)
+
+        steps = sorted(batches + stops, key=lambda s: (s["t"], s["kind"] == "stop"))
+        # Keep sampled polylines as separate segments, including discontinuities.
+        segments, segment = [], []
+        for q in samples:
+            pos = locate(q[0], pull)
+            if not pos or (segment and (q[0] - segment[-1]["t"] > 5 or pos["map"] != segment[-1]["map"])):
+                if len(segment) > 1:
+                    segments.append(segment)
+                segment = []
+            if pos:
+                segment.append({"t": q[0], **pos})
+        if len(segment) > 1:
+            segments.append(segment)
+        result["pulls"].append({"id": pull["id"], "start": lo, "end": hi, "steps": steps,
+                                "segments": segments, "observed": len(own)})
+        prior.extend(own)
+    return result
 
 
 def api_mplus_mdt(code, fight_id):
@@ -884,13 +1032,23 @@ def api_mplus_mdt(code, fight_id):
     data = api_mplus(code, fight_id)
     mdt_dir = mdt_export.find_mdt_dir()
     if not mdt_dir:
-        raise WclError("没有找到已安装的 MDT 插件。请确认 World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools 存在，"
-                       "或设置环境变量 WCL_MDT_PATH 指向该目录。")
+        raise WclError(translate("没有找到已安装的 MDT 插件。请确认 World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools 存在，"
+                                "或设置环境变量 WCL_MDT_PATH 指向该目录。",
+                                "Mythic Dungeon Tools was not found. Check World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools "
+                                "or set WCL_MDT_PATH to that directory."))
+    annotation_error = None
     try:
-        result = mdt_export.build_route(mdt_dir, data["run"], data["pulls"], code, fight_id)
+        route = api_mplus_paths(code, fight_id).get("tankRoute")
+    except WclError as exc:
+        route = None
+        annotation_error = str(exc)
+    try:
+        result = mdt_export.build_route(mdt_dir, data["run"], data["pulls"], code, fight_id, tank_route=route)
     except mdt_export.MdtError as e:
         raise WclError(str(e))
     result.pop("preset", None)
+    if annotation_error:
+        result["annotation_notice"] = translate(f"路线已生成，接怪标记暂未导出：{annotation_error}", f"Route generated without pull annotations: {annotation_error}")
     result["mdt_path"] = str(mdt_dir)
     return result
 
@@ -902,31 +1060,58 @@ def _extract_paths(code, fight, meta):
     enemies = {e["id"]: e for e in meta["enemies"]}
     tracks = {pid: {} for pid in players}
     mobs = {}
+    contacts, deaths = {}, {}
+    owners = {p["id"]: p.get("petOwner") for p in meta.get("friendlyPets", [])}
     seg = start
     while seg <= end:
         seg_end = min(seg + REPLAY_SEGMENT_MS - 1, end)
         data = wcl.get_json(code, f"/reports/replaysegment/{code}/{fight['boss']}/{seg}/{seg_end}/")
         for ev in data.get("events", []):
+            t = round((ev["timestamp"] - start) / 1000, 1)
+            source, target = ev.get("sourceID"), ev.get("targetID")
+            source_player = owners.get(source, source)
+            target_player = owners.get(target, target)
+            side, who = None, None
+            if ev.get("type") in ("damage", "miss", "absorbed"):
+                if source_player in players and target in enemies and not ev.get("targetIsFriendly"):
+                    side, who = "target", source_player
+                elif target_player in players and source in enemies and not ev.get("sourceIsFriendly"):
+                    side, who = "source", target_player
+            elif ev.get("type") in ("cast", "begincast") and source in enemies and target_player in players:
+                side, who = "source", target_player
+            if side:
+                actor = ev[f"{side}ID"]
+                key = (actor, ev.get(f"{side}Instance", 1))
+                if key not in contacts or t < contacts[key]["t"]:
+                    ab = ev.get("ability") or {}
+                    contacts[key] = {"actor": actor, "instance": key[1], "guid": enemies[actor].get("guid"),
+                                     "name": enemies[actor].get("name", translate("未知怪物", "Unknown enemy")), "t": t,
+                                     "who": who, "spell": ab.get("name", ""), "outgoing": side == "target"}
+            if ev.get("type") == "death" and target in enemies and not ev.get("targetIsFriendly") and not ev.get("feign"):
+                key = (target, ev.get("targetInstance", 1))
+                deaths[key] = {"actor": target, "instance": key[1], "t": t}
             if "x" not in ev or ev.get("resourceActor") not in (1, 2):
                 continue
             side = "source" if ev["resourceActor"] == 1 else "target"
             actor = ev.get(f"{side}ID")
-            t = (ev["timestamp"] - start) / 1000
             if actor in players:
-                tracks[actor].setdefault(int(t // PATH_STEP_SEC), (round(t, 1), ev["x"], ev["y"]))
+                tracks[actor].setdefault(int(t // PATH_STEP_SEC), (t, ev["x"], ev["y"], ev.get("mapID")))
             elif actor in enemies and not ev.get(f"{side}IsFriendly"):
                 key = (actor, ev.get(f"{side}Instance", 1))
                 m = mobs.get(key)
                 if m is None:
-                    mobs[key] = {"actor": actor, "guid": enemies[actor].get("guid"), "t": round(t, 1),
-                                 "x": ev["x"], "y": ev["y"], "lastT": round(t, 1), "lx": ev["x"], "ly": ev["y"]}
+                    mobs[key] = {"actor": actor, "instance": key[1], "guid": enemies[actor].get("guid"), "t": t,
+                                 "x": ev["x"], "y": ev["y"], "map": ev.get("mapID"),
+                                 "lastT": t, "lx": ev["x"], "ly": ev["y"]}
                 else:
-                    m.update(lastT=round(t, 1), lx=ev["x"], ly=ev["y"])
+                    m.update(lastT=t, lx=ev["x"], ly=ev["y"])
         seg = seg_end + 1
     return {
         "step": PATH_STEP_SEC,
         "tracks": {pid: [list(v) for _, v in sorted(pts.items())] for pid, pts in tracks.items()},
         "mobs": sorted(mobs.values(), key=lambda m: m["t"]),
+        "contacts": sorted(contacts.values(), key=lambda c: c["t"]),
+        "enemyDeaths": sorted(deaths.values(), key=lambda d: d["t"]),
     }
 
 
@@ -1044,6 +1229,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlparse(self.path)
         q = {k: v[0] for k, v in parse_qs(url.query).items()}
+        token = LANGUAGE.set(normalize_language(q.get("lang")))
+        try:
+            self._dispatch(url, q)
+        finally:
+            LANGUAGE.reset(token)
+
+    def _dispatch(self, url, q):
         try:
             if url.path == "/":
                 return self._send(200, (ROOT / "index.html").read_bytes(), "text/html; charset=utf-8")
@@ -1053,6 +1245,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(api_fight(q["code"], int(q["fight"])))
             if url.path == "/mplus":
                 return self._send(200, (ROOT / "mplus.html").read_bytes(), "text/html; charset=utf-8")
+            if url.path == "/i18n.js":
+                return self._send(200, (ROOT / "i18n.js").read_bytes(), "application/javascript; charset=utf-8")
             if url.path == "/api/mplus/runs":
                 return self._json(api_mplus_list(q.get("link", "")))
             if url.path == "/api/mplus/paths":
@@ -1075,7 +1269,7 @@ class Handler(BaseHTTPRequestHandler):
         except WclError as e:
             self._json({"error": str(e)}, 400)
         except Exception as e:
-            self._json({"error": f"内部错误：{type(e).__name__}: {e}"}, 500)
+            self._json({"error": translate(f"内部错误：{type(e).__name__}: {e}", f"Internal error: {type(e).__name__}: {e}")}, 500)
 
     def _json(self, obj, status=200):
         self._send(status, json.dumps(obj, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
@@ -1100,5 +1294,5 @@ def serve(host=HOST, port=PORT):
 
 
 if __name__ == "__main__":
-    print(f"WCL 大招分析已启动：http://{HOST}:{PORT}")
+    print(f"WCL 治疗作业 / Healing Playbook: http://{HOST}:{PORT}")
     serve().serve_forever()

@@ -10,11 +10,14 @@ from __future__ import annotations
 import base64
 import collections
 import hashlib
+import math
 import os
 import re
 import sys
 import zlib
 from pathlib import Path
+
+from localization import translate
 
 PREFIX = "!~MDT2~"
 
@@ -102,14 +105,14 @@ class _LuaParser:
     def parse_table(self) -> dict:
         self._skip()
         if self.text[self.pos] != "{":
-            raise MdtError("MDT 数据格式异常：需要 Lua table")
+            raise MdtError(translate("MDT 数据格式异常：需要 Lua table", "Invalid MDT data: expected a Lua table"))
         self.pos += 1
         out: dict = {}
         index = 0
         while True:
             self._skip()
             if self.pos >= len(self.text):
-                raise MdtError("MDT 数据格式异常：Lua table 未闭合")
+                raise MdtError(translate("MDT 数据格式异常：Lua table 未闭合", "Invalid MDT data: unclosed Lua table"))
             if self.text[self.pos] == "}":
                 self.pos += 1
                 return out
@@ -119,11 +122,11 @@ class _LuaParser:
                 key = self._parse_scalar()
                 self._skip()
                 if self.text[self.pos] != "]":
-                    raise MdtError("MDT 数据格式异常：缺少 ]")
+                    raise MdtError(translate("MDT 数据格式异常：缺少 ]", "Invalid MDT data: missing ]"))
                 self.pos += 1
                 self._skip()
                 if self.text[self.pos] != "=":
-                    raise MdtError("MDT 数据格式异常：缺少 =")
+                    raise MdtError(translate("MDT 数据格式异常：缺少 =", "Invalid MDT data: missing ="))
                 self.pos += 1
                 out[key] = self._parse_value()
                 continue
@@ -153,7 +156,8 @@ class _LuaParser:
             if self.text.startswith(word, self.pos):
                 self.pos += len(word)
                 return value
-        raise MdtError(f"MDT 数据格式异常：无法解析 {self.text[self.pos:self.pos + 30]!r}")
+        raise MdtError(translate(f"MDT 数据格式异常：无法解析 {self.text[self.pos:self.pos + 30]!r}",
+                                 f"Invalid MDT data: cannot parse {self.text[self.pos:self.pos + 30]!r}"))
 
     def _parse_scalar(self):
         m = re.match(r"-?\d+(?:\.\d+)?", self.text[self.pos:])
@@ -163,7 +167,7 @@ class _LuaParser:
             return int(raw)
         if self.text[self.pos] in "\"'":
             return self._parse_string()
-        raise MdtError("MDT 数据格式异常：不支持的 table key")
+        raise MdtError(translate("MDT 数据格式异常：不支持的 table key", "Invalid MDT data: unsupported table key"))
 
     def _parse_string(self) -> str:
         quote = self.text[self.pos]
@@ -189,7 +193,7 @@ class _LuaParser:
                 continue
             out.append(ch)
             self.pos += 1
-        raise MdtError("MDT 数据格式异常：字符串未闭合")
+        raise MdtError(translate("MDT 数据格式异常：字符串未闭合", "Invalid MDT data: unclosed string"))
 
 
 def _read_text(path: Path) -> str:
@@ -239,14 +243,16 @@ def _match_dungeon(mdt_dir: Path, run_name: str) -> dict:
     for entry in catalog:
         if any(wanted and (wanted in re.sub(r"\s+", "", n).casefold()) for n in entry["names"]):
             return entry
-    raise MdtError(f"MDT 里没有找到与「{run_name}」对应的地下城，请确认 MDT 已更新。")
+    raise MdtError(translate(f"MDT 里没有找到与「{run_name}」对应的地下城，请确认 MDT 已更新。",
+                             f"No MDT dungeon matches ‘{run_name}’. Make sure MDT is up to date."))
 
 
 def _load_enemies(path: Path) -> dict:
     text = _read_text(path)
     m = re.search(r"MDT\.dungeonEnemies\s*\[\s*dungeonIndex\s*\]\s*=\s*\{", text)
     if not m:
-        raise MdtError(f"无法从 {path.name} 读取 MDT 怪物数据。")
+        raise MdtError(translate(f"无法从 {path.name} 读取 MDT 怪物数据。",
+                                 f"Unable to read MDT enemy data from {path.name}."))
     parser = _LuaParser(text, m.end() - 1)
     return parser.parse_table()
 
@@ -383,12 +389,89 @@ def _assign(groups: list[dict], pulls: list[dict], required: int) -> list[list[i
     return assignments
 
 
-def build_route(mdt_dir: Path, run: dict, pulls: list[dict], code: str = "", fight_id: int = 0) -> dict:
+def _route_objects(tank_route, pulls, assignments, groups, enemies):
+    """MDT-native notes and schematic join arrows, never uncalibrated WCL coordinates.
+
+    Notes are anchored to the approximate exported pull. Arrows are only possible
+    when a batch's NPC species points to one of that pull's assigned MDT groups.
+    The actual tank polyline/stay coordinates remain in the web map.
+    """
+    if not tank_route:
+        return []
+    objects = []
+    by_id = {p["id"]: p for p in tank_route.get("pulls", [])}
+
+    def position(group):
+        clones = [enemies[ei]["clones"][ci] for ei, ci, *_ in group["clones"]]
+        floors = {c.get("sublevel", 1) for c in clones}
+        if len(floors) != 1 or any(c.get("x") is None or c.get("y") is None for c in clones):
+            return None
+        return (sum(c["x"] for c in clones) / len(clones), sum(c["y"] for c in clones) / len(clones), floors.pop())
+
+    for number, (pull, indices) in enumerate(zip(pulls, assignments), 1):
+        analysis = by_id.get(pull.get("id"))
+        if not analysis or not analysis.get("steps") or not indices:
+            continue
+        positions = {idx: position(groups[idx]) for idx in indices}
+        anchor = next((p for p in positions.values() if p), None)
+        if anchor is None:
+            continue
+        lines = [
+            translate(f"WCL 第 {number} 波 · 接怪过程（示意位置）", f"WCL pull {number} · Enemy joins (approximate positions)"),
+            translate("按日志首次交互分批；实际路径和停留位置见网页。", "Batches follow first interactions in the log; see the web page for the actual route and stops."),
+        ]
+        previous = None
+        for step in analysis["steps"]:
+            offset = step["t"] - analysis["start"]
+            time_label = f"{offset:+.0f}s"
+            if step["kind"] == "stop":
+                lines.append(translate(f"{time_label} 坦克停留约 {step['until'] - step['t']:.0f}s（位置见网页）",
+                                       f"{time_label} Tank stops for about {step['until'] - step['t']:.0f}s (see web page for position)"))
+                continue
+            counts = collections.Counter(c["name"] for c in step["members"])
+            names = translate("、", ", ").join(f"{name}×{n}" for name, n in counts.items())
+            action = translate("续接", "Chain pull") if step.get("chain") else translate("接入", "Engage")
+            text = translate(f"{time_label} {action} {step['label']}：{names}",
+                             f"{time_label} {action} {step['label']}: {names}")
+            if step.get("alive"):
+                text += translate(f"；至少 {step['alive']} 只旧怪仍存活",
+                                  f"; at least {step['alive']} enemies from previous batches are still alive")
+            if step.get("recentDeaths"):
+                text += translate("；此前8秒死亡：", "; deaths in the previous 8s: ") + translate("、", ", ").join(dict.fromkeys(d["name"] for d in step["recentDeaths"]))
+            lines.append(text)
+
+            # A distinctive NPC must select a single group; don't guess among identical packs.
+            candidates = set()
+            for npc in {c.get("guid") for c in step["members"]}:
+                matches = [idx for idx in indices if npc in groups[idx]["npcs"]]
+                if len(matches) == 1:
+                    candidates.add(matches[0])
+            target = positions[next(iter(candidates))] if len(candidates) == 1 else None
+            if target is None:
+                previous = None
+                continue
+            x, y, floor = target
+            objects.append({"n": True, "d": [round(x, 1), round(y, 1), floor, True,
+                            translate(f"WCL 第{number}波 {time_label} {action} {step['label']}（怪群位置示意）\n{names}",
+                                      f"WCL pull {number} {time_label} {action} {step['label']} (approximate pack position)\n{names}")]})
+            if previous and previous[2] == floor and math.hypot(x - previous[0], y - previous[1]) > 3:
+                px, py, _ = previous
+                objects.append({"d": [9, 1, floor, True, "f2994a" if step.get("chain") else "f6c85f", 0],
+                                "l": [round(px, 1), round(py, 1), round(x, 1), round(y, 1)],
+                                "t": [math.atan2(py - y, px - x)]})
+            previous = target
+        x, y, floor = anchor
+        objects.append({"n": True, "d": [round(x + 10, 1), round(y + 10, 1), floor, True, "\n".join(lines)]})
+    return objects
+
+
+def build_route(mdt_dir: Path, run: dict, pulls: list[dict], code: str = "", fight_id: int = 0,
+                tank_route: dict | None = None) -> dict:
     dungeon = _match_dungeon(mdt_dir, run.get("name") or "")
     enemies = _load_enemies(dungeon["path"])
     groups = _build_groups(enemies)
     if not groups:
-        raise MdtError("MDT 怪物数据为空，无法生成路线。")
+        raise MdtError(translate("MDT 怪物数据为空，无法生成路线。", "MDT enemy data is empty; a route cannot be generated."))
     required = int(run.get("countRequired") or 0)
     assignments = _assign(groups, pulls, required)
 
@@ -407,12 +490,12 @@ def build_route(mdt_dir: Path, run: dict, pulls: list[dict], code: str = "", fig
             route_pulls.append(pull)
 
     if not route_pulls:
-        raise MdtError("没有匹配到任何 MDT 怪物，无法生成路线。")
+        raise MdtError(translate("没有匹配到任何 MDT 怪物，无法生成路线。", "No MDT enemies matched; a route cannot be generated."))
 
     title = f"WCL {run.get('name') or dungeon['key']} +{run.get('level') or '?'}"
     uid = "WCL" + hashlib.sha1(f"{code}:{fight_id}".encode()).hexdigest()[:8]
     preset = {
-        "objects": [],
+        "objects": _route_objects(tank_route, pulls, assignments, groups, enemies),
         "difficulty": int(run.get("level") or 0),
         "week": 1,
         "value": {
@@ -439,6 +522,10 @@ def build_route(mdt_dir: Path, run: dict, pulls: list[dict], code: str = "", fig
         "force": force,
         "required": required,
         "title": title,
+        "notes": sum(bool(obj.get("n")) for obj in preset["objects"]),
+        "arrows": sum(bool(obj.get("t")) for obj in preset["objects"]),
+        "annotation_notice": translate("MDT 注释与箭头按近似匹配的怪群绘制，仅示意接怪顺序；实际走位和停留位置请查看网页。",
+                                       "MDT notes and arrows use approximately matched packs to show the pull order. See the web page for the actual movement and stops."),
     }
 
 
@@ -491,7 +578,8 @@ def cbor_encode(value) -> bytes:
                 out.append(_cbor_head(2, len(raw)) + raw)
             out.append(cbor_encode(item))
         return b"".join(out)
-    raise MdtError(f"无法编码 CBOR 类型：{type(value).__name__}")
+    raise MdtError(translate(f"无法编码 CBOR 类型：{type(value).__name__}",
+                             f"Cannot encode CBOR type: {type(value).__name__}"))
 
 
 def encode_mdt2(preset: dict) -> str:
@@ -503,7 +591,7 @@ def encode_mdt2(preset: dict) -> str:
 
 def decode_mdt2(string: str) -> dict:
     if not string.startswith(PREFIX):
-        raise MdtError("不是 MDT2 导入字符串")
+        raise MdtError(translate("不是 MDT2 导入字符串", "Not an MDT2 import string"))
     deflated = base64.b64decode(string[len(PREFIX):])
     raw = zlib.decompress(deflated, -15)
     return _cbor_decode(raw, [0])[0]
@@ -528,7 +616,7 @@ def _cbor_decode(data: bytes, pos: list[int]):
         value = int.from_bytes(data[pos[0]:pos[0] + 8], "big")
         pos[0] += 8
     else:
-        raise MdtError("不支持的 CBOR 数据")
+        raise MdtError(translate("不支持的 CBOR 数据", "Unsupported CBOR data"))
     if major == 0:
         return value, pos
     if major == 1:
@@ -555,4 +643,4 @@ def _cbor_decode(data: bytes, pos: list[int]):
         if info == 27:
             import struct
             return struct.unpack(">d", data[pos[0] - 8:pos[0]])[0], pos
-    raise MdtError(f"不支持的 CBOR 类型：{major}")
+    raise MdtError(translate(f"不支持的 CBOR 类型：{major}", f"Unsupported CBOR type: {major}"))

@@ -25,6 +25,8 @@ import time
 from http.cookies import BaseCookie, Morsel
 from pathlib import Path
 
+from localization import translate
+
 VERIFY_FLAG = "--verify"
 RESULT_PREFIX = "__WCL_VERIFY__ "
 
@@ -145,8 +147,14 @@ def run(url, timeout=TIMEOUT_SEC):
     try:
         import webview
     except ImportError:
-        return {"error": "未安装 pywebview，无法弹出验证窗口。请先执行 pip install -r requirements.txt"}
+        return {"error": translate("未安装 pywebview，无法弹出验证窗口。请先执行 pip install -r requirements.txt",
+                                   "pywebview is not installed. Run pip install -r requirements.txt to open the verification window.")}
 
+    # The WebView watcher may run on another thread, so capture request-local messages here.
+    closed_message = translate("验证窗口已关闭，未完成验证", "The verification window was closed before verification completed")
+    timeout_message = translate("验证超时，请重试", "Verification timed out. Please try again")
+    webview2_message = translate("系统缺少 WebView2 运行时，无法加载 WCL 页面。请安装 Microsoft Edge WebView2 运行时后重试。",
+                                 "The WebView2 runtime is missing. Install the Microsoft Edge WebView2 runtime and try again.")
     result = {}
     closed = threading.Event()
     window = None
@@ -154,8 +162,7 @@ def run(url, timeout=TIMEOUT_SEC):
     def watch():
         renderer = getattr(webview, "renderer", None)
         if renderer == "mshtml":
-            result["error"] = ("系统缺少 WebView2 运行时，无法加载 WCL 页面。"
-                               "请安装 Microsoft Edge WebView2 运行时后重试。")
+            result["error"] = webview2_message
             _close(window)
             return
         deadline = time.monotonic() + timeout
@@ -178,19 +185,19 @@ def run(url, timeout=TIMEOUT_SEC):
             except Exception:
                 continue
         if "cookies" not in result:
-            result["error"] = "验证窗口已关闭，未完成验证" if closed.is_set() else "验证超时，请重试"
+            result["error"] = closed_message if closed.is_set() else timeout_message
         _close(window)
 
     try:
         window = webview.create_window(
-            "WCL 人机验证 —— 请点击“我是人类”",
+            translate("WCL 人机验证 —— 请点击“我是人类”", "WCL verification — please click ‘I am a human’"),
             url,
             width=980,
             height=760,
             text_select=True,
         )
         if window is None:
-            return {"error": "无法创建验证窗口"}
+            return {"error": translate("无法创建验证窗口", "Unable to create the verification window")}
         window.events.closed += lambda *_: closed.set()
         storage = _storage_path()
         storage.mkdir(parents=True, exist_ok=True)
@@ -203,11 +210,12 @@ def run(url, timeout=TIMEOUT_SEC):
             user_agent=USER_AGENT,
         )
     except Exception as exc:
-        return {"error": f"无法打开验证窗口：{type(exc).__name__}: {exc}"}
+        return {"error": translate(f"无法打开验证窗口：{type(exc).__name__}: {exc}",
+                                   f"Unable to open the verification window: {type(exc).__name__}: {exc}")}
 
     if "cookies" in result:
         return result
-    return {"error": result.get("error", "验证窗口已关闭，未获取到会话")}
+    return {"error": result.get("error", translate("验证窗口已关闭，未获取到会话", "The verification window closed without a session"))}
 
 
 def main(argv=None):
@@ -221,7 +229,7 @@ def main(argv=None):
     if args and args[0] == VERIFY_FLAG:
         args = args[1:]
     if not args or not args[0].startswith("http"):
-        _emit({"error": "缺少有效的 WCL 日志链接"})
+        _emit({"error": translate("缺少有效的 WCL 日志链接", "A valid WCL report link is required")})
         return 2
 
     result = run(args[0])
