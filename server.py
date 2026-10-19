@@ -560,42 +560,63 @@ def classify_cast(guid, name, cls, by_class, common):
     return None
 
 
-def mplus_buff_events(code, fight_id, start, end, spell_ids, spell_names=(), persist=True):
-    """Fetch complete buff event pages, limited to the timeline's tracked spells."""
+def _mplus_aura_events(code, fight_id, start, end, aura_type, spell_ids=(), spell_names=(),
+                       target_ids=(), persist=True):
+    """Fetch complete aura event pages, optionally limited to tracked spells."""
     ids = sorted({int(sid) for sid in spell_ids})
+    targets = sorted({int(pid) for pid in target_ids})
     # These characters delimit WCL's pin format even inside quoted expressions.
     names = sorted({name for name in spell_names if isinstance(name, str) and name
                     and not any(char in name for char in "$^\r\n")})
-    if not ids and not names:
+    if not ids and not names and aura_type != "debuffs":
         return []
     clauses = []
     if ids:
         clauses.append(f"ability.id IN ({','.join(map(str, ids))})")
     if names:
         clauses.append("ability.name IN (" + ",".join(json.dumps(name, ensure_ascii=False) for name in names) + ")")
-    pin = "2$Off$#909049$expression$" + " OR ".join(clauses)
-    query = urlencode({"pins": pin})
-    fingerprint = hashlib.sha256(json.dumps([start, end, ids, names], ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
+    if targets:
+        clauses.append(f"target.id IN ({','.join(map(str, targets))})")
+    query = ""
+    if clauses:
+        pin = "2$Off$#909049$expression$" + " OR ".join(clauses)
+        query = "?" + urlencode({"pins": pin})
+    fingerprint = hashlib.sha256(json.dumps([aura_type, start, end, ids, names, targets], ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
 
     def fetch():
         events = []
         cursor = start
         while cursor <= end:
             path = (f"/reports/auras-events/{code}/{fight_id}/{cursor}/{end}"
-                    f"/buffs/0/0/0/0/0/source/0/-1.0.-1.-1/0/Any/Any/0?{query}")
+                    f"/{aura_type}/0/0/0/0/0/source/0/-1.0.-1.-1/0/Any/Any/0{query}")
             page = wcl.get_json(code, path)
             if not isinstance(page, dict) or not isinstance(page.get("events"), list):
-                raise WclError(translate("WCL 未返回完整的增益事件数据，请稍后重试", "WCL returned incomplete buff events. Please try again later."))
+                raise WclError(translate("WCL 未返回完整的光环事件数据，请稍后重试", "WCL returned incomplete aura events. Please try again later."))
             events.extend(page["events"])
             next_cursor = page.get("nextPageTimestamp")
             if next_cursor is None:
                 return events
             if not isinstance(next_cursor, int) or isinstance(next_cursor, bool) or next_cursor <= cursor:
-                raise WclError(translate("WCL 增益事件分页未能继续，请稍后重试", "WCL buff event pagination did not advance. Please try again later."))
+                raise WclError(translate("WCL 光环事件分页未能继续，请稍后重试", "WCL aura event pagination did not advance. Please try again later."))
             cursor = next_cursor
         return events
 
-    return cached(f"{code}/{fight_id}_buff_events_v1_{fingerprint}.json", fetch, persist)
+    if aura_type == "buffs":
+        legacy_fingerprint = hashlib.sha256(json.dumps([start, end, ids, names], ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
+        cache_name = f"{code}/{fight_id}_buff_events_v1_{legacy_fingerprint}.json"
+    else:
+        cache_name = f"{code}/{fight_id}_{aura_type}_events_v1_{fingerprint}.json"
+    return cached(cache_name, fetch, persist)
+
+
+def mplus_buff_events(code, fight_id, start, end, spell_ids, spell_names=(), persist=True):
+    """Fetch complete buff event pages, limited to the timeline's tracked spells."""
+    return _mplus_aura_events(code, fight_id, start, end, "buffs", spell_ids, spell_names, persist=persist)
+
+
+def mplus_debuff_events(code, fight_id, start, end, target_ids, persist=True):
+    """Fetch debuff events so defensive casts can be matched to nearby removals."""
+    return _mplus_aura_events(code, fight_id, start, end, "debuffs", target_ids=target_ids, persist=persist)
 
 
 def source_graph(code, fight_id, rng, view, persist, hostile=False):
@@ -608,6 +629,125 @@ def source_graph(code, fight_id, rng, view, persist, hostile=False):
 def player_role(icon):
     spec = (icon or "").split("-")[-1]
     return "tank" if spec in TANK_SPECS else "healer" if spec in HEALER_SPECS else "dps"
+
+
+def known_non_tank_role(icon):
+    """Only infer defensive purpose when WCL identified the player's specialization."""
+    return bool(icon and "-" in icon and player_role(icon) != "tank")
+
+
+DEFENSIVE_CONTEXT_BEFORE_SEC = 1.0
+DEFENSIVE_CONTEXT_AFTER_SEC = 6.0
+DEFENSIVE_CAST_CONTEXT_SEC = 2.0
+DEBUFF_REMOVAL_WINDOW_SEC = 0.75
+
+
+def mplus_damage_events(series, players, start):
+    """Extract player-targeted damage and immune misses from the damage-taken graph."""
+    events = []
+    for s, ev in event_list(series):
+        target_id = ev.get("targetID") or (ev.get("target") or {}).get("id")
+        if target_id not in players or ev.get("type") not in {"damage", "miss"}:
+            continue
+        ability = ev.get("ability") or {}
+        name = s.get("name") or ability.get("name")
+        if not name or not isinstance(ev.get("timestamp"), (int, float)):
+            continue
+        miss_type = str(ev.get("missType") or "").casefold()
+        is_immune = ev.get("type") == "miss" and "immune" in miss_type
+        is_dot = bool(ev.get("tick") or ev.get("isTick") or ev.get("periodic"))
+        events.append({
+            "t": (ev["timestamp"] - start) / 1000,
+            "who": target_id,
+            "spell": s.get("guid") or ability.get("guid"),
+            "name": name,
+            "kind": "immune" if is_immune else "dot" if is_dot else "damage",
+        })
+    return events
+
+
+def mplus_hostile_cast_events(series, players, start):
+    """Extract nearby enemy casts, including casts that an immunity may prevent from landing."""
+    events = []
+    for s, ev in event_list(series):
+        if ev.get("type") not in {"cast", "begincast"}:
+            continue
+        if not isinstance(ev.get("timestamp"), (int, float)):
+            continue
+        target_id = ev.get("targetID") or (ev.get("target") or {}).get("id")
+        if target_id in players:
+            who = target_id
+        elif target_id is None:
+            who = None
+        else:
+            continue
+        name = s.get("name") or (ev.get("ability") or {}).get("name")
+        if name:
+            events.append({"t": (ev["timestamp"] - start) / 1000, "who": who, "name": name})
+    return events
+
+
+def defensive_purpose(target_id, cast_time, damage_events, debuff_events, hostile_casts, start):
+    """Return the closest log evidence around a defensive cast, without asserting causality."""
+    removals = []
+    for ev in debuff_events:
+        event_target = ev.get("targetID") or (ev.get("target") or {}).get("id")
+        if ev.get("type") != "removedebuff" or event_target != target_id:
+            continue
+        ability = ev.get("ability") or {}
+        name = ability.get("name")
+        timestamp = ev.get("timestamp")
+        if name and isinstance(timestamp, (int, float)):
+            t = (timestamp - start) / 1000
+            delta = t - cast_time
+            if abs(delta) <= DEBUFF_REMOVAL_WINDOW_SEC:
+                removals.append((abs(delta), t, {"kind": "debuff", "name": name, "delta": delta}))
+    if removals:
+        return min(removals, key=lambda x: x[0])[2]
+
+    candidates = [ev for ev in damage_events if ev["who"] == target_id
+                  and -DEFENSIVE_CONTEXT_BEFORE_SEC <= ev["t"] - cast_time <= DEFENSIVE_CONTEXT_AFTER_SEC]
+    immune = [ev for ev in candidates if ev["kind"] == "immune"]
+    if immune:
+        ev = min(immune, key=lambda e: abs(e["t"] - cast_time))
+        return {"kind": "immune", "name": ev["name"], "delta": ev["t"] - cast_time}
+
+    after = [ev for ev in candidates if ev["t"] >= cast_time]
+    if after:
+        ev = min(after, key=lambda e: e["t"])
+    elif candidates:
+        ev = max(candidates, key=lambda e: e["t"])
+    else:
+        casts = [ev for ev in hostile_casts if ev["who"] in (None, target_id)
+                 and abs(ev["t"] - cast_time) <= DEFENSIVE_CAST_CONTEXT_SEC]
+        if casts:
+            ev = min(casts, key=lambda e: abs(e["t"] - cast_time))
+            return {"kind": "enemy_cast", "name": ev["name"], "delta": ev["t"] - cast_time}
+        return {"kind": "unknown"}
+    return {"kind": ev["kind"], "name": ev["name"], "delta": ev["t"] - cast_time}
+
+
+def annotate_defensive_purposes(casts, buffs, damage_events, debuff_events, hostile_casts, players, start):
+    """Attach nearby evidence to non-tank defensive casts and their matching aura rows."""
+    defensive_buffs = [b for b in buffs if b.get("cat") == "defensive"]
+    for cast in casts:
+        caster = cast.get("who")
+        if cast.get("cat") != "defensive" or caster not in players or not known_non_tank_role(players[caster].get("icon")):
+            continue
+        linked = [b for b in defensive_buffs if b.get("source") == caster
+                  and (b.get("spell") == cast.get("spell") or b.get("name") == cast.get("name"))
+                  and abs(b.get("t", cast["t"]) - cast["t"]) <= 1]
+        targets = sorted({b["who"] for b in linked if b.get("who") in players}) or [caster]
+        purposes = []
+        for target in targets:
+            purpose = defensive_purpose(target, cast["t"], damage_events, debuff_events, hostile_casts, start)
+            if target != caster:
+                purpose["target"] = players[target].get("name")
+            purposes.append(purpose)
+            for buff in linked:
+                if buff.get("who") == target:
+                    buff["purpose"] = purpose
+        cast["purposes"] = purposes
 
 
 def map_image(map_id):
@@ -839,6 +979,15 @@ def api_mplus(code, fight_id):
                                    [c["name"] for c in tracked_casts], persist=persist)
     pet_owners = {pet["id"]: pet.get("petOwner") for pet in meta.get("friendlyPets", [])}
     buffs = mplus_buff_intervals(buff_events, tracked_casts, players, start, end, pet_owners)
+    non_tank_defensives = [c for c in tracked_casts if c["cat"] == "defensive"
+                           and known_non_tank_role(players[c["who"]].get("icon"))]
+    debuff_events = (mplus_debuff_events(code, fight_id, start, end, players, persist=persist)
+                     if non_tank_defensives else [])
+    damage_events = mplus_damage_events(taken.get("series", []), players, start)
+    hostile_casts = (mplus_hostile_cast_events(graph(code, fight_id, rng, "casts", True, persist).get("series", []),
+                                               players, start) if non_tank_defensives else [])
+    annotate_defensive_purposes(tracked_casts, buffs, damage_events, debuff_events,
+                                hostile_casts, players, start)
 
     # per-pull player throughput
     def per_player(g):
