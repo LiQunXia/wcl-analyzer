@@ -55,6 +55,8 @@ Click “大秘境复盘” (Mythic+ Review) at the top of the page, paste a Myt
 
 **Pull breakdown:** See which enemies were pulled, the progress and time for the pull, and every burst cooldown, defensive, combat potion, healing potion, and interrupt used by each player. A player × pull cooldown matrix follows below.
 
+**Spell settings:** Click “技能设置” above the timeline to search this run's abilities by name or ID. Uncheck an ability to hide it, or check an unclassified ability to monitor it. Individual choices override category filters and apply to the timeline and pull-list icons. Settings are saved in the current browser and can be reset individually or together.
+
 **MDT export:** Click “导出 MDT” (Export MDT) in the map toolbar to generate a `!~MDT2~` string. The dungeon data used to build the route is bundled with the app; no setup is needed. Paste the string into Mythic Dungeon Tools' route import box in game.
 
 ## FAQ

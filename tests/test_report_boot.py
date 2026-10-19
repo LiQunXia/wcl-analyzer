@@ -30,6 +30,7 @@ const context = vm.createContext({
     return input.savedLink;
   } },
   restoredReview: input.restoredReview,
+  refreshHistory: () => {},
   $: id => elements[id],
   loadReport: (link, fightId) => calls.push({ link, fightId: fightId ?? null }),
 });

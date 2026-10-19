@@ -38,6 +38,32 @@ class MplusBuffEventsFetchTest(unittest.TestCase):
             self.assertEqual(server.mplus_buff_events("report", 2, 100, 200, [48707, 31884], ['技能 "引号"']), actual)
             self.assertEqual(get_json.call_count, 2)
 
+    def test_custom_spell_filter_cache_is_separate_by_language_and_selection(self):
+        def fetch(code, path):
+            name = server.translate("自选技能", "Custom spell")
+            return {"events": [{"ability": {"guid": 999001, "name": name}}]}
+
+        with patch.object(server.wcl, "get_json", side_effect=fetch) as get_json:
+            for locale, expected in (("zh-CN", "自选技能"), ("en", "Custom spell"),
+                                     ("zh-CN", "自选技能"), ("en", "Custom spell")):
+                token = server.LANGUAGE.set(locale)
+                try:
+                    # Identical IDs and names still require different locale caches.
+                    events = server.mplus_buff_events("report", 2, 100, 200, [999001], ["Shared spell name"])
+                    self.assertEqual(events[0]["ability"]["name"], expected)
+                finally:
+                    server.LANGUAGE.reset(token)
+            self.assertEqual(get_json.call_count, 2)
+            token = server.LANGUAGE.set("en")
+            try:
+                server.mplus_buff_events("report", 2, 100, 200, [999001, 999002], ["Shared spell name"])
+            finally:
+                server.LANGUAGE.reset(token)
+            self.assertEqual(get_json.call_count, 3)
+        paths = list(Path(self.cache.name).rglob("*.json"))
+        self.assertEqual(len(paths), 3)
+        self.assertEqual({path.parts[-3] for path in paths}, {"zh-CN", "en"})
+
     def test_failed_page_is_not_cached(self):
         with patch.object(server.wcl, "get_json", side_effect=[
             {"events": [{"timestamp": 150}], "nextPageTimestamp": 150},
