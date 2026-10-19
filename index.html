@@ -85,6 +85,23 @@
   .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line-2); border-top-color: var(--accent); animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* ---------- review history ---------- */
+  .history { margin: 18px 0 0; overflow: hidden; }
+  .history summary { display: flex; align-items: center; gap: 10px; padding: 12px 16px; cursor: pointer; list-style: none; }
+  .history summary::-webkit-details-marker { display: none; }
+  .history summary::before { content: "›"; color: var(--text-3); font: 18px/1 var(--mono); transition: transform .15s; }
+  .history[open] summary::before { transform: rotate(90deg); }
+  .history summary b { font-size: 13px; font-weight: 600; }
+  .history summary span { color: var(--text-3); font-size: 12px; }
+  .history-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 10px 12px 12px; border-top: 1px solid var(--line); }
+  .history-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); }
+  .history-item:hover { border-color: var(--line-2); background: rgba(255,255,255,.04); }
+  .history-item-main { display: grid; min-width: 0; }
+  .history-item-main b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; }
+  .history-item-main small, .history-item time { color: var(--text-3); font-size: 11px; }
+  .history-item time { flex: none; font-family: var(--mono); }
+  @media (max-width: 720px) { .history-list { grid-template-columns: 1fr; } }
+
   /* ---------- fight picker ---------- */
   .fights { display: flex; gap: 28px; overflow-x: auto; padding: 22px 0 4px; scrollbar-width: none; }
   .fights::-webkit-scrollbar { display: none; }
@@ -275,6 +292,10 @@
 </header>
 
 <main class="wrap">
+  <details class="history card" id="historyPanel" hidden>
+    <summary><b id="historyTitle"></b><span id="historyCount"></span></summary>
+    <div class="history-list" id="historyList"></div>
+  </details>
   <div id="msg"></div>
 
   <section id="empty" class="hero">
@@ -405,6 +426,32 @@ async function api(path) {
   return j;
 }
 
+function renderHistory(items) {
+  const panel = $("historyPanel");
+  if (!items.length) { panel.hidden = true; return; }
+  const recent = items.slice(0, 12);
+  $("historyTitle").textContent = t("最近复盘", "Recent reviews");
+  $("historyCount").textContent = t(`${recent.length} 条`, `${recent.length} saved`);
+  $("historyList").innerHTML = recent.map((item) => {
+    const isMplus = item.kind === "mplus";
+    const page = isMplus ? "/mplus" : "/";
+    const href = window.I18N.apiUrl(`${page}?r=${encodeURIComponent(item.code)}&f=${encodeURIComponent(item.fight)}`);
+    const type = isMplus ? t("大秘境", "Mythic+") : t("Boss 战", "Boss fight");
+    const result = item.kill ? t("击杀", "Kill") : t("未击杀", "Wipe");
+    const detail = [type, isMplus ? `+${item.level ?? "?"}` : item.difficulty,
+      t(`第 ${item.fight} 场`, `Fight ${item.fight}`), result, mmss(item.duration || 0), item.code].filter(Boolean).join(" · ");
+    const date = Number.isFinite(Number(item.viewedAt))
+      ? new Intl.DateTimeFormat(window.I18N.lang === "en" ? "en-US" : "zh-CN", { dateStyle: "short", timeStyle: "short" }).format(new Date(Number(item.viewedAt) * 1000))
+      : "";
+    return `<a class="history-item" href="${esc(href)}"><span class="history-item-main"><b>${esc(item.name || type)}</b><small>${esc(detail)}</small></span><time>${esc(date)}</time></a>`;
+  }).join("");
+  panel.hidden = false;
+}
+
+async function refreshHistory() {
+  try { renderHistory((await api("/api/history")).items || []); } catch {}
+}
+
 function showMsg(kind, text) {
   $("msg").innerHTML = !kind ? "" : kind === "loading"
     ? `<div class="loading"><div class="spinner"></div>${esc(text)}</div>`
@@ -471,6 +518,7 @@ async function loadFight(id) {
     currentUrl.searchParams.set("f", id);
     currentUrl.searchParams.set("lang", window.I18N.lang);
     history.replaceState(null, "", currentUrl);
+    refreshHistory();
     showMsg(null);
     render();
     $("chartScroll").scrollLeft = 0;
@@ -949,6 +997,7 @@ if (params.get("r")) {
   $("link").value = reportLink;
   loadReport(reportLink, params.get("f") ? +params.get("f") : undefined);
 }
+refreshHistory();
 </script>
 </body>
 </html>
