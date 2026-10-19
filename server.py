@@ -277,6 +277,57 @@ def parse_link(link):
 
 _meta_cache = {}
 META_TTL_SEC = 300
+HISTORY_LIMIT = 100
+_history_lock = threading.Lock()
+
+
+def _history_path():
+    return CACHE / "history.json"
+
+
+def _read_history():
+    try:
+        entries = json.loads(_history_path().read_text("utf-8"))
+    except (OSError, ValueError):
+        return []
+    if not isinstance(entries, list):
+        return []
+    return [entry for entry in entries if isinstance(entry, dict)][:HISTORY_LIMIT]
+
+
+def api_history():
+    with _history_lock:
+        return {"items": _read_history()}
+
+
+def remember_review(code, fight_id, kind, fight):
+    """Persist a bounded list of completed fights the user has opened."""
+    try:
+        entry = {
+            "code": code,
+            "fight": int(fight_id),
+            "kind": kind,
+            "name": fight.get("name"),
+            "difficulty": fight.get("difficulty"),
+            "level": fight.get("level"),
+            "kill": bool(fight.get("kill")),
+            "duration": round(float(fight.get("duration") or 0)),
+            "viewedAt": int(time.time()),
+        }
+        with _history_lock:
+            entries = _read_history()
+            key = (entry["code"], entry["fight"], entry["kind"])
+            entries = [item for item in entries
+                       if (item.get("code"), item.get("fight"), item.get("kind")) != key]
+            entries.insert(0, entry)
+            path = _history_path()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = path.with_name(f"history.{os.getpid()}.{threading.get_ident()}.tmp")
+            temporary.write_text(json.dumps(entries[:HISTORY_LIMIT], ensure_ascii=False), "utf-8")
+            os.replace(temporary, path)
+    except (OSError, TypeError, ValueError):
+        # History is a convenience; an unwritable cache must not fail an analysis.
+        pass
 
 
 def report_meta(code):
@@ -509,7 +560,7 @@ def api_fight(code, fight_id):
         c["zh"] = info[c["spell"]].get("name") or boss_info.get(c["en"], {}).get("zh")
         del c["isBoss"]
 
-    return {
+    result = {
         "code": code,
         "fight": fmt_fight(fight),
         "healers": healers,
@@ -522,6 +573,9 @@ def api_fight(code, fight_id):
         "phases": phases,
         "heroism": heroism,
     }
+    if not fight.get("inProgress"):
+        remember_review(code, fight_id, "raid", result["fight"])
+    return result
 
 
 # ---------- mythic+ route ----------
@@ -871,7 +925,7 @@ def api_mplus(code, fight_id):
         "usage": sorted(usage[pid].values(), key=lambda u: (u["cat"], u["times"][0])),
     } for pid, p in players.items()), key=lambda r: (["tank", "healer", "dps"].index(r["role"]), r["name"]))
 
-    return {
+    result = {
         "code": code,
         "run": {
             "id": fight_id, "name": fight.get("zoneName") or fight.get("name"),
@@ -890,6 +944,9 @@ def api_mplus(code, fight_id):
         "buffs": buffs,
         "heroism": [{"t": rel(h["startTime"]), "end": rel(h["endTime"])} for h in taken.get("heroism", [])],
     }
+    if not fight.get("inProgress"):
+        remember_review(code, fight_id, "mplus", result["run"])
+    return result
 
 
 REPLAY_SEGMENT_MS = 240000
@@ -1241,6 +1298,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, (ROOT / "index.html").read_bytes(), "text/html; charset=utf-8")
             if url.path == "/api/report":
                 return self._json(api_report(q.get("link", "")))
+            if url.path == "/api/history":
+                return self._json(api_history())
             if url.path == "/api/fight":
                 return self._json(api_fight(q["code"], int(q["fight"])))
             if url.path == "/mplus":
