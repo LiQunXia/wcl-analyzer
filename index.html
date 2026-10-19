@@ -946,7 +946,7 @@ const params = new URLSearchParams(location.search);
 try { $("link").value = sessionStorage.getItem("wcl.raid.link") || ""; } catch {}
 if (params.get("r")) {
   const reportLink = `https://www.warcraftlogs.com/reports/${params.get("r")}`;
-  if (!$("link").value) $("link").value = reportLink;
+  $("link").value = reportLink;
   loadReport(reportLink, params.get("f") ? +params.get("f") : undefined);
 }
 </script>

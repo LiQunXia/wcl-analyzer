@@ -65,6 +65,44 @@ class TankRouteTest(unittest.TestCase):
         self.assertEqual([s[0]["map"] for s in p["segments"]], [5, 6])
         self.assertFalse(any(s["kind"] == "stop" for s in p["steps"]))
 
+    def test_explicit_floor_outside_pull_does_not_bridge_overlapping_maps(self):
+        other_floor = dict(self.fight["dungeonReplay"]["maps"][0], mapID=6)
+        self.fight["dungeonReplay"]["maps"].append(other_floor)
+        self.paths["tracks"]["1"] = [
+            [t, 1000, 1000, 6 if 6 <= t < 18 else 5] for t in range(0, 24, 2)
+        ]
+        p = self.analyse()[0]
+        self.assertEqual([[q["t"] for q in s] for s in p["segments"]],
+                         [[0, 2, 4], [18, 20, 22]])
+        self.assertTrue(all(q["map"] == 5 for s in p["segments"] for q in s))
+
+    def test_explicit_floor_outside_pull_keeps_join_without_coordinates_or_stop(self):
+        other_floor = dict(self.fight["dungeonReplay"]["maps"][0], mapID=6)
+        self.fight["dungeonReplay"]["maps"].append(other_floor)
+        self.paths["tracks"]["1"] = [[t, 1000, 1000, 6] for t in range(0, 14, 2)]
+        self.paths["contacts"] = [self.contact(11, 1, 6)]
+        p = self.analyse()[0]
+        self.assertEqual(p["observed"], 1)
+        self.assertEqual(len(p["steps"]), 1)
+        join = p["steps"][0]
+        self.assertEqual(join["kind"], "join")
+        self.assertEqual(join["members"], self.paths["contacts"])
+        for key in ("x", "y", "map"):
+            self.assertNotIn(key, join)
+        self.assertEqual(p["segments"], [])
+
+    def test_missing_floor_still_infers_unique_pull_map_from_coordinates(self):
+        for floor in ([], [None]):
+            with self.subTest(floor=floor):
+                self.paths["tracks"]["1"] = [[t, 1000, 1000] + floor for t in range(0, 14, 2)]
+                self.paths["contacts"] = [self.contact(11, 1, 6)]
+                p = self.analyse()[0]
+                self.assertEqual(len(p["segments"]), 1)
+                self.assertTrue(all(q["map"] == 5 for q in p["segments"][0]))
+                self.assertEqual({s["kind"] for s in p["steps"]}, {"join", "stop"})
+                for step in p["steps"]:
+                    self.assertEqual((step["x"], step["y"], step["map"]), (1000, 1000, 5))
+
     def test_one_enemy_is_not_reintroduced_when_wcl_splits_a_chain(self):
         one = self.fight["dungeonPulls"][0]
         one["end_time"] = 125000

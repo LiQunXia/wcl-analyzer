@@ -90,4 +90,4 @@ Then open <http://127.0.0.1:8000>. On Windows, replace the last command with `.v
 
 See [AGENTS.md](AGENTS.md) for the code layout, tests, and packaging.
 
-Run offline tests with `.venv/bin/python -m unittest discover -s tests`, including locale propagation, concurrent request/cache isolation, and localized MDT exports.
+Run offline tests with `.venv/bin/python -m unittest discover -s tests`, including floor transitions, locale propagation, concurrent request/cache isolation, and localized MDT exports. Report-link boot and Analyze button regression tests require Node.js and are skipped when it is unavailable.

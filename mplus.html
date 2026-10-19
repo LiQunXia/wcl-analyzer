@@ -1812,14 +1812,15 @@ window.addEventListener("resize", () => { if (D()) { state.view = null; drawMap(
 /* ---------- boot ---------- */
 
 const params = new URLSearchParams(location.search);
+const urlReport = params.get("r");
 $("link").value = restoredReview?.link || "";
-if (!params.get("r") && restoredReview?.code) {
+if (!urlReport && restoredReview?.code) {
   params.set("r", restoredReview.code);
   if (restoredReview.runId != null) params.set("f", restoredReview.runId);
 }
 if (params.get("r")) {
   const reportLink = `https://www.warcraftlogs.com/reports/${params.get("r")}`;
-  if (!$("link").value) $("link").value = reportLink;
+  if (urlReport || !$("link").value) $("link").value = reportLink;
   loadReport(reportLink, params.get("f") ? +params.get("f") : undefined);
 }
 </script>
