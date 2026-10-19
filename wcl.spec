@@ -29,6 +29,9 @@ datas += [
     (str(ROOT / "i18n.js"), "."),
     (str(ROOT / "cooldowns.json"), "."),
     (str(ROOT / "mplus_spells.json"), "."),
+    (str(ROOT / "mdt_dungeons.json"), "."),
+    (str(ROOT / "licenses" / "MDT-DATA-NOTICE.txt"), "licenses"),
+    (str(ROOT / "licenses" / "MDT-GPL-2.0.txt"), "licenses"),
 ]
 
 a = Analysis(

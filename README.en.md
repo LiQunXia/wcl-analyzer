@@ -57,7 +57,7 @@ Click “大秘境复盘” (Mythic+ Review) at the top of the page, paste a Myt
 
 **Spell settings:** Click “技能设置” above the timeline to search this run's abilities by name or ID. Uncheck an ability to hide it, or check an unclassified ability to monitor it. Individual choices override category filters and apply to the timeline and pull-list icons. Settings are saved in the current browser and can be reset individually or together.
 
-**MDT export:** Click “导出 MDT” (Export MDT) in the map toolbar to generate a `!~MDT2~` string. Paste it into the Mythic Dungeon Tools route import box. MDT must be installed locally.
+**MDT export:** Click “导出 MDT” (Export MDT) in the map toolbar to generate a `!~MDT2~` string. The dungeon data used to build the route is bundled with the app; no setup is needed. Paste the string into Mythic Dungeon Tools' route import box in game.
 
 ## FAQ
 
@@ -69,7 +69,6 @@ Click “大秘境复盘” (Mythic+ Review) at the top of the page, paste a Myt
 | WCL asks for human verification | Click “I am a human and not a bot” in the small window yourself. |
 | The first analysis is slow | The first run has to fetch data from WCL (Mythic+ replay can take tens of seconds); later runs use the local cache. |
 | Spell icons show as gray question marks | Icons are fetched from WCL/Blizzard and cached locally; refresh after Warcraft Logs is reachable. Wowhead images are blocked in mainland China, but that does not affect icons (only Wowhead hover tooltips). |
-| MDT export cannot find the addon | Install Mythic Dungeon Tools. If it is in a non-default location, set `WCL_MDT_PATH` to the addon directory. |
 
 All caches stay on your computer: `%LOCALAPPDATA%\WCLAnalyzer` on Windows and `~/WCLAnalyzer` on macOS. Deleting them is safe; the app will simply fetch data again.
 

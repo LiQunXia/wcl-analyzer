@@ -38,8 +38,34 @@ class SpellSelectionApiTest(unittest.TestCase):
         with (patch.object(server, "report_meta", return_value=self.meta),
               patch.object(server, "graph", side_effect=[self.graph, {}, {}]),
               patch.object(server, "source_graph", return_value={}),
+              patch.object(server, "remember_review"),
               patch.object(server, "mplus_buff_events", return_value=self.buffs) as fetch):
             return server.api_mplus("report", 2, extra), fetch.call_args
+
+    def test_custom_selection_preserves_defensive_evidence_and_review_history(self):
+        self.meta["friendlies"][0]["icon"] = "Warrior-Arms"
+        self.buffs = [self.buff(999003, "自选技能"), self.buff(118038, "剑在人在")]
+        self.buffs[1]["timestamp"] = self.start + 5000
+        damage = [{"timestamp": self.start + 5300, "type": "damage", "targetID": 1,
+                   "sourceID": 73, "sourceIsFriendly": False,
+                   "ability": {"guid": 12345, "name": "Boss hit"}, "amount": 100000}]
+        with (patch.object(server, "report_meta", return_value=self.meta),
+              patch.object(server, "graph", side_effect=[self.graph, {}, {}, {}]),
+              patch.object(server, "source_graph", return_value={}),
+              patch.object(server, "mplus_buff_events", return_value=self.buffs),
+              patch.object(server, "mplus_debuff_events", return_value=[]),
+              patch.object(server, "mplus_damage_taken_events", return_value=damage) as fetch,
+              patch.object(server, "remember_review") as remember):
+            data = server.api_mplus("report", 2, [999001])
+        cast, = data["pulls"][0]["casts"]
+        self.assertEqual(cast["purposes"][0]["name"], "Boss hit")
+        buff = next(b for b in data["buffs"] if b["spell"] == 118038)
+        self.assertEqual(buff["purpose"], cast["purposes"][0])
+        custom = next(b for b in data["buffs"] if b["spell"] == 999003)
+        self.assertEqual(custom["trackSpell"], 999001)
+        self.assertNotIn("purpose", custom)
+        self.assertEqual(fetch.call_args.args[4], ["战士"])
+        remember.assert_called_once_with("report", 2, "mplus", data["run"])
 
     def test_default_catalog_includes_full_run_casts_and_ignores_unselected_auras(self):
         # This native buff belongs to the player's class but has no cast in this run.

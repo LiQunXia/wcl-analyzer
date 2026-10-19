@@ -83,17 +83,4 @@ WCL_DATA_DIR="$HOME/Library/Application Support/WCLAnalyzer" ./WCL-Analyzer
 
 ## 导出 MDT 路线
 
-macOS 版会默认在下面几个位置找 Mythic Dungeon Tools 插件：
-
-```text
-/Applications/World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools
-~/Applications/World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools
-~/World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools
-~/Games/World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools
-```
-
-插件装在别处时，启动前用 `WCL_MDT_PATH` 指过去：
-
-```sh
-WCL_MDT_PATH="/Volumes/Games/World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools" ./WCL-Analyzer
-```
+导出所需的 MDT 地下城与怪物数据已随程序内置，无需另外安装插件或配置路径。复制导入字符串后，在游戏内 MDT 选择对应地下城并导入即可。

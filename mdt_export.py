@@ -1,8 +1,7 @@
 """Export a Warcraft Logs Mythic+ run as an importable Mythic Dungeon Tools route.
 
-The addon's current export format is ``!~MDT2~`` + Base64(RawDeflate(CBOR(preset))).
-Dungeon/enemy data is read from the locally installed MDT addon, so no addon data is
-bundled or redistributed with this project.
+The route uses MDT's ``!~MDT2~`` format and a compact dungeon catalog bundled with
+this application.
 """
 
 from __future__ import annotations
@@ -10,10 +9,9 @@ from __future__ import annotations
 import base64
 import collections
 import hashlib
+import json
 import math
-import os
 import re
-import sys
 import zlib
 from pathlib import Path
 
@@ -21,221 +19,34 @@ from localization import translate
 
 PREFIX = "!~MDT2~"
 
-COMMON_MDT_PATHS = (
-    "/Applications/World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools",
-    "~/Applications/World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools",
-    "~/World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools",
-    "~/Games/World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools",
-    "C:/Program Files (x86)/World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools",
-    "C:/Program Files/World of Warcraft/_retail_/Interface/AddOns/MythicDungeonTools",
-)
-
 
 class MdtError(Exception):
     pass
 
 
-def wow_addon_dirs() -> list[str]:
-    """WoW ``_retail_`` folders, including installs on a non-default Windows drive.
-
-    The registry is authoritative on Windows, so a game installed at
-    ``D:/Games/World of Warcraft`` is found without asking the user.
-    """
-    found: list[str] = []
-    if sys.platform == "win32":
-        try:
-            import winreg
-        except ImportError:
-            return found
-        for key in (
-            r"SOFTWARE\WOW6432Node\Blizzard Entertainment\World of Warcraft",
-            r"SOFTWARE\Blizzard Entertainment\World of Warcraft",
-        ):
-            try:
-                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key) as handle:
-                    install, _ = winreg.QueryValueEx(handle, "InstallPath")
-            except OSError:
-                continue
-            found.append(str(Path(install) / "_retail_"))
-    return found
-
-
-def find_mdt_dir() -> Path | None:
-    """Find the installed MDT addon. An explicit path can be provided with WCL_MDT_PATH."""
-    discovered = [
-        str(Path(base) / "Interface/AddOns/MythicDungeonTools") for base in wow_addon_dirs()
-    ]
-    candidates = [
-        os.environ.get("WCL_MDT_PATH"),
-        os.environ.get("MDT_PATH"),
-        *discovered,
-        *COMMON_MDT_PATHS,
-    ]
-    for raw in candidates:
-        if not raw:
-            continue
-        path = Path(raw).expanduser()
-        if path.name.lower() == "mythicdungeontools" and path.is_dir():
-            return path
-        nested = path / "MythicDungeonTools"
-        if nested.is_dir():
-            return nested
-    return None
-
-
-# ---------- Lua data parser (only the subset used by MDT dungeon files) ----------
-
-class _LuaParser:
-    def __init__(self, text: str, pos: int = 0):
-        self.text = text
-        self.pos = pos
-
-    def _skip(self) -> None:
-        text, n = self.text, len(self.text)
-        while self.pos < n:
-            ch = text[self.pos]
-            if ch in " \t\r\n,":
-                self.pos += 1
-            elif text.startswith("--", self.pos):
-                nl = text.find("\n", self.pos)
-                self.pos = n if nl < 0 else nl + 1
-            else:
-                break
-
-    def parse_table(self) -> dict:
-        self._skip()
-        if self.text[self.pos] != "{":
-            raise MdtError(translate("MDT 数据格式异常：需要 Lua table", "Invalid MDT data: expected a Lua table"))
-        self.pos += 1
-        out: dict = {}
-        index = 0
-        while True:
-            self._skip()
-            if self.pos >= len(self.text):
-                raise MdtError(translate("MDT 数据格式异常：Lua table 未闭合", "Invalid MDT data: unclosed Lua table"))
-            if self.text[self.pos] == "}":
-                self.pos += 1
-                return out
-            if self.text[self.pos] == "[":
-                self.pos += 1
-                self._skip()
-                key = self._parse_scalar()
-                self._skip()
-                if self.text[self.pos] != "]":
-                    raise MdtError(translate("MDT 数据格式异常：缺少 ]", "Invalid MDT data: missing ]"))
-                self.pos += 1
-                self._skip()
-                if self.text[self.pos] != "=":
-                    raise MdtError(translate("MDT 数据格式异常：缺少 =", "Invalid MDT data: missing ="))
-                self.pos += 1
-                out[key] = self._parse_value()
-                continue
-            # Bare identifier key, e.g. normal = 655 (not used inside dungeonEnemies).
-            m = re.match(r"[A-Za-z_][A-Za-z0-9_]*\s*=", self.text[self.pos:])
-            if m:
-                key = m.group(0).split("=")[0].strip()
-                self.pos += m.end()
-                out[key] = self._parse_value()
-                continue
-            index += 1
-            out[index] = self._parse_value()
-
-    def _parse_value(self):
-        self._skip()
-        ch = self.text[self.pos]
-        if ch == "{":
-            return self.parse_table()
-        if ch in "\"'":
-            return self._parse_string()
-        m = re.match(r"-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?", self.text[self.pos:])
-        if m:
-            raw = m.group(0)
-            self.pos += len(raw)
-            return float(raw) if any(c in raw for c in ".eE") else int(raw)
-        for word, value in (("true", True), ("false", False), ("nil", None)):
-            if self.text.startswith(word, self.pos):
-                self.pos += len(word)
-                return value
-        raise MdtError(translate(f"MDT 数据格式异常：无法解析 {self.text[self.pos:self.pos + 30]!r}",
-                                 f"Invalid MDT data: cannot parse {self.text[self.pos:self.pos + 30]!r}"))
-
-    def _parse_scalar(self):
-        m = re.match(r"-?\d+(?:\.\d+)?", self.text[self.pos:])
-        if m:
-            raw = m.group(0)
-            self.pos += len(raw)
-            return int(raw)
-        if self.text[self.pos] in "\"'":
-            return self._parse_string()
-        raise MdtError(translate("MDT 数据格式异常：不支持的 table key", "Invalid MDT data: unsupported table key"))
-
-    def _parse_string(self) -> str:
-        quote = self.text[self.pos]
-        self.pos += 1
-        out = []
-        while self.pos < len(self.text):
-            ch = self.text[self.pos]
-            if ch == quote:
-                self.pos += 1
-                return "".join(out)
-            if ch == "\\":
-                self.pos += 1
-                esc = self.text[self.pos]
-                mapping = {"n": "\n", "t": "\t", "r": "\r", "\\": "\\", "'": "'", '"': '"'}
-                if esc.isdigit():
-                    digits = self.text[self.pos:self.pos + 3]
-                    m = re.match(r"\d{1,3}", digits)
-                    out.append(chr(int(m.group(0))))
-                    self.pos += len(m.group(0))
-                    continue
-                out.append(mapping.get(esc, esc))
-                self.pos += 1
-                continue
-            out.append(ch)
-            self.pos += 1
-        raise MdtError(translate("MDT 数据格式异常：字符串未闭合", "Invalid MDT data: unclosed string"))
-
-
-def _read_text(path: Path) -> str:
-    return path.read_text("utf-8", errors="replace")
-
-
-def _locale_names(mdt_dir: Path) -> dict[str, set[str]]:
-    names: dict[str, set[str]] = collections.defaultdict(set)
-    for locale in ("zhCN", "enUS", "zhTW"):
-        path = mdt_dir / "Locales" / f"{locale}.lua"
-        if not path.exists():
-            continue
-        for key, value in re.findall(r'L\["([^"]+)"\]\s*=\s*"((?:[^"\\]|\\.)*)"', _read_text(path)):
-            names[key].add(value.replace('\\"', '"').replace("\\\\", "\\"))
-    return names
-
-
-def _catalog(mdt_dir: Path) -> list[dict]:
-    locales = _locale_names(mdt_dir)
-    catalog = []
-    for sub in sorted(mdt_dir.iterdir()):
-        if not sub.is_dir() or sub.name in {"Locales", "Modules", "Core", "Textures", "libs", "AceGUIWidgets"}:
-            continue
-        for path in sorted(sub.glob("*.lua")):
-            text = _read_text(path)
-            m = re.search(r"local\s+dungeonIndex\s*=\s*(\d+)", text)
-            if not m:
-                continue
-            index = int(m.group(1))
-            key = re.search(r'MDT\.dungeonList\[dungeonIndex\]\s*=\s*L\["([^"]+)"\]', text)
-            english = re.search(r'englishName\s*=\s*"([^"]*)"', text)
-            names = {english.group(1)} if english else set()
-            if key:
-                names.add(key.group(1))
-                names.update(locales.get(key.group(1), set()))
-            catalog.append({"index": index, "path": path, "key": key.group(1) if key else "",
-                            "names": {n for n in names if n}})
+def load_dungeons(path: Path) -> list[dict]:
+    """Load the compact MDT dungeon catalog bundled with the application."""
+    try:
+        catalog = json.loads(path.read_text("utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise MdtError(translate("内置 MDT 数据无法读取。", "Unable to read bundled MDT data.")) from exc
+    if not isinstance(catalog, list):
+        raise MdtError(translate("内置 MDT 数据格式异常。", "Invalid bundled MDT data."))
+    try:
+        for dungeon in catalog:
+            dungeon["enemies"] = {
+                int(enemy_idx): {
+                    **enemy,
+                    "clones": {int(clone_idx): clone for clone_idx, clone in enemy["clones"].items()},
+                }
+                for enemy_idx, enemy in dungeon["enemies"].items()
+            }
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        raise MdtError(translate("内置 MDT 数据格式异常。", "Invalid bundled MDT data.")) from exc
     return catalog
 
 
-def _match_dungeon(mdt_dir: Path, run_name: str) -> dict:
-    catalog = _catalog(mdt_dir)
+def _match_dungeon(catalog: list[dict], run_name: str) -> dict:
     wanted = re.sub(r"\s+", "", run_name or "").casefold()
     for entry in catalog:
         if any(re.sub(r"\s+", "", n).casefold() == wanted for n in entry["names"]):
@@ -243,18 +54,8 @@ def _match_dungeon(mdt_dir: Path, run_name: str) -> dict:
     for entry in catalog:
         if any(wanted and (wanted in re.sub(r"\s+", "", n).casefold()) for n in entry["names"]):
             return entry
-    raise MdtError(translate(f"MDT 里没有找到与「{run_name}」对应的地下城，请确认 MDT 已更新。",
-                             f"No MDT dungeon matches ‘{run_name}’. Make sure MDT is up to date."))
-
-
-def _load_enemies(path: Path) -> dict:
-    text = _read_text(path)
-    m = re.search(r"MDT\.dungeonEnemies\s*\[\s*dungeonIndex\s*\]\s*=\s*\{", text)
-    if not m:
-        raise MdtError(translate(f"无法从 {path.name} 读取 MDT 怪物数据。",
-                                 f"Unable to read MDT enemy data from {path.name}."))
-    parser = _LuaParser(text, m.end() - 1)
-    return parser.parse_table()
+    raise MdtError(translate(f"内置 MDT 数据里没有找到与「{run_name}」对应的地下城。",
+                             f"No dungeon matches ‘{run_name}’ in the bundled MDT data."))
 
 
 def _build_groups(enemies: dict) -> list[dict]:
@@ -465,10 +266,11 @@ def _route_objects(tank_route, pulls, assignments, groups, enemies):
     return objects
 
 
-def build_route(mdt_dir: Path, run: dict, pulls: list[dict], code: str = "", fight_id: int = 0,
+def build_route(data_path: Path, run: dict, pulls: list[dict], code: str = "", fight_id: int = 0,
                 tank_route: dict | None = None) -> dict:
-    dungeon = _match_dungeon(mdt_dir, run.get("name") or "")
-    enemies = _load_enemies(dungeon["path"])
+    catalog = load_dungeons(data_path)
+    dungeon = _match_dungeon(catalog, run.get("name") or "")
+    enemies = dungeon["enemies"]
     groups = _build_groups(enemies)
     if not groups:
         raise MdtError(translate("MDT 怪物数据为空，无法生成路线。", "MDT enemy data is empty; a route cannot be generated."))
