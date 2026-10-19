@@ -449,7 +449,8 @@
       <summary>数据口径与采样说明</summary>
       <p>数据来自 Warcraft Logs：波次、怪物和位置来自 WCL 的大秘境拉怪划分与战斗回放；技能按 <code>mplus_spells.json</code> 中的法术 ID 分类，药水按名称识别。
         一波的技能时间线包含开怪前 12 秒（灰底，便于看预铺/提前开爆发）。“进度”按该波内被击杀怪物的小怪值计算；若某一波怪物被并入下一波一起击杀，进度会记在下一波。
-        走位轨迹由回放事件中队员的坐标每 2 秒采样一次，脱战跑图时如无事件则会有空隙。</p>
+        走位轨迹由回放事件中队员的坐标每 2 秒采样一次，脱战跑图时如无事件则会有空隙。
+        非坦克减伤技能旁的关联记录按施放前 1 秒至后 6 秒内的承伤/免疫事件、前后 0.75 秒内的减益移除及附近敌方施法推断；优先显示施放目标实际承受或免疫的伤害，并附上伤害来源；仅表示时间接近，不代表确定因果。</p>
     </details>
   </div>
 </main>
@@ -613,6 +614,7 @@ const staticLabels = new Map([
   ["数据口径与采样说明", "Data sources and sampling"],
   ["数据来自 Warcraft Logs：波次、怪物和位置来自 WCL 的大秘境拉怪划分与战斗回放；技能按", "Data comes from Warcraft Logs. Pulls, enemies, and positions use WCL’s Mythic+ pull segmentation and combat replay. Abilities are categorized by spell ID in "],
   ["中的法术 ID 分类，药水按名称识别。 一波的技能时间线包含开怪前 12 秒（灰底，便于看预铺/提前开爆发）。“进度”按该波内被击杀怪物的小怪值计算；若某一波怪物被并入下一波一起击杀，进度会记在下一波。 走位轨迹由回放事件中队员的坐标每 2 秒采样一次，脱战跑图时如无事件则会有空隙。", "; potions are identified by name. Each pull timeline includes 12 seconds before combat (gray background) to show preparation and early cooldowns. Forces are credited to the pull in which enemies die, including enemies carried from earlier pulls. Party positions are sampled from replay events every 2 seconds; travel outside combat may have gaps when no events are recorded."],
+  ["非坦克减伤技能旁的关联记录按施放前 1 秒至后 6 秒内的承伤/免疫事件、前后 0.75 秒内的减益移除及附近敌方施法推断；优先显示施放目标实际承受或免疫的伤害，并附上伤害来源；仅表示时间接近，不代表确定因果。", "For non-tank defensives, nearby evidence comes from damage or immunity events within 1 second before or 6 seconds after the cast, debuff removals within 0.75 seconds, and nearby enemy casts. The tooltip prefers damage actually taken or avoided by the protected player and names the damage source. Timing alone does not prove causality."],
   ["导出 MDT 路线", "Export MDT route"],
   ["复制导入字符串", "Copy import string"],
   ["路线所需的 MDT 地下城数据已随程序内置，无需额外安装插件即可生成字符串。在游戏内 MDT 选择对应地下城，打开路线菜单并“导入”，粘贴上面的字符串即可。波次按 WCL 的战斗数据自动匹配到 MDT 怪物组，个别召唤物/可选怪可能略有出入，导入后可直接在 MDT 里调整。", "The dungeon data required for route export is bundled with the app; MDT does not need to be installed to generate a string. In game, select the dungeon in MDT, open the route menu, choose Import, and paste the string. Pulls are matched to MDT enemy groups using WCL combat data. Some summons or optional enemies may differ; adjust the imported route in MDT as needed."],
@@ -1041,7 +1043,37 @@ function buffTooltip(b, p, pl, by) {
   const castTime = b.cast?.t ?? b.t;
   return `<b>${esc(b.name)}</b> · <span style="color:${CAT_COLOR[b.cat]}">${CAT_ZH[b.cat] || t("增益", "Buff")}</span>
     <br><span class=t>${t("波内", "Pull time")} ${signed(castTime - p.start)} · ${t("全程", "Run time")} ${mmss(castTime)}</span>
-    ${source && source.id !== pl.id ? `<br>${t("来源：", "Source: ")}<span style="color:${CLASS_COLOR[source.cls] || "var(--text)"}">${esc(source.name)}</span>` : ""}`;
+    ${source && source.id !== pl.id ? `<br>${t("来源：", "Source: ")}<span style="color:${CLASS_COLOR[source.cls] || "var(--text)"}">${esc(source.name)}</span>` : ""}
+    ${defensivePurposeTooltip(b.purpose ? [b.purpose] : b.cast?.purposes)}`;
+}
+
+function defensivePurposeTooltip(purposes) {
+  if (!Array.isArray(purposes) || !purposes.length) return "";
+  const labels = {
+    immune: t("免疫/完全减免", "Immune / fully avoided"),
+    mitigated: t("完全减免", "Fully mitigated"),
+    dot: t("持续伤害", "Damage over time"),
+    damage: t("承受伤害", "Damage taken"),
+    debuff: t("同期移除减益", "Debuff removed nearby"),
+    enemy_cast: t("附近敌方施法", "Nearby enemy cast"),
+    unknown: t("附近没有直接关联的伤害/减益记录", "No nearby damage or debuff event found"),
+  };
+  return purposes.map((purpose) => {
+    if (purpose.kind === "unknown") return `<br><span class=t>${labels.unknown}</span>`;
+    const timing = Number.isFinite(purpose.delta)
+      ? ` <span class=t>(${purpose.delta >= 0 ? "+" : ""}${purpose.delta.toFixed(1)}s)</span>` : "";
+    const unmitigated = Number.isFinite(purpose.unmitigated) ? purpose.unmitigated : 0;
+    const amount = Number.isFinite(purpose.amount) ? purpose.amount : 0;
+    const hit = purpose.kind === "immune" && unmitigated > 0
+      ? ` · ${t("免疫伤害", "Avoided")} ${wan(unmitigated)}`
+      : purpose.kind === "mitigated" && unmitigated > 0
+      ? ` · ${t("减免伤害", "Mitigated")} ${wan(unmitigated)}`
+      : purpose.kind === "damage" && amount > 0
+      ? ` · ${t("承受", "Taken")} ${wan(amount)}` : "";
+    const target = purpose.target ? ` · ${t("目标", "Target")} ${esc(purpose.target)}` : "";
+    const source = purpose.source ? ` · ${t("来源", "Source")} ${esc(purpose.source)}` : "";
+    return `<br><span class=t>${t("附近记录：", "Nearby log evidence: ")}${labels[purpose.kind] || t("相关事件", "Related event")}</span> ${esc(purpose.name || "")}${timing}${hit}${target}${source}`;
+  }).join("");
 }
 
 function placeTimelineItems(items, span0, span, width) {
@@ -1082,7 +1114,7 @@ function layoutDetailTimeline() {
       if (it.kind === "death") return `<div class="timeline-item" style="left:${left}px;top:${4 + row * 28}px;width:${right - left}px">
         <div class="ic death" style="left:${icon - left}px" data-tip="${esc(`<b style='color:${CLASS_COLOR[pl.cls]}'>${esc(pl.name)}</b> ${t("死亡", "Deaths")}<br><span class=t>${t("波内", "Pull time")} ${off} · ${t("全程", "Run time")} ${mmss(it.t)}</span><br>${t("致死：", "Fatal ability: ")}${esc(it.name || t("未知", "Unknown"))}`)}">💀</div></div>`;
       const isBuff = it.kind === "buff";
-      const tooltip = isBuff ? buffTooltip(it, p, pl, by) : `<b>${esc(it.name)}</b> · <span style='color:${CAT_COLOR[it.cat]}'>${CAT_ZH[it.cat]}</span><br><span class=t>${t("波内", "Pull time")} ${off} · ${t("全程", "Run time")} ${mmss(it.t)}</span>`;
+      const tooltip = isBuff ? buffTooltip(it, p, pl, by) : `<b>${esc(it.name)}</b> · <span style='color:${CAT_COLOR[it.cat]}'>${CAT_ZH[it.cat]}</span><br><span class=t>${t("波内", "Pull time")} ${off} · ${t("全程", "Run time")} ${mmss(it.t)}</span>${defensivePurposeTooltip(it.purposes)}`;
       const barClasses = isBuff ? ["buff-line", it.t < span0 ? "continues-start" : "", it.end > p.end ? "continues-end" : "",
         it.endKnown === false ? "unknown-end" : ""].join(" ") : "";
       return `<div class="timeline-item" style="left:${left}px;top:${4 + row * 28}px;width:${right - left}px;--cc:${CAT_COLOR[it.cat]}" data-tip="${esc(tooltip)}">
