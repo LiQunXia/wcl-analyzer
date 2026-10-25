@@ -4176,11 +4176,11 @@
     "index": 153,
     "key": "MagistersTerrace",
     "names": [
-      "Magister's Terrace",
       "Magisters Terrace",
       "MagistersTerrace",
       "博學者殿堂",
-      "魔导师平台"
+      "魔导师平台",
+      "Magisters' Terrace"
     ],
     "enemies": {
       "1": {
@@ -9838,8 +9838,9 @@
     "names": [
       "Nexus Point Xenas",
       "NexusPointXenas",
-      "奧核節點希納斯",
-      "节点希纳斯"
+      "节点希纳斯",
+      "Nexus-Point Xenas",
+      "奧核點瑟納斯"
     ],
     "enemies": {
       "1": {
@@ -18368,7 +18369,7 @@
       "Voidscar Arena",
       "VoidscarArena",
       "虚空之痕竞技场",
-      "虛無之痕競技場"
+      "虛痕競技場"
     ],
     "enemies": {
       "1": {
